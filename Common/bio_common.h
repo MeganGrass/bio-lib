@@ -19,6 +19,11 @@
 #include <string>
 
 
+#define BIO1_CAMERA_MAX		8
+#define BIO2_CAMERA_MAX		16
+#define BIO3_CAMERA_MAX		32
+
+
 enum class Resident_Evil_Video_Game : std::uint64_t
 {
 	Resident_Evil_Aug_4_1995 = 1 << 0,

@@ -333,6 +333,7 @@ std::uintmax_t Resident_Evil_Animation::SaveEMR(StdFile& File, std::uintmax_t _P
 
 	if ((std::to_underlying(Game) & (AUG95 | OCT95)) || (std::to_underlying(Type) & (WEAPON)))
 	{
+		File.Close();
 		File.ResizeAlign(4);
 		return _Ptr + FileSize;
 	}

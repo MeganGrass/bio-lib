@@ -22,4 +22,11 @@ struct ITEM_WORK
 };
 
 
+struct DATA_POS
+{
+    std::uint32_t Offset;
+    std::uint32_t Size;
+};
+
+
 #pragma pack(pop)

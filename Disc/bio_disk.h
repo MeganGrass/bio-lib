@@ -104,11 +104,17 @@ private:
 	// List of Capcom Executables
 	std::vector<Capcom_Executable> List;
 
-	// Sony PlayStation Executable
-	std::unique_ptr<Sony_PlayStation_Executable> Exe;
+	// Get disk version from integer
+	Capcom_Disk_Version GetVersion(std::uintmax_t Integral);
 
-	// Text Reader/Writer
-	std::unique_ptr<Standard_Text> Text;
+	// Get disk version string
+	std::string GetVersion(Capcom_Disk_Version Version);
+
+	// Get Filetype from path
+	Capcom_File GetFiletype(std::filesystem::path Path);
+
+	// Get Filetype string
+	std::string GetFiletype(Capcom_File Filetype);
 
 public:
 
@@ -117,13 +123,9 @@ public:
 	*/
 	explicit Capcom_Disk(void)
 	{
-		Exe = std::make_unique<Sony_PlayStation_Executable>();
-		Text = std::make_unique<Standard_Text>();
 	}
 	virtual ~Capcom_Disk(void)
 	{
-		Exe.reset();
-		Text.reset();
 	}
 
 	/*
@@ -135,26 +137,6 @@ public:
 		Command Line Interface
 	*/
 	void Commandline(StrVec Args);
-
-	/*
-		Get disk version from integer
-	*/
-	Capcom_Disk_Version GetVersion(std::uintmax_t Integral);
-
-	/*
-		Get disk version string
-	*/
-	std::string GetVersion(Capcom_Disk_Version Version);
-
-	/*
-		Get Filetype from path
-	*/
-	Capcom_File GetFiletype(std::filesystem::path Path);
-
-	/*
-		Get Filetype string
-	*/
-	std::string GetFiletype(Capcom_File Filetype);
 
 	/*
 		Update Capcom executable disk file list

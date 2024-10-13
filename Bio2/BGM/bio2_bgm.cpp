@@ -152,21 +152,21 @@ bool Resident_Evil_2_BGM::Extract(std::filesystem::path Input)
 		return false;
 	}
 
-	Text->AddLine(Text->FormatCStyle("bio2\tbgm\n"));
+	Text->AddLine("bio2\tbgm\n");
 
 	for (std::size_t i = 0; i < Bgm->Seq->GetMidiCount(); i++)
 	{
 		Filename = Str->FormatCStyle("%s\\%s\\%s_%02d.seq", Dir.string().c_str(), Input.stem().string().c_str(), Input.stem().string().c_str(), i);
-		Text->AddLine(Text->FormatCStyle("%s\n", Filename.filename().string().c_str()));
+		Text->AddLine("%s\n", Filename.filename().string().c_str());
 		Bgm->Seq->SaveSEQ(Filename, i);
 	}
 
 	Filename = Str->FormatCStyle("%s\\%s\\%s.vh", Dir.string().c_str(), Input.stem().string().c_str(), Input.stem().string().c_str());
-	Text->AddLine(Text->FormatCStyle("%s\n", Filename.filename().string().c_str()));
+	Text->AddLine("%s\n", Filename.filename().string().c_str());
 	Bgm->Vab->SaveVH(Filename);
 
 	Filename.replace_extension(".vb");
-	Text->AddLine(Text->FormatCStyle("%s\n", Filename.filename().string().c_str()));
+	Text->AddLine("%s\n", Filename.filename().string().c_str());
 	Bgm->Vab->SaveVB(Filename);
 
 	Text->FlushUTF8();

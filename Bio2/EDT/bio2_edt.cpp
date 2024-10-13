@@ -207,7 +207,7 @@ bool Resident_Evil_2_EDT::SaveAsText(std::filesystem::path Output)
 
 	for (std::size_t i = 0; i < Data.size(); i++)
 	{
-		Text->AddLine(Text->FormatCStyle("%d %d %d %d %d %d\n", Data[i].Vab_id, Data[i].Pan, Data[i].Tone_id, Data[i].Priority, Data[i].Sch, Data[i].Count));
+		Text->AddLine("%d %d %d %d %d %d\n", Data[i].Vab_id, Data[i].Pan, Data[i].Tone_id, Data[i].Priority, Data[i].Sch, Data[i].Count);
 	}
 
 	Text->FlushUTF8();

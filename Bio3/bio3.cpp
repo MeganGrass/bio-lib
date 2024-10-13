@@ -11,7 +11,7 @@
 *
 *	CREDIT:
 *
-*		BS Decode: https://github.com/pmandin/reevengi-tools
+*		BS Decode: https://github.com/XProger/OpenResident
 *
 *		SLD Decompression: https://github.com/pmandin/reevengi-tools
 *
@@ -29,7 +29,8 @@ void Resident_Evil_3::PrintHelp(void)
 	std::cout << "Resident Evil 3: Help" << std::endl << std::endl;
 	std::cout << "\tBSS <file> - Extract contents of BSS file container" << std::endl;
 	std::cout << "\tSLD <file> - Decompress SLD file" << std::endl << std::endl;
-	std::cout << "BS decode, SLD decompression: https://github.com/pmandin/reevengi-tools" << std::endl;
+	std::cout << "BS decode: https://github.com/XProger/OpenResident" << std::endl;
+	std::cout << "SLD decompression: https://github.com/pmandin/reevengi-tools" << std::endl;
 }
 
 
@@ -175,11 +176,11 @@ bool Resident_Evil_3::ExtractBSS(std::filesystem::path Input)
 		return false;
 	}
 
-	std::filesystem::path Dir = m_Input.GetDirectory() / m_Input.GetFileName().stem();
+	GetStageRoom(m_Input.GetFileName().stem().string());
+
+	std::filesystem::path Dir = m_Input.GetDirectory() / Str->FormatCStyle("ROOM%X%02X", Stage, Room);
 
 	m_Input.CreateDirectory(Dir);
-
-	GetStageRoom(m_Input.GetFileName().stem().string());
 
 	uintmax_t pBs = 0;
 

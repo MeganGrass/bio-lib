@@ -208,7 +208,7 @@ bool Resident_Evil_Model::Extract(std::filesystem::path Input, Resident_Evil_Vid
 		return false;
 	}
 
-	Text->AddLine(Text->FormatCStyle("bio1\temd\t%d\n", Emd->GetGame()));
+	Text->AddLine("bio1\temd\t%d\n", Emd->GetGame());
 
 	// Animation
 	for (std::size_t i = 0; i < Emd->Anim.size(); i++)
@@ -216,10 +216,10 @@ bool Resident_Evil_Model::Extract(std::filesystem::path Input, Resident_Evil_Vid
 		if (Emd->Anim[i]->IsOpen())
 		{
 			Filename = Str->FormatCStyle("%s\\%s\\%s_%02d.emr", Dir.string().c_str(), Input.stem().string().c_str(), Input.stem().string().c_str(), i);
-			Text->AddLine(Text->FormatCStyle("%s\n", Filename.filename().string().c_str()));
+			Text->AddLine("%s\n", Filename.filename().string().c_str());
 			Emd->Anim[i]->SaveEMR(Filename);
 			Filename = Str->FormatCStyle("%s\\%s\\%s_%02d.edd", Dir.string().c_str(), Input.stem().string().c_str(), Input.stem().string().c_str(), i);
-			Text->AddLine(Text->FormatCStyle("%s\n", Filename.filename().string().c_str()));
+			Text->AddLine("%s\n", Filename.filename().string().c_str());
 			Emd->Anim[i]->SaveEDD(Filename);
 		}
 	}
@@ -228,7 +228,7 @@ bool Resident_Evil_Model::Extract(std::filesystem::path Input, Resident_Evil_Vid
 	if (Emd->Tmd->IsOpen())
 	{
 		Filename = Str->FormatCStyle("%s\\%s\\%s.tmd", Dir.string().c_str(), Input.stem().string().c_str(), Input.stem().string().c_str());
-		Text->AddLine(Text->FormatCStyle("%s\n", Filename.filename().string().c_str()));
+		Text->AddLine("%s\n", Filename.filename().string().c_str());
 		Emd->Tmd->Save(Filename);
 	}
 
@@ -236,7 +236,7 @@ bool Resident_Evil_Model::Extract(std::filesystem::path Input, Resident_Evil_Vid
 	if (Emd->Tim->IsOpen())
 	{
 		Filename = Str->FormatCStyle("%s\\%s\\%s.tim", Dir.string().c_str(), Input.stem().string().c_str(), Input.stem().string().c_str());
-		Text->AddLine(Text->FormatCStyle("%s\n", Filename.filename().string().c_str()));
+		Text->AddLine("%s\n", Filename.filename().string().c_str());
 		Emd->Tim->Save(Filename);
 
 		// BMP

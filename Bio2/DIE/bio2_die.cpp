@@ -106,10 +106,10 @@ bool Resident_Evil_2_DIE::Extract(std::filesystem::path Input)
 		return false;
 	}
 
-	Text->AddLine(Text->FormatCStyle("bio2\tdie\n"));
+	Text->AddLine("bio2\tdie\n");
 
 	Filename = Str->FormatCStyle("%s\\%s\\%s.tim", Dir.string().c_str(), Input.stem().string().c_str(), Input.stem().string().c_str());
-	Text->AddLine(Text->FormatCStyle("%s\n", Filename.filename().string().c_str()));
+	Text->AddLine("%s\n", Filename.filename().string().c_str());
 	Die->Tim->Save(Filename);
 
 	std::unique_ptr<Standard_Image> Image = Die->Tim->GetBitmap();
@@ -117,15 +117,15 @@ bool Resident_Evil_2_DIE::Extract(std::filesystem::path Input)
 	Image->Close();
 
 	Filename = Str->FormatCStyle("%s\\%s\\edt.ini", Dir.string().c_str(), Input.stem().string().c_str());
-	Text->AddLine(Text->FormatCStyle("%s\n", Filename.filename().string().c_str()));
+	Text->AddLine("%s\n", Filename.filename().string().c_str());
 	Die->Edt->SaveAsText(Filename);
 
 	Filename = Str->FormatCStyle("%s\\%s\\%s.vh", Dir.string().c_str(), Input.stem().string().c_str(), Input.stem().string().c_str());
-	Text->AddLine(Text->FormatCStyle("%s\n", Filename.filename().string().c_str()));
+	Text->AddLine("%s\n", Filename.filename().string().c_str());
 	Die->Vab->SaveVH(Filename);
 
 	Filename = Str->FormatCStyle("%s\\%s\\%s.vb", Dir.string().c_str(), Input.stem().string().c_str(), Input.stem().string().c_str());
-	Text->AddLine(Text->FormatCStyle("%s\n", Filename.filename().string().c_str()));
+	Text->AddLine("%s\n", Filename.filename().string().c_str());
 	Die->Vab->SaveVB(Filename);
 
 	Text->FlushUTF8();

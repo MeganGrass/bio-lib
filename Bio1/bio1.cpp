@@ -9,7 +9,7 @@
 *
 *	CREDIT:
 *
-*		BS Decode: https://github.com/pmandin/reevengi-tools
+*		BS Decode: https://github.com/XProger/OpenResident
 *
 *		PAK Decompression: https://github.com/pmandin/reevengi-tools
 *
@@ -31,7 +31,8 @@ void Resident_Evil::PrintHelp(void)
 	std::cout << "\tEMD <game> <op> <file> - Extract contents of EMD file container" << std::endl;
 	std::cout << "\tPAK <file> - Decompress PAK file" << std::endl << std::endl;
 	std::cout << "\tPIX <file> - Convert headerless TIM file to bitmap" << std::endl;
-	std::cout << "BS decode, PAK decompression: https://github.com/pmandin/reevengi-tools" << std::endl;
+	std::cout << "BS decode: https://github.com/XProger/OpenResident" << std::endl;
+	std::cout << "PAK decompression: https://github.com/pmandin/reevengi-tools" << std::endl;
 }
 
 

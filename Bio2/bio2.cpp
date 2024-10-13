@@ -13,7 +13,7 @@
 *
 *		ADT Decompression: https://github.com/pmandin/reevengi-tools
 *
-*		BS Decode: https://github.com/pmandin/reevengi-tools
+*		BS Decode: https://github.com/XProger/OpenResident
 *
 *		SLD Decompression: https://github.com/pmandin/reevengi-tools
 *
@@ -22,6 +22,8 @@
 
 #include <bio2.h>
 
+#include "ems/cdemd_pos.h"
+
 
 /*
 	Print Command Line Help
@@ -29,10 +31,14 @@
 void Resident_Evil_2::PrintHelp(void)
 {
 	std::cout << "Resident Evil 2: Help" << std::endl << std::endl;
-	std::cout << "\t<op>\t\t\tasm (assemble) or dis (disassemble)" << std::endl << std::endl;
+	std::cout << "\t<op>\t\t\tASM (assemble) or DIS (disassemble)" << std::endl;
+	std::cout << "\t<pl>\t\t\tCDEMD id (0 or 1) for ASM" << std::endl << std::endl;
+	std::cout << "\tASMPREF - Prefer assembly text file output (where applicable)\n";
 	std::cout << "\tADT <file>\t\tDecompress ADT file" << std::endl;
 	std::cout << "\tBGM <op> <file>\t\tExtract or repack contents of BGM file container" << std::endl;
 	std::cout << "\tBSS <file>\t\tExtract contents of BSS file container" << std::endl;
+	std::cout << "\tEMS <op> <input> <output>\t\tExtract or repack contents of CDEMD0.EMS/CDEMD1.EMS from slus_00748" << std::endl;
+	std::cout << "\t\t<output> valid only when <op> is ASM" << std::endl;
 	std::cout << "\tCPT <file>\t\tDecompress CPT file" << std::endl;
 	std::cout << "\tDIE <op> <file>\t\tExtract or repack contents of DIE file container" << std::endl;
 	std::cout << "\tITP <file>\t\tExtract contents of ITP file container" << std::endl;
@@ -40,8 +46,10 @@ void Resident_Evil_2::PrintHelp(void)
 	std::cout << "\tPIX <file>\t\tConvert headerless TIM file to bitmap" << std::endl;
 	std::cout << "\tSAVEBGM <file>\tExtract BGM table from save file" << std::endl;
 	std::cout << "\tSLD <file>\t\tDecompress SLD file" << std::endl << std::endl;
+	std::cout << "\tCDEMS <ExecutableAddress> <file>\tExtract cdemd tables from slus_00748 executable" << std::endl;
 	std::cout << "\tSTAGEXA <OverlayAddress> <offset> <count> <file>\tExtract XA_sector from STAGEx.BIN" << std::endl;
-	std::cout << "BS decode, ADT and SLD decompression: https://github.com/pmandin/reevengi-tools" << std::endl;
+	std::cout << "BS decode: https://github.com/XProger/OpenResident" << std::endl;
+	std::cout << "ADT and SLD decompression: https://github.com/pmandin/reevengi-tools" << std::endl;
 }
 
 
@@ -54,13 +62,33 @@ void Resident_Evil_2::Commandline(StrVec Args)
 
 	Standard_FileSystem FS;
 
+	std::uintmax_t Pl = 0;
+
 	for (std::size_t i = 0; i < Args.size(); i++)
 	{
 		Str.ToUpper(Args[i]);
 
+		if (Args[i] == "ASMPREF")
+		{
+			b_PreferAsm = true;
+		}
+
 		if (Args[i] == "HELP")
 		{
 			PrintHelp();
+		}
+
+		if (Args[i] == "PL")
+		{
+			if (i + 1 < Args.size())
+			{
+				Pl = std::strtoul(Args[i + 1].c_str(), nullptr, 10);
+			}
+			else
+			{
+				std::cout << "Resident Evil 2: PL error, not enough arguments" << std::endl << std::endl;
+				PrintHelp();
+			}
 		}
 
 		if (Args[i] == "ADT")
@@ -169,6 +197,43 @@ void Resident_Evil_2::Commandline(StrVec Args)
 				PrintHelp();
 			}
 
+		}
+
+		if (Args[i] == "EMS")
+		{
+			String Op;
+			std::filesystem::path Input;
+
+			if (i + 2 < Args.size())
+			{
+				Op = Args[i + 1];
+				Input = Args[i + 2];
+			}
+			else
+			{
+				std::cout << "Resident Evil 2: EMS error, not enough arguments" << std::endl << std::endl;
+				PrintHelp();
+				break;
+			}
+
+			if (Str.ToUpper(Op) == "DIS")
+			{
+				ExtractEMS(Input);
+			}
+
+			if (Str.ToUpper(Op) == "ASM")
+			{
+				if (i + 3 < Args.size())
+				{
+					std::filesystem::path Output = Args[i + 3];
+					AssembleEMS(Input, Output);
+				}
+				else
+				{
+					std::cout << "Resident Evil 2: EMS error, not enough arguments" << std::endl << std::endl;
+					PrintHelp();
+				}
+			}
 		}
 
 		if (Args[i] == "CPT")
@@ -388,6 +453,25 @@ void Resident_Evil_2::Commandline(StrVec Args)
 
 		}
 
+		if (Args[i] == "CDEMS")
+		{
+			if ((i + 2) < Args.size())
+			{
+				std::uintmax_t ExecutableAddress = std::strtoull(Args[i + 1].c_str(), nullptr, 16);
+				std::filesystem::path Filename = Args[i + 2];
+				std::cout << "Resident Evil 2: Extracting cdemd tables from " << Filename.filename() << " at address " << std::hex << ExecutableAddress << std::dec << std::endl;
+				if (ExtractCdEmsTablesFromExe(ExecutableAddress, Filename))
+				{
+					std::cout << "Resident Evil 2: Successfully extracted cdemd tables" << std::endl;
+				}
+			}
+			else
+			{
+				std::cout << "Resident Evil 2: CDEMS error, not enough arguments" << std::endl << std::endl;
+				PrintHelp();
+			}
+		}
+
 		if (Args[i] == "STAGEXA")
 		{
 			if ((i + 4) < Args.size())
@@ -468,11 +552,11 @@ bool Resident_Evil_2::ExtractBgmFromSaveFile(std::filesystem::path Input)
 			{
 				if (b_PreferAsm)
 				{
-					Text->AddLine(Text->FormatCStyle("\t.byte\t0x%02X,\t0x%02X\t;; R%X%02X\n", b.Main, b.Sub, (i + 1), r));
+					Text->AddLine("\t.byte\t0x%02X,\t0x%02X\t;; R%X%02X\n", b.Main, b.Sub, (i + 1), r);
 				}
 				else
 				{
-					Text->AddLine(Text->FormatCStyle("0x%02X 0x%02X\tR%X%02X\n", b.Main, b.Sub, (i + 1), r));
+					Text->AddLine("0x%02X 0x%02X\tR%X%02X\n", b.Main, b.Sub, (i + 1), r);
 				}
 
 				r++;
@@ -745,6 +829,184 @@ bool Resident_Evil_2::ExtractBSS(std::filesystem::path Input)
 
 
 /*
+	Extract contents of EMS file container (slus_00748 support only)
+*/
+bool Resident_Evil_2::ExtractEMS(std::filesystem::path Input)
+{
+	if (Input.filename().string().compare("CDEMD0.EMS") == -1 && Input.filename().string().compare("CDEMD1.EMS") == -1)
+	{
+		Str->Message("EMS Extraction: Error, unsupported file %s", Input.filename().string().c_str());
+		return false;
+	}
+
+	StdFile m_Input { Input, FileAccessMode::Read_Ex, true, false };
+	if (!m_Input)
+	{
+		Str->Message("EMS Extraction: Error, could not open %s", Input.filename().string().c_str());
+		return false;
+	}
+
+	std::filesystem::path Dir = m_Input.GetDirectory() / m_Input.GetFileName().stem();
+	m_Input.CreateDirectory(Dir);
+
+	std::vector<std::uint8_t> File = m_Input.buffer();
+
+	m_Input.Close();
+
+	Cyclic_Redundancy_Check Crc32;
+	std::uint32_t Crc = Crc32.GetCRC32(File.data(), File.size());
+	if (!Input.filename().string().compare("CDEMD0.EMS"))
+	{
+		if (Crc != 0x8D379101)
+		{
+			Str->Message("EMS Extraction: Error, invalid CRC32 for %s", Input.filename().string().c_str());
+			return false;
+		}
+	}
+	else if (!Input.filename().string().compare("CDEMD1.EMS"))
+	{
+		if (Crc != 0xD9CEB158)
+		{
+			Str->Message("EMS Extraction: Error, invalid CRC32 for %s", Input.filename().string().c_str());
+			return false;
+		}
+	}
+
+	std::cout << "EMS Extraction: Extracting contents of " << Input.filename() << std::endl;
+
+	emd_pos* Emd = (emd_pos*)cdemd0_pos;
+	if (!Input.filename().string().compare("CDEMD1.EMS"))
+	{
+		Emd = (emd_pos*)cdemd1_pos;
+	}
+
+	std::uintmax_t Offset = 0;
+
+	for (std::size_t i = 0; i < 0x4B; i++)
+	{
+		m_Input.Create(Dir / Str->FormatCStyle("EMD%02X00.BIN", Emd[i].id), &File.data()[Offset], Emd[i].bin0_size);
+		Offset += Emd[i].bin0_size;
+		m_Input.PosAlign(Offset, 0x800);
+
+		m_Input.Create(Dir / Str->FormatCStyle("EMD%02X01.BIN", Emd[i].id), &File.data()[Offset], Emd[i].bin1_size);
+		Offset += Emd[i].bin1_size;
+		m_Input.PosAlign(Offset, 0x800);
+
+		m_Input.Create(Dir / Str->FormatCStyle("EMD%02X.TIM", Emd[i].id), &File.data()[Offset], Emd[i].tim_size);
+		Offset += Emd[i].tim_size;
+		m_Input.PosAlign(Offset, 0x800);
+
+		m_Input.Create(Dir / Str->FormatCStyle("EMD%02X.EMD", Emd[i].id), &File.data()[Offset], Emd[i].emd_size);
+		Offset += Emd[i].emd_size;
+		m_Input.PosAlign(Offset, 0x800);
+	}
+
+	std::cout << "EMS Extraction: Successfully extracted contents of " << Input.filename() << std::endl;
+
+	return true;
+}
+
+
+/*
+	Assemble contents of EMS file container
+*/
+bool Resident_Evil_2::AssembleEMS(std::filesystem::path Directory, std::filesystem::path OutFilename)
+{
+	Standard_FileSystem FS;
+
+	std::filesystem::path Dir = FS.GetDirectory(Directory);
+	if (!FS.Exists(Dir) && !FS.IsDirectory(Dir))
+	{
+		Str->Message("EMS Assemble: Directory not found or isn't a directory: \"%s\"", Dir.string().c_str());
+		return false;
+	}
+
+	if (FS.GetFileList(Dir).empty())
+	{
+		Str->Message("EMS Assemble: Create error, directory is empty");
+		return false;
+	}
+
+	StdFile EMS { OutFilename, FileAccessMode::Write_Ex, true, true};
+	if (!EMS.IsOpen())
+	{
+		Str->Message("EMS Assemble: Error, could not create %s", OutFilename.filename().string());
+		return false;
+	}
+
+	std::wstring OutFileStem = OutFilename.stem().wstring();
+	std::transform(OutFileStem.begin(), OutFileStem.end(), OutFileStem.begin(), ::towlower);
+
+	std::unique_ptr<StdText> Text = std::make_unique<StdText>();
+	Text->SetBOM(TextFileBOM::UTF8);
+	if (!Text->Open(FS.GetDirectory(OutFilename) / OutFileStem += ".s", FileAccessMode::Write))
+	{
+		Str->Message("EMS Assemble: Error, could not create %ws.asm", OutFileStem.c_str());
+		return false;
+	}
+
+	std::cout << "EMS Assemble: Assembling directory " << Directory << " to " << EMS.GetPath().filename() << std::endl;
+
+	Text->AddLine(".org %ws_pos\n", OutFileStem.c_str());
+
+	std::uintmax_t Offset = 0;
+	std::uintmax_t Type = 0;
+	std::uint8_t Id = 0x10;
+
+	for (std::size_t i = 0; i < 320; i++, Type++)
+	{
+		std::filesystem::path Filename;
+
+		if (Type >= 4) { Type = 0; Id++; }
+		if (Type == 0) { Filename = Dir / Str->FormatCStyle("EMD%02X00.BIN", Id); }
+		if (Type == 1) { Filename = Dir / Str->FormatCStyle("EMD%02X01.BIN", Id); }
+		if (Type == 2) { Filename = Dir / Str->FormatCStyle("EMD%02X.TIM", Id); }
+		if (Type == 3) { Filename = Dir / Str->FormatCStyle("EMD%02X.EMD", Id); }
+
+		StdFile File { Filename, FileAccessMode::Read, true, false };
+		if (!File.IsOpen())
+		{
+			std::cout << "EMS Assemble: Write error, cannot open " << File.GetPath().filename() << std::endl;
+			Text->AddLine("\t.word 0x%08X, 0x%08X	;; %s\n", 0, 0, Filename.stem().string().c_str());
+			continue;
+		}
+
+		DATA_POS cdemd_pos{};
+
+		std::uintmax_t FileSize = File.Size();
+
+		if (FileSize)
+		{
+			cdemd_pos.Size = static_cast<std::uint32_t>(FileSize);
+			cdemd_pos.Offset = static_cast<std::uint32_t>(Offset / 0x800);
+
+			std::cout << "EMS Assemble: " << Filename.filename() << " (" << cdemd_pos.Size << " bytes) at sector [" << cdemd_pos.Offset << "]" << std::endl;
+
+			std::vector<std::uint8_t> Buffer = File.buffer();
+
+			EMS.Write(Offset, Buffer.data(), Buffer.size());
+
+			Offset += FileSize;
+			File.PosAlign(Offset, 0x800);
+		}
+
+		Text->AddLine("\t.word 0x%08X, 0x%08X	;; %s\n", cdemd_pos.Offset, cdemd_pos.Size, Filename.stem().string().c_str());
+	}
+
+	std::cout << "EMS Assemble: Successfully assembled " << EMS.GetPath().filename() << std::endl;
+
+	Text->FlushUTF8();
+	Text->Close();
+
+	EMS.Close();
+
+	EMS.ResizeAlign(0x800);
+
+	return true;
+}
+
+
+/*
 	Extract contents of ITP file container
 */
 bool Resident_Evil_2::ExtractITP(std::filesystem::path Input)
@@ -1008,6 +1270,113 @@ bool Resident_Evil_2::ExtractPIX(std::filesystem::path Input)
 
 
 /*
+	Extract EMD file tables from executable
+*/
+bool Resident_Evil_2::ExtractCdEmsTablesFromExe(std::uintmax_t StartAddress, std::filesystem::path Input)
+{
+	if (!Exe->Open(Input.string()))
+	{
+		Str->Message("CDEMS: Error, could not open %s", Input.filename().string().c_str());
+		return false;
+	}
+
+	Standard_FileSystem FS;
+
+	std::unique_ptr<StdText> Text = std::make_unique<StdText>();
+	Text->SetBOM(TextFileBOM::UTF8);
+
+	std::vector<DATA_POS> cdemd_pos(300);
+
+	if (!b_PreferAsm)
+	{
+		if (!Text->Open(FS.GetDirectory(Input) / Text->FormatCStyle("cdemd_pos.h"), FileAccessMode::Write))
+		{
+			Str->Message("CDEMS: Error, could not create %s", Input.stem().string().c_str());
+			Exe->Close();
+			return false;
+		}
+
+		Text->AddLine("struct emd_pos {\n");
+		Text->AddLine("\tunsigned char id;\n");
+		Text->AddLine("\tunsigned long int bin0_size;\n");
+		Text->AddLine("\tunsigned long int bin1_size;\n");
+		Text->AddLine("\tunsigned long int tim_size;\n");
+		Text->AddLine("\tunsigned long int emd_size;\n};\n");
+	}
+
+	for (std::size_t i = 0; i < 4; i++)
+	{
+		std::uintmax_t pData = (StartAddress + (i * (sizeof(DATA_POS) * 300)));
+
+		StartAddress += 300;	// checksum table size
+
+		Exe->Read(pData, cdemd_pos.data(), (sizeof(DATA_POS) * 300));
+
+		if (!b_PreferAsm)
+		{
+			Text->AddLine("emd_pos cdemd%d_pos[0x4B] = {\n", i);
+
+			Text->AddLine("\t//	ID		BIN			BIN			TIM			EMD\n");
+
+			std::uint8_t Id = 0x10;
+
+			for (std::size_t x = 0; x < 300; x += 4, Id++)
+			{
+				Text->AddLine("\t{	0x%02X,	0x%08X,	0x%08X,	0x%08X, 0x%08X	},	// EM%02X\n",
+					Id,
+					cdemd_pos[x + 0].Size,
+					cdemd_pos[x + 1].Size,
+					cdemd_pos[x + 2].Size,
+					cdemd_pos[x + 3].Size,
+					Id);
+			}
+
+			Text->AddLine("};\n");
+		}
+		else
+		{
+			String Filename = Text->FormatCStyle("cdemd%d_pos.asm", i);
+
+			if (!Text->Open(FS.GetDirectory(Input) / Filename, FileAccessMode::Write))
+			{
+				Str->Message("CDEMS: Error, could not create %s", Input.stem().string().c_str());
+				Exe->Close();
+				return false;
+			}
+
+			Text->AddLine(".org %08X\t\t\t\t\t\t;; cdemd%d_pos\n", pData, i);
+
+			std::uint8_t Id = 0x10;
+
+			for (std::size_t x = 0; x < 300; x += 4, Id++)
+			{
+				Text->AddLine("\t.word 0x%08X, 0x%08X	;; EM%02X00.BIN\n", cdemd_pos[x + 0].Offset, cdemd_pos[x + 0].Size, Id);
+				Text->AddLine("\t.word 0x%08X, 0x%08X	;; EM%02X01.BIN\n", cdemd_pos[x + 1].Offset, cdemd_pos[x + 1].Size, Id);
+				Text->AddLine("\t.word 0x%08X, 0x%08X	;; EM%02X.TIM\n", cdemd_pos[x + 2].Offset, cdemd_pos[x + 2].Size, Id);
+				Text->AddLine("\t.word 0x%08X, 0x%08X	;; EM%02X.EMD\n", cdemd_pos[x + 3].Offset, cdemd_pos[x + 3].Size, Id);
+			}
+
+			Text->FlushUTF8();
+
+			Text->Close();
+		}
+
+	}
+
+	if (!b_PreferAsm)
+	{
+		Text->FlushUTF8();
+
+		Text->Close();
+	}
+
+	Exe->Close();
+
+	return true;
+}
+
+
+/*
 	Extract XA sector from stage_.bin
 */
 bool Resident_Evil_2::ExtractXaSectorFromStageBin(std::uintmax_t StartAddress, std::uintmax_t Offset, std::size_t Count, std::filesystem::path Input)
@@ -1039,11 +1408,11 @@ bool Resident_Evil_2::ExtractXaSectorFromStageBin(std::uintmax_t StartAddress, s
 
 		if (b_PreferAsm)
 		{
-			Text->AddLine(Text->FormatCStyle("\t.dh\t\t0x%02X,\t0x%02X,\t0x%02X\t;;\n", Xa_sector[0], Xa_sector[1], Xa_sector[2]));
+			Text->AddLine("\t.dh\t\t0x%02X,\t0x%02X,\t0x%02X\t;;\n", Xa_sector[0], Xa_sector[1], Xa_sector[2]);
 		}
 		else
 		{
-			Text->AddLine(Text->FormatCStyle("%d %d %d\n", Xa_sector[0], Xa_sector[1], Xa_sector[2]));
+			Text->AddLine("%d %d %d\n", Xa_sector[0], Xa_sector[1], Xa_sector[2]);
 		}
 
 		std::cout << "STAGEXA: " << Text->FormatCStyle("%d %d %d", Xa_sector[0], Xa_sector[1], Xa_sector[2]) << std::endl;

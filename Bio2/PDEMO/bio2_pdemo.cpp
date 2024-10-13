@@ -87,29 +87,29 @@ bool Resident_Evil_2_PDEMO::DisassembleToText(std::filesystem::path Input)
 		return false;
 	}
 
-	Text->AddLine(Text->FormatCStyle("bio2\tpdemo\n"));
+	Text->AddLine("bio2\tpdemo\n");
 
-	Text->AddLine(Text->FormatCStyle("Stage_no\t0x%x\n", Demo->Data->Stage_no));
-	Text->AddLine(Text->FormatCStyle("Room_no\t\t0x%02x\n", Demo->Data->Room_no));
-	Text->AddLine(Text->FormatCStyle("Cut_no\t\t%02d\n", Demo->Data->Cut_no));
-	Text->AddLine(Text->FormatCStyle("Equip_id\t0x%02x\n", Demo->Data->Equip_id));
-	Text->AddLine(Text->FormatCStyle("Equip_no\t0x%02x\n", Demo->Data->Equip_no));
-	Text->AddLine(Text->FormatCStyle("Key_idx\t\t0x%02x\n", Demo->Data->Key_idx));
-	Text->AddLine(Text->FormatCStyle("Player_id\t0x%02x\n", Demo->Data->Player_id));
+	Text->AddLine("Stage_no\t0x%x\n", Demo->Data->Stage_no);
+	Text->AddLine("Room_no\t\t0x%02x\n", Demo->Data->Room_no);
+	Text->AddLine("Cut_no\t\t%02d\n", Demo->Data->Cut_no);
+	Text->AddLine("Equip_id\t0x%02x\n", Demo->Data->Equip_id);
+	Text->AddLine("Equip_no\t0x%02x\n", Demo->Data->Equip_no);
+	Text->AddLine("Key_idx\t\t0x%02x\n", Demo->Data->Key_idx);
+	Text->AddLine("Player_id\t0x%02x\n", Demo->Data->Player_id);
 	for (std::size_t i = 0; i < 11; i++)
 	{
-		Text->AddLine(Text->FormatCStyle("Item[%d].Id\t0x%02x\n", i, Demo->Data->Item_wk[i].Id));
-		Text->AddLine(Text->FormatCStyle("Item[%d].Num\t0x%02x\n", i, Demo->Data->Item_wk[i].Num));
-		Text->AddLine(Text->FormatCStyle("Item[%d].Size\t0x%02x\n", i, Demo->Data->Item_wk[i].Size));
+		Text->AddLine("Item[%d].Id\t0x%02x\n", i, Demo->Data->Item_wk[i].Id);
+		Text->AddLine("Item[%d].Num\t0x%02x\n", i, Demo->Data->Item_wk[i].Num);
+		Text->AddLine("Item[%d].Size\t0x%02x\n", i, Demo->Data->Item_wk[i].Size);
 	}
-	Text->AddLine(Text->FormatCStyle("Pdemo_cnt\t%d\n", Demo->Data->Pdemo_cnt));
-	Text->AddLine(Text->FormatCStyle("Pos_x\t\t%d\n", Demo->Data->Pos_x));
-	Text->AddLine(Text->FormatCStyle("Pos_y\t\t%d\n", Demo->Data->Pos_y));
-	Text->AddLine(Text->FormatCStyle("Pos_z\t\t%d\n", Demo->Data->Pos_z));
-	Text->AddLine(Text->FormatCStyle("Cdir_y\t\t%d\n", Demo->Data->Cdir_y));
+	Text->AddLine("Pdemo_cnt\t%d\n", Demo->Data->Pdemo_cnt);
+	Text->AddLine("Pos_x\t\t%d\n", Demo->Data->Pos_x);
+	Text->AddLine("Pos_y\t\t%d\n", Demo->Data->Pos_y);
+	Text->AddLine("Pos_z\t\t%d\n", Demo->Data->Pos_z);
+	Text->AddLine("Cdir_y\t\t%d\n", Demo->Data->Cdir_y);
 	for (std::size_t i = 0; i < Demo->Data->Pdemo_cnt; i++)
 	{
-		Text->AddLine(Text->FormatCStyle("Padd[%d]\t0x%04x\n", i, Demo->Data->Padd[i]));
+		Text->AddLine("Padd[%d]\t0x%04x\n", i, Demo->Data->Padd[i]);
 	}
 
 	Text->FlushUTF8();

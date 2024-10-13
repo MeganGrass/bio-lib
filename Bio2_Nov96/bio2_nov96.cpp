@@ -9,7 +9,7 @@
 *
 *	CREDIT:
 *
-*		BS Decode: https://github.com/pmandin/reevengi-tools
+*		BS Decode: https://github.com/XProger/OpenResident
 *
 *		SLD Decompression: https://github.com/pmandin/reevengi-tools
 *
@@ -29,7 +29,8 @@ void Resident_Evil_2_Nov96::PrintHelp(void)
 	std::cout << "\tITP <file> - Extract contents of ITP file container" << std::endl;
 	std::cout << "\tPIX <file> - Convert headerless TIM file to bitmap" << std::endl;
 	std::cout << "\tSLD <file> - Decompress SLD file" << std::endl << std::endl;
-	std::cout << "BS decode and SLD decompression: https://github.com/pmandin/reevengi-tools" << std::endl;
+	std::cout << "BS decode: https://github.com/XProger/OpenResident" << std::endl;
+	std::cout << "SLD decompression: https://github.com/pmandin/reevengi-tools" << std::endl;
 }
 
 

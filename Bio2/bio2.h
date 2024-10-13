@@ -186,6 +186,16 @@ public:
 	bool ExtractBSS(std::filesystem::path Input);
 
 	/*
+		Extract contents of EMS file container (slus_00748 support only)
+	*/
+	bool ExtractEMS(std::filesystem::path Input);
+
+	/*
+		Assemble contents of EMS file container
+	*/
+	bool AssembleEMS(std::filesystem::path Directory, std::filesystem::path OutFilename);
+
+	/*
 		Extract contents of DIE file container
 	*/
 	bool ExtractDIE(std::filesystem::path Input) { return Die->Extract(Input); }
@@ -214,6 +224,11 @@ public:
 		Extract contents of PIX file container
 	*/
 	bool ExtractPIX(std::filesystem::path Input);
+
+	/*
+		Extract EMD file tables from executable
+	*/
+	bool ExtractCdEmsTablesFromExe(std::uintmax_t StartAddress, std::filesystem::path Input);
 
 	/*
 		Extract XA sector from stage_.bin

@@ -35,6 +35,10 @@ void Capcom_Disk::Commandline(StrVec Args)
 
     Standard_FileSystem FS;
 
+	Capcom_Disk_Version Version = Capcom_Disk_Version::Unknown;
+
+	std::uintmax_t pFloc = 0x80000000;
+
     for (std::size_t i = 0; i < Args.size(); i++)
     {
         Str.ToUpper(Args[i]);
@@ -44,40 +48,58 @@ void Capcom_Disk::Commandline(StrVec Args)
             PrintHelp();
         }
 
+        if (Args[i] == "VER")
+        {
+            if ((i + 1) < Args.size())
+            {
+				Version = GetVersion(std::strtoull(Args[i + 1].c_str(), nullptr, 10));
+                std::cout << "Capcom Disk: Type \"" << GetVersion(Version) << "\"" << std::endl;
+            }
+            else
+            {
+                std::cout << "Capcom Disk: Parse error, not enough arguments for " << Args[i] << std::endl << std::endl;
+                PrintHelp();
+            }
+        }
+
+        if (Args[i] == "FLOC")
+        {
+            if ((i + 1) < Args.size())
+            {
+                pFloc = std::strtoull(Args[i + 1].c_str(), nullptr, 16);
+                std::cout << "Capcom Disk: LBA table at " << std::hex << "0x" << pFloc << std::dec << std::endl;
+            }
+            else
+            {
+                std::cout << "Capcom Disk: Parse error, not enough arguments for " << Args[i] << std::endl << std::endl;
+                PrintHelp();
+            }
+        }
+
         if (Args[i] == "UPDATE")
         {
-            if (i + 4 < Args.size())
+            if (i + 2 < Args.size())
             {
-                std::uintmax_t pFileList = std::strtoull(Args[i + 1].c_str(), nullptr, 16);
-                Capcom_Disk_Version Version = GetVersion(std::strtoull(Args[i + 2].c_str(), nullptr, 10));
-                std::filesystem::path ExeFilename = Args[i + 3];
-                std::filesystem::path LbaHeader = Args[i + 4];
-                if (FS.Exists(ExeFilename))
+                std::filesystem::path ExeFilename = Args[i + 1];
+                std::filesystem::path LbaHeader = Args[i + 2];
+                if ((FS.Exists(ExeFilename)) && (FS.Exists(LbaHeader)))
                 {
-                    if (FS.Exists(LbaHeader))
+                    std::cout << "Capcom Disk: Updating " << ExeFilename.filename() << " LBA table with " << LbaHeader.filename() << " at " << std::hex << "0x" << pFloc << std::dec << std::endl;
+                    if (Update(pFloc, Version, ExeFilename, LbaHeader))
                     {
-                        std::cout << "Capcom Disk: " << GetVersion(Version) << std::endl;
-                        std::cout << "Capcom Disk: Updating " << ExeFilename.filename() << " with " << LbaHeader.filename() << std::endl;
-                        if (Update(pFileList, Version, ExeFilename, LbaHeader))
-                        {
-                            std::cout << "Capcom Disk: Successfully updated" << std::endl;
-                        }
-                    }
-                    else
-                    {
-                        std::cout << "Capcom Disk: Update error, header file not found" << std::endl;
+                        std::cout << "Capcom Disk: Successfully updated " << ExeFilename.filename() << std::endl;
                     }
                 }
                 else
 				{
-					std::cout << "Capcom Disk: Update error, executable file not found" << std::endl;
+					std::cout << "Capcom Disk: Update error, executable and/or mkpsxiso file (-retext) not found" << std::endl;
 				}
             }
-			else
-			{
-				std::cout << "Capcom Disk: Update error, not enough arguments" << std::endl << std::endl;
+            else
+            {
+                std::cout << "Capcom Disk: Parse error, not enough arguments for " << Args[i] << std::endl << std::endl;
                 PrintHelp();
-			}
+            }
         }
 
     }
@@ -164,6 +186,9 @@ std::string Capcom_Disk::GetFiletype(Capcom_File File)
 */
 bool Capcom_Disk::Update(std::uintmax_t pFileList, Capcom_Disk_Version Version, std::filesystem::path ExeFilename, std::filesystem::path LbaHeader)
 {
+	std::unique_ptr<Sony_PlayStation_Executable> Exe = std::make_unique<Sony_PlayStation_Executable>();
+    std::unique_ptr<Standard_Text> Text = std::make_unique<Standard_Text>();
+
     if (!Exe->Open(ExeFilename))
     {
         Text->Message("Capcom Disk: Update error, executable file not found");

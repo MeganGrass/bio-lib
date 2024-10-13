@@ -9,7 +9,7 @@
 *
 *	CREDIT:
 *
-*		BS Decode: https://github.com/pmandin/reevengi-tools
+*		BS Decode: https://github.com/XProger/OpenResident
 *
 *		SLD Decompression: https://github.com/pmandin/reevengi-tools
 *
