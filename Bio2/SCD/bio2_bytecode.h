@@ -13,6 +13,10 @@
 
 #include <std_common.h>
 
+#include <std_basic_fstream.h>
+
+#include <std_text.h>
+
 #include <any>
 
 #include "bio2_bytecode_map.h"
