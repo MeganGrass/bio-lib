@@ -95,25 +95,15 @@ struct Capcom_Executable {
 };
 
 
-extern int mkpsxiso(char* commandline);
-
-
 class Capcom_Disk {
 private:
 
-	// List of Capcom Executables
 	std::vector<Capcom_Executable> List;
 
-	// Get disk version from integer
-	Capcom_Disk_Version GetVersion(std::uintmax_t Integral);
-
-	// Get disk version string
 	std::string GetVersion(Capcom_Disk_Version Version);
 
-	// Get Filetype from path
 	Capcom_File GetFiletype(std::filesystem::path Path);
 
-	// Get Filetype string
 	std::string GetFiletype(Capcom_File Filetype);
 
 public:
@@ -124,6 +114,10 @@ public:
 	explicit Capcom_Disk(void)
 	{
 	}
+
+	/*
+		Deconstruction
+	*/
 	virtual ~Capcom_Disk(void)
 	{
 	}
@@ -142,6 +136,5 @@ public:
 		Update Capcom executable disk file list
 	*/
 	bool Update(std::uintmax_t pFileList, Capcom_Disk_Version Version, std::filesystem::path ExeFilename, std::filesystem::path LbaHeader);
-
 
 };

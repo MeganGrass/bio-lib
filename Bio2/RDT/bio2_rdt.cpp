@@ -4,14 +4,36 @@
 *	April 20, 2024
 *
 *
-*	TODO: check header offsets/pointers to ensure RDT isn't being read incorrectly
+*	TODO: 
+*	
+*	support for effect sprites
 * 
-*	file function to test if offset if larger than file size
+*	support for model animations
 *
 */
 
 
 #include "bio2_rdt.h"
+
+
+/*
+	Set game
+*/
+void Resident_Evil_2_RDT::SetGame(Resident_Evil_Video_Game _Game)
+{
+	switch(_Game)
+	{
+	case Resident_Evil_Video_Game::Resident_Evil_2_Oct_30_1997:
+	case Resident_Evil_Video_Game::Resident_Evil_2_Trial:
+	case Resident_Evil_Video_Game::Resident_Evil_2:
+	case Resident_Evil_Video_Game::Resident_Evil_2_Dual_Shock:
+		Game = _Game;
+		break;
+	default:
+		Game = Resident_Evil_Video_Game::Resident_Evil_2;
+		break;
+	}
+}
 
 
 /*
@@ -22,7 +44,7 @@ bool Resident_Evil_2_RDT::Open(std::filesystem::path Path)
 	StdFile File { Path, FileAccessMode::Read, true, false };
 	if (!File.IsOpen())
 	{
-		Str->Message("Resident Evil 2: Error, could not open %s", File.GetPath().filename().string().c_str());
+		Str->Message("Resident Evil 2: RDT Error, could not open %s", File.GetPath().filename().string().c_str());
 		return false;
 	}
 
@@ -34,6 +56,44 @@ bool Resident_Evil_2_RDT::Open(std::filesystem::path Path)
 
 	// Header
 	File.Read(0, &Header, sizeof(Resident_Evil_2_RDT_Header));
+
+	// Fail-Safe
+	{
+		if (Header.nCut > BIO2_CAMERA_MAX)
+		{
+			Str->Message("Resident Evil 2: Aborting RDT, abnormal number of cameras detected in %s", File.GetPath().filename().string().c_str());
+			return false;
+		}
+
+		std::uint32_t FileSize = static_cast<std::uint32_t>(File.Size());
+
+		if ((Header.pEdt > FileSize) ||
+			(Header.pVh > FileSize) ||
+			(Header.pVb > FileSize) ||
+			(Header.pZero0 > FileSize) ||
+			(Header.pZero1 > FileSize) ||
+			(Header.pRbj_end > FileSize) ||
+			(Header.pSca > FileSize) ||
+			(Header.pRcut > FileSize) ||
+			(Header.pVcut > FileSize) ||
+			(Header.pLight > FileSize) ||
+			(Header.pOmodel > FileSize) ||
+			(Header.pFloor > FileSize) ||
+			(Header.pBlock > FileSize) ||
+			(Header.pMessage_sub > FileSize) ||
+			(Header.pScrl > FileSize) ||
+			(Header.pScdx > FileSize) ||
+			(Header.pScd > FileSize) ||
+			(Header.pEsp_hed > FileSize) ||
+			(Header.pEsp_end > FileSize) ||
+			(Header.pEsp_tim > FileSize) ||
+			(Header.pEsp_tim_end > FileSize) ||
+			(Header.pRbj > FileSize))
+		{
+			Str->Message("Resident Evil 2: Aborting RDT, abnormal data offsets detected in %s", File.GetPath().filename().string().c_str());
+			return false;
+		}
+	}
 
 	// RID
 	if (Header.pRcut)
@@ -319,4 +379,25 @@ void Resident_Evil_2_RDT::Close(void)
 	// Model Animation
 	Rbj->CloseEDD();
 	Rbj->CloseEMR();
+}
+
+
+/*
+	Set camera count
+*/
+void Resident_Evil_2_RDT::SetCameraCount(std::uint8_t Count) noexcept
+{
+	if (Count > BIO2_CAMERA_MAX) { Count = BIO2_CAMERA_MAX; }
+	Header.nCut = Count;
+}
+
+
+/*
+	Set object model count
+*/
+void Resident_Evil_2_RDT::SetObjectModelCount(std::uint8_t Count) noexcept
+{
+	if (Count > BIO2_OMODEL_MAX) { Count = BIO2_OMODEL_MAX; }
+	Header.nOmodel = Count;
+	Omodel.resize(Count);
 }

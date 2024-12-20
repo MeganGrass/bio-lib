@@ -4,50 +4,18 @@
 *	March 07, 2024
 *
 *
-*	TODO:
+*	TODO: 
 *
 */
 
 
-#include "bio3_animation.h"
-
-
-struct EDD_Attr_Bio3
-{
-	std::uint16_t pEmr : 8;
-	std::uint16_t Flag : 8;
-};
-std::vector<std::uint32_t> TestList;
-std::uint32_t TestCounter = 0;
-
-static void TestFunctionBio3(Resident_Evil_EDD_Header_Bio3 Index, std::vector<EDD_Attr_Bio3> List)
-{
-	std::cout << std::hex << "pAttr " << Index.pAttr << " nFrames " << Index.nFrames << " Counter " << Index.Counter << std::endl;
-	for (std::size_t i = 0; i < List.size(); i++, TestCounter++)
-	{
-		TestList.push_back(List[i].pEmr);
-		for (std::size_t y = 0; y < TestList.size() - 1; y++)
-		{
-			if (List[i].pEmr == TestList[y])
-			{
-				TestCounter--;
-				TestList.pop_back();
-				break;
-			}
-		}
-
-		std::cout << std::hex << "\tList: " << List[i].pEmr << "\t\tTotal " << TestCounter << std::endl;
-	}
-
-	TestList.clear();
-
-}
+#include "bio2_animation.h"
 
 
 /*
 	Open
 */
-std::uintmax_t Resident_Evil_3_Animation::OpenEDD(StdFile& File, std::uintmax_t _Ptr)
+std::uintmax_t Resident_Evil_2_Animation::OpenEDD(StdFile& File, std::uintmax_t _Ptr)
 {
 	if (b_EddOpen) { CloseEDD(); }
 
@@ -55,76 +23,56 @@ std::uintmax_t Resident_Evil_3_Animation::OpenEDD(StdFile& File, std::uintmax_t 
 	{
 		if (!File.Open(File.GetPath(), FileAccessMode::Read, true, false))
 		{
-			Str->Message("Resident Evil 3 Animation: Error, could not open EDD at 0x%llX in %s", _Ptr, File.GetPath().filename().string().c_str());
+			Str->Message("Resident Evil 2 Animation: Error, could not open EDD at 0x%llX in %s", _Ptr, File.GetPath().filename().string().c_str());
 			return _Ptr;
 		}
 	}
 
 	std::size_t nAnimation = 0;
 	File.Read(_Ptr + 2, &nAnimation, sizeof(std::uint16_t));
-	nAnimation /= 8;
+	nAnimation /= 4;
 
 	if (!nAnimation)
 	{
 		return _Ptr + 4;
 	}
 
-	std::vector<Resident_Evil_EDD_Header_Bio3> Header(nAnimation);
-	File.Read(_Ptr, Header.data(), Header.size() * sizeof(Resident_Evil_EDD_Header_Bio3));
+	std::vector<Resident_Evil_EDD_Header> Header(nAnimation);
+	File.Read(_Ptr, Header.data(), Header.size() * sizeof(Resident_Evil_EDD_Header));
 
 	Anim.resize(Header.size());
 
 	struct EDD_Attr
 	{
-		std::uint16_t pEmr : 8;
-		std::uint16_t Flag : 8;
+		std::uint32_t pEmr : 12;
+		std::uint32_t Speed : 10;
+		std::uint32_t Sound : 10;
 	};
 	EDD_Attr Attr{};
-
-	//std::vector<EDD_Attr_Bio3> Bio3Attr;	// Delete me
 
 	for (std::size_t i = 0; i < Anim.size(); i++)
 	{
 		Anim[i].resize(Header[i].nFrames);
 
-		//Bio3Attr.resize(Header[i].nFrames);	// Delete me
-		//File.Read(_Ptr + Header[i].pAttr, Bio3Attr.data(), Bio3Attr.size() * sizeof(EDD_Attr_Bio3));	// Delete me
-		//TestFunctionBio3(Header[i], Bio3Attr);	// Delete me
-
 		for (std::size_t x = 0; x < Anim[i].size(); x++)
 		{
 			File.Read(_Ptr + Header[i].pAttr + (x * sizeof(EDD_Attr)), &Attr, sizeof(EDD_Attr));
-			Anim[i][x].Attr.pEmr = Header[i].Counter + Attr.pEmr;
-			if (Attr.Flag & 2)
-			{
-				Anim[i][x].Attr.Speed = 1;
-			}
-			if (Attr.Flag & 4)
-			{
-				Anim[i][x].Attr.Sound = 1;
-			}
+			Anim[i][x].Attr.pEmr = Attr.pEmr;
+			Anim[i][x].Attr.Speed = Attr.Speed;
+			Anim[i][x].Attr.Sound = Attr.Sound;
 		}
 	}
 
 	b_EddOpen = true;
 
-	std::int16_t EofBytes = 0;
-	File.Read(_Ptr + Header[Header.size() - 1].pAttr + (Header[Header.size() - 1].nFrames * sizeof(EDD_Attr)), &EofBytes, sizeof(std::int16_t));
-	if (EofBytes == -1)
-	{
-		return _Ptr + SizeEDD() + sizeof(std::int16_t);
-	}
-	else
-	{
-		return _Ptr + SizeEDD();
-	}
+	return _Ptr + SizeEDD();
 }
 
 
 /*
 	Open
 */
-bool Resident_Evil_3_Animation::OpenEDD(std::filesystem::path Input, std::uintmax_t _Ptr)
+bool Resident_Evil_2_Animation::OpenEDD(std::filesystem::path Input, std::uintmax_t _Ptr)
 {
 	StdFile m_File;
 
@@ -139,13 +87,13 @@ bool Resident_Evil_3_Animation::OpenEDD(std::filesystem::path Input, std::uintma
 /*
 	Open
 */
-std::uintmax_t Resident_Evil_3_Animation::OpenEMR(StdFile& File, std::uintmax_t _Ptr)
+std::uintmax_t Resident_Evil_2_Animation::OpenEMR(StdFile& File, std::uintmax_t _Ptr)
 {
 	if (b_EmrOpen) { CloseEMR(); }
 
 	if (!b_EddOpen)
 	{
-		Str->Message("Resident Evil 3 Animation: Error, EDD must be open first");
+		Str->Message("Resident Evil 2 Animation: Error, EDD must be open first");
 		return _Ptr;
 	}
 
@@ -153,7 +101,7 @@ std::uintmax_t Resident_Evil_3_Animation::OpenEMR(StdFile& File, std::uintmax_t 
 	{
 		if (!File.Open(File.GetPath(), FileAccessMode::Read, true, false))
 		{
-			Str->Message("Resident Evil 3 Animation: Error, could not open EMR at 0x%llX in %s", _Ptr, File.GetPath().filename().string().c_str());
+			Str->Message("Resident Evil 2 Animation: Error, could not open EMR at 0x%llX in %s", _Ptr, File.GetPath().filename().string().c_str());
 			return _Ptr;
 		}
 	}
@@ -206,13 +154,13 @@ std::uintmax_t Resident_Evil_3_Animation::OpenEMR(StdFile& File, std::uintmax_t 
 
 			std::uintmax_t pFrame = Pointer + static_cast<std::uintmax_t>(pEmrList.back() * Header.FrameLen);
 
-			File.Read(pFrame, &Anim[i][x].Speed, sizeof(SVECTOR2));
-			File.Read(pFrame + sizeof(SVECTOR2), &Anim[i][x].Origin.y, sizeof(std::int16_t));
+			File.Read(pFrame, &Anim[i][x].Origin, sizeof(SVECTOR2));
+			File.Read(pFrame + sizeof(SVECTOR2), &Anim[i][x].Speed, sizeof(SVECTOR2));
 
 			Anim[i][x].Rotation.resize(Joint.size());
 
-			std::vector<std::uint8_t> FrameBuffer(Header.FrameLen - (sizeof(SVECTOR2) + sizeof(std::int16_t)));
-			File.Read(pFrame + sizeof(SVECTOR2) + sizeof(std::int16_t), FrameBuffer.data(), FrameBuffer.size());
+			std::vector<std::uint8_t> FrameBuffer(Header.FrameLen - (sizeof(SVECTOR2) * 2));
+			File.Read(pFrame + (sizeof(SVECTOR2) * 2), FrameBuffer.data(), FrameBuffer.size());
 
 			for (std::size_t y = 0; y < Joint.size(); y++)
 			{
@@ -254,7 +202,7 @@ std::uintmax_t Resident_Evil_3_Animation::OpenEMR(StdFile& File, std::uintmax_t 
 /*
 	Open
 */
-bool Resident_Evil_3_Animation::OpenEMR(std::filesystem::path Input, std::uintmax_t _Ptr)
+bool Resident_Evil_2_Animation::OpenEMR(std::filesystem::path Input, std::uintmax_t _Ptr)
 {
 	StdFile m_File;
 
@@ -269,11 +217,11 @@ bool Resident_Evil_3_Animation::OpenEMR(std::filesystem::path Input, std::uintma
 /*
 	Save
 */
-std::uintmax_t Resident_Evil_3_Animation::SaveEDD(StdFile& File, std::uintmax_t _Ptr)
+std::uintmax_t Resident_Evil_2_Animation::SaveEDD(StdFile& File, std::uintmax_t _Ptr)
 {
 	if (!IsOpen())
 	{
-		Str->Message("Resident Evil 3 Animation: cannot save EDD, animation is not open");
+		Str->Message("Resident Evil 2 Animation: cannot save EDD, animation is not open");
 		return _Ptr;
 	}
 
@@ -281,58 +229,53 @@ std::uintmax_t Resident_Evil_3_Animation::SaveEDD(StdFile& File, std::uintmax_t 
 	{
 		if (!File.Open(File.GetPath(), FileAccessMode::Write, true, false))
 		{
-			Str->Message("Resident Evil 3 Animation: Error, could not create EDD at 0x%llX in %s", _Ptr, File.GetPath().filename().string().c_str());
+			Str->Message("Resident Evil 2 Animation: Error, could not create EDD at 0x%llX in %s", _Ptr, File.GetPath().filename().string().c_str());
 			return _Ptr;
 		}
 	}
 
 	std::uintmax_t pIndex = _Ptr;
 
-	std::uintmax_t pAnim = _Ptr + (Anim.size() * sizeof(Resident_Evil_EDD_Header_Bio3));
+	std::uintmax_t pAnim = _Ptr + (Anim.size() * sizeof(Resident_Evil_EDD_Header));
 
-	std::vector<Resident_Evil_EDD_Header_Bio3> Header(Anim.size());
+	std::vector<Resident_Evil_EDD_Header> Header(Anim.size());
 
 	struct EDD_Attr
 	{
-		std::uint16_t pEmr : 8;
-		std::uint16_t Flag : 8;
+		std::uint32_t pEmr : 12;
+		std::uint32_t Speed : 10;
+		std::uint32_t Sound : 10;
 	};
 	EDD_Attr Attr{};
 
-	std::uint32_t Counter = 0;
+	GetUniqueFrameTotal(true);
 
-	for (std::size_t i = 0; i < Anim.size(); i++, pIndex += sizeof(Resident_Evil_EDD_Header_Bio3))
+	for (std::size_t i = 0; i < Anim.size(); i++, pIndex += sizeof(Resident_Evil_EDD_Header))
 	{
 		Header[i].nFrames = static_cast<std::uint16_t>(Anim[i].size());
 		Header[i].pAttr = static_cast<std::uint16_t>(pAnim - _Ptr);
-		Header[i].Counter = Counter;
-		File.Write(pIndex, &Header[i], sizeof(Resident_Evil_EDD_Header_Bio3));
-		Counter += static_cast<std::uint32_t>(GetUniqueFrameCount(i));
-
+		File.Write(pIndex, &Header[i], sizeof(Resident_Evil_EDD_Header));
 		for (std::size_t x = 0; x < Anim[i].size(); x++)
 		{
-			Attr = {};
 			Attr.pEmr = Anim[i][x].Attr.pEmr;
-			Anim[i][x].Attr.Speed == 1 ? Attr.Flag |= 2 : 0;
-			Anim[i][x].Attr.Sound == 1 ? Attr.Flag |= 4 : 0;
+			Attr.Speed = Anim[i][x].Attr.Speed;
+			Attr.Sound = Anim[i][x].Attr.Sound;
 			File.Write(pAnim + (x * sizeof(EDD_Attr)), &Attr, sizeof(EDD_Attr));
 		}
 		pAnim += Anim[i].size() * sizeof(EDD_Attr);
 	}
 
-	std::int16_t EofBytes = -1;
-	std::uintmax_t FileSize = SizeEDD() - sizeof(std::int16_t);
-	File.Write(_Ptr + FileSize - sizeof(std::int16_t), &EofBytes, sizeof(std::int16_t));
+	std::uintmax_t FileSize = (SizeEDD() - sizeof(std::int32_t));
 	File.Write(_Ptr + FileSize, &FileSize, sizeof(std::uint32_t));
 
-	return _Ptr + SizeEDD() + sizeof(std::int16_t);
+	return _Ptr + FileSize + sizeof(std::int32_t);
 }
 
 
 /*
 	Save
 */
-bool Resident_Evil_3_Animation::SaveEDD(std::filesystem::path Output, std::uintmax_t _Ptr)
+bool Resident_Evil_2_Animation::SaveEDD(std::filesystem::path Output, std::uintmax_t _Ptr)
 {
 	StdFile m_File;
 
@@ -349,11 +292,11 @@ bool Resident_Evil_3_Animation::SaveEDD(std::filesystem::path Output, std::uintm
 /*
 	Save
 */
-std::uintmax_t Resident_Evil_3_Animation::SaveEMR(StdFile& File, std::uintmax_t _Ptr)
+std::uintmax_t Resident_Evil_2_Animation::SaveEMR(StdFile& File, std::uintmax_t _Ptr)
 {
 	if (!IsOpen())
 	{
-		Str->Message("Resident Evil 3 Animation: cannot save EMR, animation is not open");
+		Str->Message("Resident Evil 2 Animation: cannot save EMR, animation is not open");
 		return _Ptr;
 	}
 
@@ -361,7 +304,7 @@ std::uintmax_t Resident_Evil_3_Animation::SaveEMR(StdFile& File, std::uintmax_t 
 	{
 		if (!File.Open(File.GetPath(), FileAccessMode::Write, true, false))
 		{
-			Str->Message("Resident Evil 3 Animation: Error, could not create EMR at 0x%llX in %s", _Ptr, File.GetPath().filename().string().c_str());
+			Str->Message("Resident Evil 2 Animation: Error, could not create EMR at 0x%llX in %s", _Ptr, File.GetPath().filename().string().c_str());
 			return _Ptr;
 		}
 	}
@@ -373,7 +316,7 @@ std::uintmax_t Resident_Evil_3_Animation::SaveEMR(StdFile& File, std::uintmax_t 
 
 	std::size_t FileSize = SizeEMR();
 
-	if (std::to_underlying(Type) & (NORMAL | NORMAL_EX | WEAPON_EX0 | WEAPON_EX1))
+	if (std::to_underlying(Type) & (NORMAL | NORMAL_EX1 | WEAPON_EX0 | WEAPON_EX1))
 	{
 		struct Joint_Index
 		{
@@ -402,7 +345,7 @@ std::uintmax_t Resident_Evil_3_Animation::SaveEMR(StdFile& File, std::uintmax_t 
 		Header.pFrames = Header.pJoint + static_cast<std::uint16_t>((Joint.size() * sizeof(Joint_Index)) + ObjCount);
 		File.Align(Header.pFrames, 4);
 	}
-	if (std::to_underlying(Type) & EXTENDED)
+	if (std::to_underlying(Type) & NORMAL_EX0)
 	{
 		Header.pJoint += static_cast<std::uint16_t>(sizeof(Resident_Evil_EMR_Header) + (Joint.size() * sizeof(SVECTOR2)));
 		File.Align(Header.pJoint, 4);
@@ -415,31 +358,18 @@ std::uintmax_t Resident_Evil_3_Animation::SaveEMR(StdFile& File, std::uintmax_t 
 		Header.pFrames = static_cast<std::uint16_t>(sizeof(Resident_Evil_EMR_Header));
 	}
 
-	std::uintmax_t Pointer = _Ptr + Header.pFrames;
-	std::vector<std::uint32_t> pEmrList;
-
 	for (std::size_t i = 0; i < Anim.size(); i++)
 	{
 		for (std::size_t x = 0; x < Anim[i].size(); x++)
 		{
-			pEmrList.push_back(Anim[i][x].Attr.pEmr);
-			for (std::size_t y = 0; y < pEmrList.size() - 1; y++)
-			{
-				if (Anim[i][x].Attr.pEmr == pEmrList[y])
-				{
-					pEmrList.pop_back();
-					break;
-				}
-			}
+			std::uintmax_t pFrame = _Ptr + Header.pFrames + static_cast<std::uintmax_t>(Anim[i][x].Attr.pEmr * Header.FrameLen);
 
-			std::uintmax_t pFrame = Pointer + static_cast<std::uintmax_t>(pEmrList.back() * Header.FrameLen);
+			File.Write(pFrame, &Anim[i][x].Origin, sizeof(SVECTOR2));
+			File.Write(pFrame + sizeof(SVECTOR2), &Anim[i][x].Speed, sizeof(SVECTOR2));
 
-			File.Write(pFrame, &Anim[i][x].Speed, sizeof(SVECTOR2));
-			File.Write(pFrame + sizeof(SVECTOR2), &Anim[i][x].Origin.y, sizeof(std::int16_t));
+			pFrame += sizeof(SVECTOR2) * 2;
 
-			pFrame += sizeof(SVECTOR2) + sizeof(std::int16_t);
-
-			std::vector<std::uint8_t> FrameBuffer(Header.FrameLen - (sizeof(SVECTOR2) + sizeof(std::int16_t)));
+			std::vector<std::uint8_t> FrameBuffer(Header.FrameLen - (sizeof(SVECTOR2) * 2));
 
 			for (std::size_t y = 0, idx = 0; y < Joint.size(); y++)
 			{
@@ -458,12 +388,8 @@ std::uintmax_t Resident_Evil_3_Animation::SaveEMR(StdFile& File, std::uintmax_t 
 					FrameBuffer[idx + 3] |= (Anim[i][x].Rotation[y].z << 4), FrameBuffer[idx + 4] = (Anim[i][x].Rotation[y].z >> 4);
 				}
 			}
-
 			File.Write(pFrame, FrameBuffer.data(), FrameBuffer.size());
 		}
-
-		Pointer += (pEmrList.size() * Header.FrameLen);
-		pEmrList.clear();
 	}
 
 	File.Write(_Ptr, &Header, sizeof(Resident_Evil_EMR_Header));
@@ -475,7 +401,7 @@ std::uintmax_t Resident_Evil_3_Animation::SaveEMR(StdFile& File, std::uintmax_t 
 /*
 	Save
 */
-bool Resident_Evil_3_Animation::SaveEMR(std::filesystem::path Output, std::uintmax_t _Ptr)
+bool Resident_Evil_2_Animation::SaveEMR(std::filesystem::path Output, std::uintmax_t _Ptr)
 {
 	StdFile m_File;
 
@@ -490,60 +416,47 @@ bool Resident_Evil_3_Animation::SaveEMR(std::filesystem::path Output, std::uintm
 
 
 /*
-	Get the total amount of unique frames
+	Update EDD index
 */
-std::size_t Resident_Evil_3_Animation::GetUniqueFrameTotal(bool UpdateEDD)
-{
-	std::size_t nFrames = 0;
-
-	for (std::size_t i = 0; i < Anim.size(); i++)
-	{
-		nFrames += GetUniqueFrameCount(i);
-	}
-
-	return nFrames;
-}
-
-
-/*
-	Get the amount of unique frames in a single animation
-*/
-std::size_t Resident_Evil_3_Animation::GetUniqueFrameCount(std::size_t iAnim)
+std::size_t Resident_Evil_2_Animation::GetUniqueFrameTotal(bool UpdateEDD)
 {
 	std::uintmax_t FrameLen = GetFrameLength();
 
 	Cyclic_Redundancy_Check Crc;
 
-	std::vector<std::tuple<std::size_t, std::uint32_t>> Table;
+	std::vector<std::tuple<std::size_t, std::size_t, std::uint32_t>> Table;
 
 	std::uint32_t pEmr = 0;
 
-	for (std::size_t x = 0; x < Anim[iAnim].size(); x++)
+	for (std::size_t i = 0; i < Anim.size(); i++)
 	{
-		Anim[iAnim][x].Attr.pEmr = pEmr;
-
-		std::vector<std::uint8_t> Buffer(FrameLen + 8);
-
-		std::memcpy(&Buffer.data()[0], &Anim[iAnim][x].Attr.Speed, sizeof(std::uint32_t));
-		std::memcpy(&Buffer.data()[4], &Anim[iAnim][x].Attr.Sound, sizeof(std::uint32_t));
-		std::memcpy(&Buffer.data()[8], &Anim[iAnim][x].Origin, sizeof(SVECTOR2));
-		std::memcpy(&Buffer.data()[8 + sizeof(SVECTOR2)], &Anim[iAnim][x].Speed, sizeof(SVECTOR2));
-		std::memcpy(&Buffer.data()[8 + (sizeof(SVECTOR2) * 2)], &Anim[iAnim][x].Rotation.data()[0], (FrameLen - (sizeof(SVECTOR2) * 2)));
-
-		std::uint32_t CRC = Crc.GetCRC32(Buffer.data(), FrameLen);
-
-		Table.push_back(std::make_tuple(x, CRC));
-
-		pEmr++;
-
-		for (std::size_t y = 0; y < Table.size() - 1; y++)
+		for (std::size_t x = 0; x < Anim[i].size(); x++)
 		{
-			if (std::get<1>(Table[y]) == CRC)
+			if (UpdateEDD) { Anim[i][x].Attr.pEmr = pEmr; }
+
+			std::vector<std::uint8_t> Buffer(FrameLen + 8);
+
+			std::memcpy(&Buffer.data()[0], &Anim[i][x].Attr.Speed, sizeof(std::uint32_t));
+			std::memcpy(&Buffer.data()[4], &Anim[i][x].Attr.Sound, sizeof(std::uint32_t));
+			std::memcpy(&Buffer.data()[8], &Anim[i][x].Origin, sizeof(SVECTOR2));
+			std::memcpy(&Buffer.data()[8 + sizeof(SVECTOR2)], &Anim[i][x].Speed, sizeof(SVECTOR2));
+			std::memcpy(&Buffer.data()[8 + (sizeof(SVECTOR2) * 2)], &Anim[i][x].Rotation.data()[0], (FrameLen - (sizeof(SVECTOR2) * 2)));
+
+			std::uint32_t CRC = Crc.GetCRC32(Buffer.data(), FrameLen);
+
+			Table.push_back(std::make_tuple(i, x, CRC));
+
+			pEmr++;
+
+			for (std::size_t y = 0; y < Table.size() - 1; y++)
 			{
-				Anim[iAnim][x].Attr.pEmr = Anim[iAnim][std::get<0>(Table[y])].Attr.pEmr;
-				pEmr--;
-				Table.pop_back();
-				break;
+				if (std::get<2>(Table[y]) == CRC)
+				{
+					if (UpdateEDD) { Anim[i][x].Attr.pEmr = Anim[std::get<0>(Table[y])][std::get<1>(Table[y])].Attr.pEmr; }
+					pEmr--;
+					Table.pop_back();
+					break;
+				}
 			}
 		}
 	}
@@ -555,7 +468,7 @@ std::size_t Resident_Evil_3_Animation::GetUniqueFrameCount(std::size_t iAnim)
 /*
 	Get frame packet length
 */
-std::uint16_t Resident_Evil_3_Animation::GetFrameLength(void) const
+std::uint16_t Resident_Evil_2_Animation::GetFrameLength(void) const
 {
 	if (Joint.empty()) { return 0; }
 
@@ -572,7 +485,7 @@ std::uint16_t Resident_Evil_3_Animation::GetFrameLength(void) const
 		}
 	}
 
-	std::uint16_t FrameLen = static_cast<std::uint16_t>((idx + 5) + (sizeof(SVECTOR2) + sizeof(std::int16_t)));
+	std::uint16_t FrameLen = static_cast<std::uint16_t>((idx + 5) + (sizeof(SVECTOR2) * 2));
 
 	File.Align(FrameLen, 4);
 
@@ -583,15 +496,15 @@ std::uint16_t Resident_Evil_3_Animation::GetFrameLength(void) const
 /*
 	Get EDD file size
 */
-std::uintmax_t Resident_Evil_3_Animation::SizeEDD(void)
+std::uintmax_t Resident_Evil_2_Animation::SizeEDD(void)
 {
 	if (!b_EddOpen) { return 0; }
 
-	std::uintmax_t Size = Anim.size() * sizeof(Resident_Evil_EDD_Header_Bio3);
+	std::uintmax_t Size = Anim.size() * sizeof(Resident_Evil_EDD_Header);
 
 	for (std::size_t i = 0; i < Anim.size(); i++)
 	{
-		Size += Anim[i].size() * 2;
+		Size += Anim[i].size() * 4;
 	}
 
 	Size += sizeof(std::int32_t);
@@ -603,7 +516,7 @@ std::uintmax_t Resident_Evil_3_Animation::SizeEDD(void)
 /*
 	Get EMR file size
 */
-std::uintmax_t Resident_Evil_3_Animation::SizeEMR(void)
+std::uintmax_t Resident_Evil_2_Animation::SizeEMR(void)
 {
 	if (!b_EmrOpen) { return 0; }
 
@@ -628,4 +541,49 @@ std::uintmax_t Resident_Evil_3_Animation::SizeEMR(void)
 	std::size_t nFrames = GetUniqueFrameTotal(true);
 
 	return FileSize + (nFrames * GetFrameLength());
+}
+
+
+/*
+	Export Resident Evil animation
+*/
+std::unique_ptr<Resident_Evil_Animation> Resident_Evil_2_Animation::ExportBio1(void)
+{
+	std::unique_ptr<Resident_Evil_Animation> Bio1 = std::make_unique<Resident_Evil_Animation>();
+
+	Bio1->SetGame(Resident_Evil_Video_Game::Resident_Evil);
+
+	Bio1->SetType(Resident_Evil_Animation_Type::Normal);
+
+	if (!IsOpen())
+	{
+		Str->Message("Resident Evil 2 Animation: Error, animation is not open");
+		return Bio1;
+	}
+
+	if (!GetJointCount())
+	{
+		Str->Message("Resident Evil 2 Animation: Error, no joints");
+		return Bio1;
+	}
+
+	if (!GetAnimationCount())
+	{
+		Str->Message("Resident Evil 2 Animation: Error, no animations");
+		return Bio1;
+	}
+
+	for (std::size_t i = 0; i < Joint.size(); i++)
+	{
+		Bio1->AddJoint(GetJoint(i));
+	}
+
+	for (std::size_t i = 0; i < Anim.size(); i++)
+	{
+		Bio1->AddAnimation(GetAnimation(i));
+	}
+
+	Bio1->ForceOpen();
+
+	return Bio1;
 }

@@ -90,7 +90,7 @@ private:
 
 public:
 
-	// Resident Evil 2 Room Data Table
+	// Resident Evil 2 Room Data
 	std::unique_ptr<Resident_Evil_2_RDT> Rdt;
 
 	// Prefer Assembly Text Output
@@ -224,6 +224,16 @@ public:
 		Extract contents of PIX file container
 	*/
 	bool ExtractPIX(std::filesystem::path Input);
+
+	/*
+		Extract contents of VBS file container (slus_00748 support only)
+	*/
+	bool ExtractVBS(std::filesystem::path Input);
+
+	/*
+		Assemble contents of VBS file container
+	*/
+	bool AssembleVBS(std::filesystem::path Directory, std::filesystem::path OutFilename);
 
 	/*
 		Extract EMD file tables from executable

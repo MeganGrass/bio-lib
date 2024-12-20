@@ -1,3 +1,4 @@
+// slus_00748
 struct emd_pos {
 	unsigned char id;
 	unsigned long int bin0_size;

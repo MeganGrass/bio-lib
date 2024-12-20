@@ -49,7 +49,7 @@
 
 
 class Resident_Evil_2_RDT :
-	public Resident_Evil_Common {
+	private Resident_Evil_Common {
 private:
 
 	// Copy
@@ -159,6 +159,19 @@ public:
 	}
 
 	/*
+		Inheritance
+	*/
+	using Resident_Evil_Common::GetGame;
+	using Resident_Evil_Common::Stage;
+	using Resident_Evil_Common::Room;
+	using Resident_Evil_Common::Disk;
+
+	/*
+		Set game
+	*/
+	virtual void SetGame(Resident_Evil_Video_Game _Game) override;
+
+	/*
 		Check if the room is open
 	*/
 	bool operator !() { return !b_Open; }
@@ -177,5 +190,25 @@ public:
 		Close
 	*/
 	void Close(void);
+
+	/*
+		Get camera count
+	*/
+	std::uint8_t GetCameraCount(void) const noexcept { return Header.nCut; }
+
+	/*
+		Set camera count
+	*/
+	void SetCameraCount(std::uint8_t Count) noexcept;
+
+	/*
+		Get object model count
+	*/
+	std::size_t GetObjectModelCount(void) const noexcept { return Omodel.size(); }
+
+	/*
+		Set object model count
+	*/
+	void SetObjectModelCount(std::uint8_t Count) noexcept;
 
 };

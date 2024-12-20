@@ -243,8 +243,8 @@ bool Resident_Evil_Model::Extract(std::filesystem::path Input, Resident_Evil_Vid
 		std::unique_ptr<Standard_Image> Image = Emd->Tim->GetBitmap();
 		for (uint32_t i = 0; i < Emd->Tim->GetClutSize(); i++)
 		{
-			Filename = Str->FormatCStyle("%s\\%s\\%s_%02d.bmp", Dir.string().c_str(), Input.stem().string().c_str(), Input.stem().string().c_str(), i); \
-				Emd->Tim->UpdateBitmapPalette(Image, i);
+			Filename = Str->FormatCStyle("%s\\%s\\%s_%02d.bmp", Dir.string().c_str(), Input.stem().string().c_str(), Input.stem().string().c_str(), i);
+			Emd->Tim->UpdateBitmapPalette(Image, i);
 			Image->SaveAsBitmap(Filename);
 		}
 		Image->Close();

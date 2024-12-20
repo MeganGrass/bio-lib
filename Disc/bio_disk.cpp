@@ -18,11 +18,13 @@
 void Capcom_Disk::PrintHelp(void)
 {
     std::cout << "Capcom Disk: Help" << std::endl << std::endl;
-    std::cout << "  <address> fpos structure address, must be hexadecimal, range 0x80000000 - 0x81FFFFFF" << std::endl;
-    std::cout << "  <version> 0=custom, 1=aug95, 2=oct95, 4=bio1, 8=bio2, bio3" << std::endl;
-    std::cout << "  <exe> Sony PlayStation Executable file path" << std::endl;
-    std::cout << "  <lba> parsable text file of LBA data, created with -retext from built-in cutom mkpsxiso" << std::endl << std::endl;
-    std::cout << "  UPDATE <address> <version> <exe> <lba> - Update file list" << std::endl;
+
+    std::cout << "Required Parameters:" << std::endl;
+    std::cout << "\tVER <ver>\t\t0=custom, 1=aug95, 2=oct95, 3=bio1, 4=bio2, bio3" << std::endl;
+    std::cout << "\tFLOC <address>\t\t\"fpos\" structure address, must be hexadecimal: range 0x80000000 - 0x81FFFFFF" << std::endl;
+    std::cout << "\tUPDATE <exe> <lba>\tupdate \"fpos\" structure" << std::endl;
+    std::cout << "\t\t<exe> Sony PlayStation executable filename" << std::endl;
+    std::cout << "\t\t<lba> Parsable text file created with -retext from cutom mkpsxiso" << std::endl << std::endl;
 }
 
 
@@ -52,7 +54,14 @@ void Capcom_Disk::Commandline(StrVec Args)
         {
             if ((i + 1) < Args.size())
             {
-				Version = GetVersion(std::strtoull(Args[i + 1].c_str(), nullptr, 10));
+                switch (std::stoull(Args[i + 1]))
+                {
+				case 0: Version = Capcom_Disk_Version::Custom; break;
+                case 1: Version = Capcom_Disk_Version::AlphaAug95; break;
+				case 2: Version = Capcom_Disk_Version::AlphaOct95; break;
+				case 3: Version = Capcom_Disk_Version::Ver1; break;
+				case 4: Version = Capcom_Disk_Version::Ver2; break;
+                }
                 std::cout << "Capcom Disk: Type \"" << GetVersion(Version) << "\"" << std::endl;
             }
             else
@@ -104,23 +113,6 @@ void Capcom_Disk::Commandline(StrVec Args)
 
     }
 
-}
-
-
-/*
-    Get disk version from integer
-*/
-Capcom_Disk_Version Capcom_Disk::GetVersion(std::uintmax_t Integral)
-{
-    switch (Integral)
-    {
-    case 1: return Capcom_Disk_Version::AlphaAug95;
-    case 2: return Capcom_Disk_Version::AlphaOct95;
-    case 4: return Capcom_Disk_Version::Ver1;
-    case 8: return Capcom_Disk_Version::Ver2;
-    case 0: return Capcom_Disk_Version::Custom;
-    }
-    return Capcom_Disk_Version::Unknown;
 }
 
 

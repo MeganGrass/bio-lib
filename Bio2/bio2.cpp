@@ -644,6 +644,12 @@ std::unique_ptr<Standard_Image> Resident_Evil_2::OpenBSS(std::filesystem::path I
 	uintmax_t pSld = pBs + Index.Bs_size;
 	uintmax_t Sld_size = pIndex - pSld;
 
+	if (!Index.Bs_size)
+	{
+		Str->Message("Resident Evil 2: BSS error, no bitstream");
+		return Image;
+	}
+
 	std::vector<std::uint8_t> BS(Index.Bs_size);
 	m_Input.Read(pBs, BS.data(), Index.Bs_size);
 
@@ -1265,6 +1271,24 @@ bool Resident_Evil_2::ExtractPIX(std::filesystem::path Input)
 
 	m_Input.Close();
 
+	return true;
+}
+
+
+/*
+	Extract contents of VBS file container (slus_00748 support only)
+*/
+bool Resident_Evil_2::ExtractVBS(std::filesystem::path Input)
+{
+	return true;
+}
+
+
+/*
+	Assemble contents of VBS file container
+*/
+bool Resident_Evil_2::AssembleVBS(std::filesystem::path Directory, std::filesystem::path OutFilename)
+{
 	return true;
 }
 

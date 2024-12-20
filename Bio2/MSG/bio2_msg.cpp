@@ -47,7 +47,7 @@ std::uintmax_t Resident_Evil_2_Message::Open(StdFile& File, std::uintmax_t _Ptr,
 
 	Data.resize(_DataSize * sizeof(std::uint8_t) + sizeof(std::wint_t));
 
-	File.Read(_Ptr, Data.data(), Data.size() * sizeof(std::uint8_t) + sizeof(std::wint_t));
+	File.Read(_Ptr, Data.data(), Data.size());
 
 	return _Ptr + Data.size();
 }

@@ -85,8 +85,8 @@ public:
 			Anim.push_back(std::make_unique<Resident_Evil_3_Animation>());
 		}
 		Anim[ANIM_NORMAL]->SetType(Resident_Evil_Animation_Type::Normal);
-		Anim[ANIM_NORMAL_EX]->SetType(Resident_Evil_Animation_Type::Normal_Ex);
-		Anim[ANIM_EXTENDED]->SetType(Resident_Evil_Animation_Type::Extended);
+		Anim[ANIM_NORMAL_EX0]->SetType(Resident_Evil_Animation_Type::Normal_Ex0);
+		Anim[ANIM_NORMAL_EX1]->SetType(Resident_Evil_Animation_Type::Normal_Ex1);
 		Anim[ANIM_DAMAGE]->SetType(Resident_Evil_Animation_Type::Damage);
 		Anim[ANIM_WEAPON]->SetType(Resident_Evil_Animation_Type::Weapon);
 		Anim[ANIM_WEAPON_EX0]->SetType(Resident_Evil_Animation_Type::Weapon_Ex0);
@@ -99,7 +99,7 @@ public:
 		Close();
 		Md2.reset();
 		Md2Ex.reset();
-		for (auto& i : Anim) { i.reset(); }
+		for (auto& i : Anim) { i.get()->CloseEDD(); i.get()->CloseEMR(); i.reset(); }
 		Anim.clear();
 	}
 

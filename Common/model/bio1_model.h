@@ -34,9 +34,9 @@
 
 enum class Resident_Evil_Model_Type : int
 {
-	Player = 1 << 0,
-	Enemy = 1 << 1,
-	Weapon = 1 << 2
+	Player = (1 << 0),
+	Enemy = (1 << 1),
+	Weapon = (1 << 2)
 };
 
 
@@ -52,6 +52,11 @@ private:
 	// Resident Evil Model Type
 	Resident_Evil_Model_Type Type;
 
+	// Flag
+	bool b_Open;
+
+public:
+
 	// Character Model
 	std::unique_ptr<Sony_PlayStation_Model> Tmd;
 
@@ -63,11 +68,6 @@ private:
 
 	// Resident Evil Animation
 	std::vector<std::unique_ptr<Resident_Evil_Animation>> Anim;
-
-	// Flag
-	bool b_Open;
-
-public:
 
 	/*
 		Construction
@@ -84,8 +84,8 @@ public:
 			Anim.push_back(std::make_unique<Resident_Evil_Animation>());
 		}
 		Anim[ANIM_NORMAL]->SetType(Resident_Evil_Animation_Type::Normal);
-		Anim[ANIM_NORMAL_EX]->SetType(Resident_Evil_Animation_Type::Normal_Ex);
-		Anim[ANIM_EXTENDED]->SetType(Resident_Evil_Animation_Type::Extended);
+		Anim[ANIM_NORMAL_EX0]->SetType(Resident_Evil_Animation_Type::Normal_Ex0);
+		Anim[ANIM_NORMAL_EX1]->SetType(Resident_Evil_Animation_Type::Normal_Ex1);
 		Anim[ANIM_DAMAGE]->SetType(Resident_Evil_Animation_Type::Damage);
 		Anim[ANIM_WEAPON]->SetType(Resident_Evil_Animation_Type::Weapon);
 		Anim[ANIM_WEAPON_EX0]->SetType(Resident_Evil_Animation_Type::Weapon_Ex0);
@@ -94,6 +94,10 @@ public:
 		SetGame(Resident_Evil_Video_Game::Resident_Evil);
 		Tmd->IgnoreMagic(true);
 	}
+
+	/*
+		Deconstruction
+	*/
 	virtual ~Resident_Evil_Model(void)
 	{
 		Close();
@@ -129,26 +133,6 @@ public:
 		Get model type
 	*/
 	Resident_Evil_Model_Type GetType(void) const { return Type; }
-
-	/*
-		Get model data
-	*/
-	std::unique_ptr<Sony_PlayStation_Model>& GetModelTMD(void) { return Tmd; }
-
-	/*
-		Get model extra data
-	*/
-	std::unique_ptr<Sony_PlayStation_Model>& GetModelTMDEx(void) { return TmdEx; }
-
-	/*
-		Get texture data
-	*/
-	std::unique_ptr<Sony_PlayStation_Texture>& GetTexture(void) { return Tim; }
-
-	/*
-		Get animation data
-	*/
-	std::unique_ptr<Resident_Evil_Animation>& GetAnimation(std::size_t AnimationType) { return Anim[AnimationType]; }
 
 	/*
 		Open

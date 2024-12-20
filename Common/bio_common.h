@@ -24,26 +24,41 @@
 #define BIO3_CAMERA_MAX		32
 
 
+#define BIO1_OMODEL_MAX		16
+#define BIO2_OMODEL_MAX		32
+#define BIO3_OMODEL_MAX		32
+
+
+#define BIO1_IMODEL_MAX		16
+#define BIO2_IMODEL_MAX		0
+#define BIO3_IMODEL_MAX		0
+
+
+#define BIO1_BLK_MAX		16
+#define BIO2_BLK_MAX		16
+#define BIO3_BLK_MAX		32
+
+
 enum class Resident_Evil_Video_Game : std::uint64_t
 {
-	Resident_Evil_Aug_4_1995 = 1 << 0,
-	Resident_Evil_Oct_4_1995 = 1 << 1,
-	Resident_Evil_Jan_31_1996 = 1 << 2,
-	Resident_Evil_Feb_8_1996 = 1 << 3,
-	Resident_Evil_Feb_22_1996 = 1 << 4,
-	Resident_Evil_Trial = 1 << 5,
-	Resident_Evil = 1 << 6,
-	Resident_Evil_Directors_Cut = 1 << 7,
-	Resident_Evil_Directors_Cut_Dual_Shock = 1 << 8,
-	Resident_Evil_Complete_Disc = 1 << 9,
-	Resident_Evil_2_Nov_6_1996 = 1 << 10,
-	Resident_Evil_2_Oct_30_1997 = 1 << 11,
-	Resident_Evil_2_Trial = 1 << 12,
-	Resident_Evil_2 = 1 << 13,
-	Resident_Evil_2_Dual_Shock = 1 << 14,
-	Resident_Evil_3_July_26_1999 = 1 << 15,
-	Resident_Evil_3_Trial = 1 << 16,
-	Resident_Evil_3 = 1 << 17
+	Resident_Evil_Aug_4_1995 = (1 << 0),
+	Resident_Evil_Oct_4_1995 = (1 << 1),
+	Resident_Evil_Trial = (1 << 3),	// Jan_15_1996
+	Resident_Evil_Jan_31_1996 = (1 << 4),
+	Resident_Evil_Feb_8_1996 = (1 << 5),
+	Resident_Evil_Feb_22_1996 = (1 << 6),
+	Resident_Evil = (1 << 7),
+	Resident_Evil_Directors_Cut = (1 << 8),
+	Resident_Evil_Directors_Cut_Dual_Shock = (1 << 9),
+	Resident_Evil_2_Nov_6_1996 = (1 << 10),
+	Resident_Evil_2_Trial = (1 << 12),	// Aug_6_1997 and Aug_28_1997
+	Resident_Evil_2_Oct_30_1997 = (1 << 11),
+	Resident_Evil_2 = (1 << 13),
+	Resident_Evil_2_Dual_Shock = (1 << 14),
+	Resident_Evil_3_July_26_1999 = (1 << 15),
+	Resident_Evil_3_Trial = (1 << 16),	// Aug_24_1999
+	Resident_Evil_3 = (1 << 17),
+	Resident_Evil_Complete_Disc = (1 << 31),
 };
 
 

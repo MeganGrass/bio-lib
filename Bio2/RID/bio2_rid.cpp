@@ -43,7 +43,7 @@ bool Resident_Evil_2_RID::Open(std::filesystem::path Path, std::uintmax_t _Ptr)
 
 	std::uintmax_t OldPtr = _Ptr;
 
-	_Ptr = Open(m_File, _Ptr);
+	//_Ptr = Open(m_File, _Ptr);
 
 	return OldPtr != _Ptr;
 }

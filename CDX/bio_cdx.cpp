@@ -87,6 +87,8 @@ void CDX_File_Container::Commandline(StrVec Args)
 
 	bool bConvert = false;
 
+	std::uint8_t Disk = 0;
+
 	std::filesystem::path Directory;
 
 	std::filesystem::path Out;
@@ -139,6 +141,20 @@ void CDX_File_Container::Commandline(StrVec Args)
 		if (Args[i] == "CONV")
 		{
 			bConvert = true;
+		}
+
+		if (Args[i] == "DISK")
+		{
+			if ((i + 1) < Args.size())
+			{
+				Disk = static_cast<std::uint8_t>(std::stoull(Args[i + 1]));
+				std::cout << "CDX File Container: Disk " << Disk << std::endl;
+			}
+			else
+			{
+				std::cout << "CDX File Container: Parse error, not enough arguments for " << Args[i] << std::endl << std::endl;
+				PrintHelp();
+			}
 		}
 
 		if (Args[i] == "GAME")
@@ -199,6 +215,9 @@ void CDX_File_Container::Commandline(StrVec Args)
 	case PLW: CreatePLW(Directory, Out, bConvert); return;
 	case SND_ARMS: CreateSndARMS(Directory, Out); return;
 	case SND_CORE: CreateSndCORE(Directory, Out, bConvert); return;
+	case SND_MAIN: CreateSndBGM(Directory, Out, false); return;
+	case SND_SUB: CreateSndBGM(Directory, Out, true); return;
+	case RDT: CreateRDT(Directory, Out, Disk); return;
 	}
 }
 
@@ -936,4 +955,176 @@ bool CDX_File_Container::CreateSndCORE(std::filesystem::path Directory, std::fil
 	CDX.ResizeAlign(0x800);
 
 	return bRet;
+}
+
+
+/*
+	Create BGM CDX file containers
+*/
+bool CDX_File_Container::CreateSndBGM(std::filesystem::path Directory, std::filesystem::path OutDirectory, bool bSub)
+{
+	Standard_String Str;
+
+	Standard_FileSystem FS;
+
+	std::vector<Capcom_Disk_Version_Custom> floc(0x40);
+
+	std::uintmax_t Sector = 1;
+
+	std::filesystem::path OutDir = FS.GetDirectory(OutDirectory);
+
+	std::filesystem::path Dir = FS.GetDirectory(Directory);
+	if (!FS.Exists(Dir) && !FS.IsDirectory(Dir))
+	{
+		Str.Message("CDX File Container: Directory error, not found or isn't a directory: \"%s\"", Dir.string().c_str());
+		return false;
+	}
+
+	std::vector<std::filesystem::path> FileList = FS.GetFileList(Dir);
+	FileList.erase(std::remove_if(FileList.begin(), FileList.end(), [](std::filesystem::path File) { return File.extension() != ".BGM"; }), FileList.end());
+	if (FileList.empty())
+	{
+		Str.Message("CDX File Container: Create error, directory is empty or doesn't contain any BGM files");
+		return false;
+	}
+
+	std::filesystem::path Filename;
+	std::string Typename;
+
+	if (!bSub)
+	{
+		Filename = OutDir / Str.FormatCStyle("%s\\SNDMAIN.CDX", OutDir.string().c_str());
+		Typename = "MAIN";
+	}
+	else
+	{
+		Filename = OutDir / Str.FormatCStyle("%s\\SNDSUB.CDX", OutDir.string().c_str());
+		Typename = "SUB_";
+	}
+
+	StdFile CDX { Filename, FileAccessMode::Write, true, true };
+	if (!CDX.IsOpen())
+	{
+		std::cout << "CDX File Container: Write error, cannot create " << CDX.GetPath().filename() << std::endl;
+		return false;
+	}
+
+	for (std::uint8_t id = 0; id < 0x40; id++)
+	{
+		floc[id].sector = static_cast<ULONG>(Sector);
+
+		StdFile BGM{ Dir / Str.FormatCStyle("%s%02X.BGM", Typename.c_str(), id), FileAccessMode::Read, true, false };
+		if (!BGM.IsOpen()) { continue; }
+
+		std::cout << "CDX File Container: " << BGM.GetPath().filename() << " (" << BGM.Size() << " bytes) at sector [" << floc[id].sector << "]" << std::endl;
+
+		CDX.Write(Sector * 0x800, BGM.buffer().data(), BGM.Size());
+
+		floc[id].size = static_cast<ULONG>(BGM.Size());
+
+		Sector += GetSectorSize(BGM.Size());
+
+		BGM.Close();
+	}
+
+	CDX.Write(0, floc.data(), floc.size() * sizeof(Capcom_Disk_Version_Custom));
+	CDX.Close();
+	CDX.ResizeAlign(0x800);
+
+	std::cout << "CDX File Container: " << CDX.GetPath().filename() << " successfully created" << std::endl;
+
+	return true;
+}
+
+
+/*
+	Create RDT CDX file container
+*/
+bool CDX_File_Container::CreateRDT(std::filesystem::path Directory, std::filesystem::path OutDirectory, std::uint8_t Disk)
+{
+	Standard_String Str;
+
+	Standard_FileSystem FS;
+
+	std::filesystem::path Dir = FS.GetDirectory(Directory);
+	if (!FS.Exists(Dir) && !FS.IsDirectory(Dir))
+	{
+		Str.Message("CDX File Container: Directory error, not found or isn't a directory: \"%s\"", Dir.string().c_str());
+		return false;
+	}
+
+	std::vector<std::filesystem::path> FileList = FS.GetFileList(Dir);
+	FileList.erase(std::remove_if(FileList.begin(), FileList.end(), [](std::filesystem::path File) { return File.extension() != ".RDT"; }), FileList.end());
+	if (FileList.empty())
+	{
+		Str.Message("CDX File Container: Create error, directory is empty or doesn't contain any RDT files");
+		return false;
+	}
+
+	std::filesystem::path OutDir = FS.GetDirectory(OutDirectory);
+
+	std::int8_t ExStage = 'A';
+
+	for (std::uint8_t Stage = 0; Stage < 7; Stage++)
+	{
+		std::filesystem::path CdxFilename;
+		if (Disk == 2)
+		{
+			CdxFilename = OutDir / Str.FormatCStyle("%s\\STGEX%02X.CDX", OutDir.string().c_str(), Stage + 1);
+		}
+		else
+		{
+			CdxFilename = OutDir / Str.FormatCStyle("%s\\STG%02X%02X.CDX", OutDir.string().c_str(), Disk, Stage + 1);
+		}
+		std::cout << "CDX File Container: Creating " << CdxFilename.filename() << std::endl;
+
+		StdFile CDX { CdxFilename, FileAccessMode::Write, true, true };
+		if (!CDX.IsOpen())
+		{
+			std::cout << "CDX File Container: Write error, cannot create " << CDX.GetPath().filename() << std::endl;
+			continue;
+		}
+
+		std::vector<Capcom_Disk_Version_Custom> floc(0x30);
+
+		std::uintmax_t Sector = 1;
+
+		for (std::uint16_t Room = 0; Room < 0x30; Room++)
+		{
+			floc[Room].sector = static_cast<ULONG>(Sector);
+
+			std::filesystem::path Filename;
+			if (Disk == 2)
+			{
+				Filename = Dir / Str.FormatCStyle("ROOM%C%02X%X.RDT", ExStage + Stage, Room, 0);
+			}
+			else
+			{
+				Filename = Dir / Str.FormatCStyle("ROOM%X%02X%X.RDT", Stage + 1, Room, Disk);
+			}
+
+			StdFile RDT { Filename, FileAccessMode::Read, true, false };
+			if (!RDT.IsOpen()) { continue; }
+
+			std::cout << "CDX File Container: " << Filename.filename() << " (" << RDT.Size() << " bytes) at sector [" << floc[Room].sector << "]" << std::endl;
+
+			CDX.Write(Sector * 0x800, RDT.buffer().data(), RDT.Size());
+
+			floc[Room].size = static_cast<ULONG>(RDT.Size());
+
+			Sector += GetSectorSize(RDT.Size());
+
+			RDT.Close();
+		}
+
+		CDX.Write(0, floc.data(), floc.size() * sizeof(Capcom_Disk_Version_Custom));
+
+		CDX.Close();
+
+		CDX.ResizeAlign(0x800);
+
+		std::cout << "CDX File Container: " << CdxFilename.filename() << " successfully created" << std::endl;
+	}
+
+	return true;
 }

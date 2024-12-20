@@ -29,4 +29,12 @@ struct DATA_POS
 };
 
 
+struct DVIEW
+{
+	std::uint32_t X;
+	std::uint32_t Y;
+	std::uint32_t Z;
+};
+
+
 #pragma pack(pop)

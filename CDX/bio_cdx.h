@@ -96,13 +96,13 @@ public:
 
 	/*
 		Create Normal CDX file container
-		Archive all regular files in Directory to the Output file
+		 - archive all regular files in Directory to Filename
 	*/
 	bool Create(CDX_File_Type Type, std::filesystem::path Directory, std::filesystem::path Filename);
 
 	/*
 		Create BSS CDX file containers
-		if bConvertBss is true, BSS files in Directory are converted to the new format
+		 - if bConvertBss is true, BSS files in Directory are converted to the new format
 	*/
 	bool CreateBSS(std::filesystem::path Directory, std::filesystem::path OutDirectory, Resident_Evil_Video_Game Game = Resident_Evil_Video_Game::Resident_Evil_2, bool bConvertBss = false);
 
@@ -113,7 +113,7 @@ public:
 
 	/*
 		Create EMD CDX file container/s
-		if bConvertCdEms is true, OutFilename is output directory and CDEMD0.EMS/CDEMD1.EMS (slus_00748 only supported) are converted to the new format
+		 - if bConvertCdEms is true, OutFilename is output directory and CDEMD0.EMS/CDEMD1.EMS (slus_00748 only supported) are converted to the new format
 	*/
 	bool CreateEMD(std::filesystem::path Directory, std::filesystem::path OutFilename, bool bConvertCdEms = false);
 
@@ -124,7 +124,7 @@ public:
 
 	/*
 		Create PLW CDX file containers
-		if bInitialBuild is true, missing PLWs for each PLD are created
+		 - if bInitialBuild is true, missing PLWs for each PLD are created
 	*/
 	bool CreatePLW(std::filesystem::path Directory, std::filesystem::path OutDirectory, bool bInitialBuild = false);
 
@@ -135,8 +135,20 @@ public:
 
 	/*
 		Create SND CORE CDX file container
-		if bInitialBuild is true, missing COREs for each PLD are created
+		 - if bInitialBuild is true, missing COREs for each PLD are created
 	*/
 	bool CreateSndCORE(std::filesystem::path Directory, std::filesystem::path OutDirectory, bool bInitialBuild = false);
+
+	/*
+		Create BGM CDX file containers
+		 - if bSub is true, SNDSUB.CDX is created instead of SNDMAIN.CDX
+	*/
+	bool CreateSndBGM(std::filesystem::path Directory, std::filesystem::path OutDirectory, bool bSub = false);
+
+	/*
+		Create RDT CDX file container
+		 - Disk: 0=PL0, 1=PL1, 2=Ex-Battle
+	*/
+	bool CreateRDT(std::filesystem::path Directory, std::filesystem::path OutDirectory, std::uint8_t Disk);
 
 };

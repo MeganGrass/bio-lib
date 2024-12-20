@@ -81,20 +81,20 @@ struct Resident_Evil_Frame
 enum class Resident_Evil_Animation_Type : int
 {
 //	Flag								// File			Joints?		Notes
-	Normal = 1 << 0,					// EMD/PLD		Yes			Bio1/Bio2/Bio3 = first animation
-	Normal_Ex = 1 << 1,					// EMD			Yes			Bio3 = second animation
-	Extended = 1 << 2,					// EMD			No			Bio2 = second animation
-	Damage = 1 << 3,					// EMD			No			Bio1 = second animation, Bio2/Bio3 = third animation
-	Weapon = 1 << 4,					// EMW/PLW		No			Bio1/Bio2/Bio3 = first animation
-	Weapon_Ex0 = 1 << 5,				// EMD/PLW		Yes			Bio3 = second animation (PLW), fourth animation (EMD)
-	Weapon_Ex1 = 1 << 6,				// EMD/PLW		Yes			Bio3 = third animation (PLW), fifth animation (EMD)
-	Room = 1 << 7,						// RDT/RBJ		No
+	Normal = (1 << 0),					// EMD/PLD		Yes			Bio1/Bio2/Bio3 = first animation
+	Normal_Ex0 = (1 << 1),				// EMD			No			Bio2 = second animation (use joints from first animation)
+	Normal_Ex1 = (1 << 2),				// EMD			Yes			Bio3 = second animation
+	Damage = (1 << 3),					// EMD			No			Bio1 = second animation, Bio2/Bio3 = third animation (use with player joints)
+	Weapon = (1 << 4),					// EMW/PLW		No			Bio1/Bio2/Bio3 = first animation (use with player joints)
+	Weapon_Ex0 = (1 << 5),				// EMD/PLW		Yes			Bio3 = second animation (PLW), fourth animation (EMD)
+	Weapon_Ex1 = (1 << 6),				// EMD/PLW		Yes			Bio3 = third animation (PLW), fifth animation (EMD)
+	Room = (1 << 7),					// RDT/RBJ		No
 };
 
 
 #define ANIM_NORMAL			0
-#define ANIM_NORMAL_EX		1
-#define ANIM_EXTENDED		2
+#define ANIM_NORMAL_EX0		1
+#define ANIM_NORMAL_EX1		2
 #define ANIM_DAMAGE			3
 #define ANIM_WEAPON			4
 #define ANIM_WEAPON_EX0		5
@@ -108,8 +108,8 @@ private:
 
 	// Resident Evil animation type constants
 	static constexpr int NORMAL = std::to_underlying(Resident_Evil_Animation_Type::Normal);
-	static constexpr int NORMAL_EX = std::to_underlying(Resident_Evil_Animation_Type::Normal_Ex);
-	static constexpr int EXTENDED = std::to_underlying(Resident_Evil_Animation_Type::Extended);
+	static constexpr int NORMAL_EX1 = std::to_underlying(Resident_Evil_Animation_Type::Normal_Ex1);
+	static constexpr int NORMAL_EX0 = std::to_underlying(Resident_Evil_Animation_Type::Normal_Ex0);
 	static constexpr int DAMAGE = std::to_underlying(Resident_Evil_Animation_Type::Damage);
 	static constexpr int WEAPON = std::to_underlying(Resident_Evil_Animation_Type::Weapon);
 	static constexpr int WEAPON_EX0 = std::to_underlying(Resident_Evil_Animation_Type::Weapon_Ex0);
