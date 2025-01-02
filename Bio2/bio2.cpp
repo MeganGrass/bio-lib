@@ -1018,25 +1018,20 @@ bool Resident_Evil_2::AssembleEMS(std::filesystem::path Directory, std::filesyst
 bool Resident_Evil_2::ExtractITP(std::filesystem::path Input)
 {
 	StdFile m_Input { Input, FileAccessMode::Read_Ex, true, false };
-
 	if (!m_Input)
 	{
 		Str->Message("ITP Extraction: Error, could not open %s", Input.filename().string().c_str());
 		return false;
 	}
 
+	std::uintmax_t Offset = 0;
+	std::uintmax_t Counter = 0;
 	std::uintmax_t FileSize = m_Input.Size();
-
 	std::filesystem::path Dir = m_Input.GetDirectory();
 
 	m_Input.CreateDirectory(Dir / Input.stem());
 
-	std::uintmax_t Offset = 0;
-
-	std::uintmax_t Counter = 0;
-
 	std::vector<std::uint8_t> Palette(sizeof(bio2_ds_ST0_texture00_clut01));
-
 	std::memcpy(Palette.data(), bio2_ds_ST0_texture00_clut01, sizeof(bio2_ds_ST0_texture00_clut01));
 
 	while (Offset < FileSize)
