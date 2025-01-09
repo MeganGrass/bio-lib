@@ -213,7 +213,7 @@ bool Resident_Evil_2_RDT::Open(std::filesystem::path Path)
 	if (Header.pScrl)
 	{
 		Scrl->Create(16, 320, 240, 0);
-		Scrl->ReadPixels(File, Header.pScrl, 0x25800);
+		Scrl->ImportPixels(File, Header.pScrl, 0x25800);
 	}
 
 	// Object Models

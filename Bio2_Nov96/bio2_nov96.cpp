@@ -210,7 +210,7 @@ bool Resident_Evil_2_Nov96::ExtractITP(std::filesystem::path Input)
 	{
 		Sony_PlayStation_Texture Texture;
 
-		Texture.SetSTP4Bpp(false);
+		Texture.STP4Bpp() = false;
 
 		Texture.Open(m_Input, Offset);
 
@@ -240,7 +240,7 @@ bool Resident_Evil_2_Nov96::ExtractITP(std::filesystem::path Input)
 
 			Texture.SetHeight(30);
 
-			Texture.ReadPixels(m_Input, Offset, 0x960);
+			Texture.ImportPixels(m_Input, Offset, 0x960);
 		}
 		else
 		{
@@ -248,10 +248,10 @@ bool Resident_Evil_2_Nov96::ExtractITP(std::filesystem::path Input)
 
 			Texture.SetHeight(30);
 
-			Texture.ReadPixels(m_Input, Offset, 0x4B0);
+			Texture.ImportPixels(m_Input, Offset, 0x4B0);
 		}
 
-		Texture.CopyPalette(Palette);
+		Texture.ImportPalette(Palette);
 
 		Filename = Str->FormatCStyle("%s/%s/%s_%02d_Small.tim", Dir.string().c_str(), Input.stem().string().c_str(), Input.stem().string().c_str(), Counter);
 
@@ -307,13 +307,13 @@ bool Resident_Evil_2_Nov96::ExtractPIX(std::filesystem::path Input)
 		{
 			Sony_PlayStation_Texture Texture;
 
-			Texture.SetSTP4Bpp(false);
+			Texture.STP4Bpp() = false;
 
 			Texture.Create(8, 40, 30, 1);
 
-			Texture.CopyPalette(Palette);
+			Texture.ImportPalette(Palette);
 
-			Texture.ReadPixels(m_Input, Offset, 0x4B0);
+			Texture.ImportPixels(m_Input, Offset, 0x4B0);
 
 			std::filesystem::path Filename = Str->FormatCStyle("%s/%s/%s_%02d.tim", Dir.string().c_str(), Input.stem().string().c_str(), Input.stem().string().c_str(), Counter);
 
@@ -353,7 +353,7 @@ bool Resident_Evil_2_Nov96::ExtractPIX(std::filesystem::path Input)
 
 		Sony_PlayStation_Texture Texture;
 
-		Texture.SetSTP4Bpp(false);
+		Texture.STP4Bpp() = false;
 
 		Texture.Create(4, 256, 256, 3);
 
@@ -361,13 +361,13 @@ bool Resident_Evil_2_Nov96::ExtractPIX(std::filesystem::path Input)
 
 		std::vector<std::uint8_t> Palette(sizeof(std::uint16_t) * 16);
 		std::memcpy(Palette.data(), &bio2_nov96_tex_clut[0x540], (sizeof(std::uint16_t) * 16));
-		Texture.CopyPalette(Palette, 0);
+		Texture.ImportPalette(Palette, 0);
 		std::memcpy(Palette.data(), &bio2_nov96_tex_clut[0x580], (sizeof(std::uint16_t) * 16));
-		Texture.CopyPalette(Palette, 1);
+		Texture.ImportPalette(Palette, 1);
 		std::memcpy(Palette.data(), &bio2_nov96_tex_clut[0x5C0], (sizeof(std::uint16_t) * 16));
-		Texture.CopyPalette(Palette, 2);
+		Texture.ImportPalette(Palette, 2);
 
-		Texture.ReadPixels(m_Input, Offset, 0x8000);
+		Texture.ImportPixels(m_Input, Offset, 0x8000);
 
 		std::filesystem::path Filename = Str->FormatCStyle("%s/%s/%s.tim", Dir.string().c_str(), Input.stem().string().c_str(), Input.stem().string().c_str());
 
@@ -397,7 +397,7 @@ bool Resident_Evil_2_Nov96::ExtractPIX(std::filesystem::path Input)
 
 		Texture.Create(16, 320, 240, 0);
 
-		Texture.ReadPixels(m_Input, 0, 0x25800);
+		Texture.ImportPixels(m_Input, 0, 0x25800);
 
 		Texture.Save(Input.replace_extension(".tim"));
 

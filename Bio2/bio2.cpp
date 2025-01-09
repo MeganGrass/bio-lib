@@ -1038,7 +1038,7 @@ bool Resident_Evil_2::ExtractITP(std::filesystem::path Input)
 	{
 		Sony_PlayStation_Texture Texture;
 
-		Texture.SetSTP4Bpp(false);
+		Texture.STP4Bpp() = false;
 
 		Texture.Open(m_Input, Offset);
 
@@ -1068,7 +1068,7 @@ bool Resident_Evil_2::ExtractITP(std::filesystem::path Input)
 
 			Texture.SetHeight(60);
 
-			Texture.ReadPixels(m_Input, Offset, 0x960);
+			Texture.ImportPixels(m_Input, Offset, 0x960);
 		}
 		else
 		{
@@ -1076,10 +1076,10 @@ bool Resident_Evil_2::ExtractITP(std::filesystem::path Input)
 
 			Texture.SetHeight(30);
 
-			Texture.ReadPixels(m_Input, Offset, 0x4B0);
+			Texture.ImportPixels(m_Input, Offset, 0x4B0);
 		}
 
-		Texture.CopyPalette(Palette);
+		Texture.ImportPalette(Palette);
 
 		Filename = Str->FormatCStyle("%s/%s/%s_%02d_Small.tim", Dir.string().c_str(), Input.stem().string().c_str(), Input.stem().string().c_str(), Counter);
 
@@ -1135,13 +1135,13 @@ bool Resident_Evil_2::ExtractPIX(std::filesystem::path Input)
 		{
 			Sony_PlayStation_Texture Texture;
 
-			Texture.SetSTP4Bpp(false);
+			Texture.STP4Bpp() = false;
 
 			Texture.Create(8, 40, 30, 1);
 
-			Texture.CopyPalette(Palette);
+			Texture.ImportPalette(Palette);
 
-			Texture.ReadPixels(m_Input, Offset, 0x4B0);
+			Texture.ImportPixels(m_Input, Offset, 0x4B0);
 
 			std::filesystem::path Filename = Str->FormatCStyle("%s/%s/%s_%02d.tim", Dir.string().c_str(), Input.stem().string().c_str(), Input.stem().string().c_str(), Counter);
 
@@ -1176,7 +1176,7 @@ bool Resident_Evil_2::ExtractPIX(std::filesystem::path Input)
 		{
 			Sony_PlayStation_Texture Texture;
 
-			Texture.SetSTP4Bpp(false);
+			Texture.STP4Bpp() = false;
 
 			Texture.Create(4, 256, 256, 21);
 
@@ -1190,10 +1190,10 @@ bool Resident_Evil_2::ExtractPIX(std::filesystem::path Input)
 
 				ClutPtr += (sizeof(std::uint16_t) * 16);
 
-				Texture.CopyPalette(Palette, iClut);
+				Texture.ImportPalette(Palette, iClut);
 			}
 
-			Texture.ReadPixels(m_Input, Offset, 0x8000);
+			Texture.ImportPixels(m_Input, Offset, 0x8000);
 
 			std::filesystem::path Filename = Str->FormatCStyle("%s/%s/%s_%02d.tim", Dir.string().c_str(), Input.stem().string().c_str(), Input.stem().string().c_str(), Counter);
 
@@ -1232,7 +1232,7 @@ bool Resident_Evil_2::ExtractPIX(std::filesystem::path Input)
 
 		Texture.Create(16, 256, 256, 0);
 
-		Texture.CopyPixels(Pixels, 0);
+		Texture.ImportPixels(Pixels, 0);
 
 		Texture.Save(Input.replace_extension(".tim"));
 
@@ -1253,7 +1253,7 @@ bool Resident_Evil_2::ExtractPIX(std::filesystem::path Input)
 
 		Texture.Create(16, 320, 240, 0);
 
-		Texture.ReadPixels(m_Input, 0, 0x25800);
+		Texture.ImportPixels(m_Input, 0, 0x25800);
 
 		Texture.Save(Input.replace_extension(".tim"));
 

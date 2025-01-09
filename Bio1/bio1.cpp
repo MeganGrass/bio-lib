@@ -363,16 +363,16 @@ bool Resident_Evil::ExtractPIX(std::filesystem::path Input)
 
 		Sony_PlayStation_Texture Texture { 4, 256, 56, 4 };
 
-		Texture.CopyPalette(Normal, 0);
-		Texture.CopyPalette(Green, 1);
-		Texture.CopyPalette(Red, 2);
-		Texture.CopyPalette(Grey, 3);
+		Texture.ImportPalette(Normal, 0);
+		Texture.ImportPalette(Green, 1);
+		Texture.ImportPalette(Red, 2);
+		Texture.ImportPalette(Grey, 3);
 
-		Texture.ReadPixels(m_Input, Offset, 0x1C00);
+		Texture.ImportPixels(m_Input, Offset, 0x1C00);
 
 		Texture.Save(Input.replace_extension(".tim"));
 
-		Texture.SetSTP4Bpp(false);
+		Texture.STP4Bpp() = false;
 
 		std::unique_ptr<Standard_Image> Image = Texture.GetBitmap();
 
@@ -395,16 +395,16 @@ bool Resident_Evil::ExtractPIX(std::filesystem::path Input)
 		{
 			Sony_PlayStation_Texture Texture{ 4, 512, 192, 2 };
 
-			Texture.SetSTP4Bpp(false);
+			Texture.STP4Bpp() = false;
 
 			std::vector<std::uint8_t> Palette(0x20);
 			m_Input.Read(Offset, &Palette.data()[0], 0x20);
-			Texture.CopyPalette(Palette, 0);
+			Texture.ImportPalette(Palette, 0);
 			m_Input.Read(Offset + 0x20, &Palette.data()[0], 0x20);
-			Texture.CopyPalette(Palette, 1);
+			Texture.ImportPalette(Palette, 1);
 
 			Offset += 0x40;
-			Texture.ReadPixels(m_Input, Offset, 0xC000);
+			Texture.ImportPixels(m_Input, Offset, 0xC000);
 			Offset += 0xC800 - (Offset % 0xC800);
 
 			std::filesystem::path Filename = Str->FormatCStyle("%s/%s/%s_%02d.tim", Dir.string().c_str(), Input.stem().string().c_str(), Input.stem().string().c_str(), Counter);
@@ -438,13 +438,13 @@ bool Resident_Evil::ExtractPIX(std::filesystem::path Input)
 		{
 			Sony_PlayStation_Texture Texture;
 
-			Texture.SetSTP4Bpp(false);
+			Texture.STP4Bpp() = false;
 
 			Texture.Create(8, 40, 30, 1);
 
-			Texture.CopyPalette(Palette);
+			Texture.ImportPalette(Palette);
 
-			Texture.ReadPixels(m_Input, Offset, 0x4B0);
+			Texture.ImportPixels(m_Input, Offset, 0x4B0);
 
 			std::filesystem::path Filename = Str->FormatCStyle("%s/%s/%s_%02d.tim", Dir.string().c_str(), Input.stem().string().c_str(), Input.stem().string().c_str(), Counter);
 
@@ -475,11 +475,11 @@ bool Resident_Evil::ExtractPIX(std::filesystem::path Input)
 
 		Sony_PlayStation_Texture Texture { 4, 512, 136, 1 };
 
-		Texture.SetSTP4Bpp(false);
+		Texture.STP4Bpp() = false;
 
-		Texture.CopyPalette(Palette);
+		Texture.ImportPalette(Palette);
 
-		Texture.ReadPixels(m_Input, Offset, 0x8800);
+		Texture.ImportPixels(m_Input, Offset, 0x8800);
 
 		Texture.Save(Input.replace_extension(".tim"));
 
@@ -500,7 +500,7 @@ bool Resident_Evil::ExtractPIX(std::filesystem::path Input)
 
 		Texture.Create(16, 320, 240, 0);
 
-		Texture.ReadPixels(m_Input, 0, 0x25800);
+		Texture.ImportPixels(m_Input, 0, 0x25800);
 
 		Texture.Save(Input.replace_extension(".tim"));
 
