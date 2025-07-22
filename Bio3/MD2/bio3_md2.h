@@ -3,17 +3,10 @@
 *	Megan Grass
 *	March 07, 2024
 *
-*
-*	TODO:
-*
 */
 
 
 #pragma once
-
-#include <std_basic_fstream.h>
-
-#include <std_text.h>
 
 #include <sony_model.h>
 
@@ -98,129 +91,104 @@ private:
 
 public:
 
-	/*
-		Construction
-	*/
-	explicit Resident_Evil_3_MD2(std::filesystem::path Path) : b_Open(false)
-	{
-		Open(Path);
-	}
-	explicit Resident_Evil_3_MD2(void) : b_Open(false)
-	{
-	}
-	virtual ~Resident_Evil_3_MD2(void)
-	{
-		Close();
-	}
+	explicit Resident_Evil_3_MD2(void) : b_Open(false) {}
+	explicit Resident_Evil_3_MD2(std::filesystem::path Path) : b_Open(false) { Open(Path); }
+	explicit Resident_Evil_3_MD2(std::filesystem::path Path, std::uintmax_t _Ptr) : b_Open(false) { Open(Path, _Ptr); }
+	explicit Resident_Evil_3_MD2(HWND hWnd, std::filesystem::path Path, std::uintmax_t _Ptr) : b_Open(false) { Str.hWnd = hWnd; Open(Path, _Ptr); }
+	explicit Resident_Evil_3_MD2(StdFile& File, std::uintmax_t _Ptr) : b_Open(false) { Open(File, _Ptr); }
+	virtual ~Resident_Evil_3_MD2(void) = default;
 
-	/*
-		Check if the model is open
-	*/
+	// Standard String
+	Standard_String Str;
+
+	// Is the model open?
 	bool operator !() { return !b_Open; }
 
-	/*
-		Check if the model is open
-	*/
+	// Is the model open?
 	bool IsOpen(void) const noexcept { return b_Open; }
 
-	/*
-		Force open if object container is not empty
-	*/
+	// Force open if object container is not empty
 	bool ForceOpen(void) noexcept { if (!Object.empty()) { b_Open = true; } return b_Open; }
 
-	/*
-		Open
-	*/
+	// Open
 	std::uintmax_t Open(StdFile& File, std::uintmax_t _Ptr);
 
-	/*
-		Open
-	*/
-	bool Open(std::filesystem::path Input, std::uintmax_t _Ptr = 0);
+	// Open
+	bool Open(std::filesystem::path Path, std::uintmax_t _Ptr = 0)
+	{
+		StdFile m_File;
+		m_File.SetPath(Path);
+		Open(m_File, _Ptr);
+		return b_Open;
+	}
 
-	/*
-		Save
-	*/
+	// Save
 	std::uintmax_t Save(StdFile& File, std::uintmax_t _Ptr);
 
-	/*
-		Save
-	*/
-	bool Save(std::filesystem::path Output, std::uintmax_t _Ptr = 0);
+	// Save
+	bool Save(std::filesystem::path Path, std::uintmax_t _Ptr = 0, bool b_Truncate = true)
+	{
+		StdFile m_File;
 
-	/*
-		Save object
-	*/
-	bool SaveObject(std::filesystem::path Output, std::size_t iObject);
+		if (b_Truncate)
+		{
+			m_File.Open(Path, FileAccessMode::Write_Ex, true, true);
+		}
+		else
+		{
+			m_File.Open(Path, FileAccessMode::Read_Ex, true, false);
+		}
 
-	/*
-		Save all objects
-	*/
+		std::uintmax_t m_Ptr = _Ptr;
+
+		_Ptr = Save(m_File, _Ptr);
+
+		return m_Ptr != _Ptr;
+	}
+
+	// Save object
+	bool SaveObject(std::filesystem::path Path, std::size_t iObject);
+
+	// Save all objects
 	bool SaveAllObjects(std::filesystem::path Directory, std::filesystem::path Stem = "obj");
 
-	/*
-		Get Sony PlayStation Model
-	*/
+	// Get Sony PlayStation Model
 	std::unique_ptr<Sony_PlayStation_Model> GetTMD(void);
 
-	/*
-		Get total object count
-	*/
+	// Get total object count
 	std::size_t GetObjectCount(void) const { return Object.size(); }
 
-	/*
-		Push back empty object
-	*/
+	// Push back empty object
 	void AddObject(Resident_Evil_3_Model_Object Input) { Object.push_back(Input); }
 
-	/*
-		Get total vertice count
-	*/
+	// Get total vertice count
 	std::size_t GetVerticeCount(void) const;
 
-	/*
-		Get object vertice count
-	*/
-	std::size_t GetVerticeCount(std::size_t iObject) const;
+	// Get object vertice count
+	std::size_t GetVerticeCount(std::size_t iObject);
 
-	/*
-		Get total normal count
-	*/
+	// Get total normal count
 	std::size_t GetNormalCount(void) const;
 
-	/*
-		Get object normal count
-	*/
-	std::size_t GetNormalCount(std::size_t iObject) const;
+	// Get object normal count
+	std::size_t GetNormalCount(std::size_t iObject);
 
-	/*
-		Get total triangle count
-	*/
+	// Get total triangle count
 	std::size_t GetTriangleCount(void) const;
 
-	/*
-		Get object triangle count
-	*/
-	std::size_t GetTriangleCount(std::size_t iObject) const;
+	// Get object triangle count
+	std::size_t GetTriangleCount(std::size_t iObject);
 
-	/*
-		Get total quadrangle count
-	*/
+	// Get total quadrangle count
 	std::size_t GetQuadrangleCount(void) const;
 
-	/*
-		Get object quadrangle count
-	*/
-	std::size_t GetQuadrangleCount(std::size_t iObject) const;
+	// Get object quadrangle count
+	std::size_t GetQuadrangleCount(std::size_t iObject);
 
-	/*
-		Get file size
-	*/
+	// Get file size
 	std::uintmax_t Size(void) const;
 
-	/*
-		Close
-	*/
+	// Close
 	void Close(void);
 
 };

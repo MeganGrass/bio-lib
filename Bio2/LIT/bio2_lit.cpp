@@ -17,11 +17,13 @@
 */
 std::uintmax_t Resident_Evil_2_LIT::Open(StdFile& File, std::uintmax_t nCut, std::uintmax_t _Ptr)
 {
+	Standard_String Str;
+
 	if (!File.IsOpen())
 	{
 		if (!File.Open(File.GetPath(), FileAccessMode::Read, true, false))
 		{
-			Str->Message("Resident Evil 2: Error, could not open LIT at 0x%llX in %s", _Ptr, File.GetPath().filename().string().c_str());
+			Str.Message("Resident Evil 2: Error, could not open LIT at 0x%llX in %s", _Ptr, File.GetPath().filename().string().c_str());
 			return _Ptr;
 		}
 	}
@@ -54,11 +56,13 @@ bool Resident_Evil_2_LIT::Open(std::filesystem::path Path, std::uintmax_t _Ptr)
 */
 std::uintmax_t Resident_Evil_2_LIT::Save(StdFile& File, std::uintmax_t _Ptr)
 {
+	Standard_String Str;
+
 	if (!File.IsOpen())
 	{
 		if (!File.Open(File.GetPath(), FileAccessMode::Write, true, false))
 		{
-			Str->Message("Resident Evil 2: Error, could not create LIT at 0x%llX in %s", _Ptr, File.GetPath().filename().string().c_str());
+			Str.Message("Resident Evil 2: Error, could not create LIT at 0x%llX in %s", _Ptr, File.GetPath().filename().string().c_str());
 			return _Ptr;
 		}
 	}

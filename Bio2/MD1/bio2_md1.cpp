@@ -3,18 +3,12 @@
 *	Megan Grass
 *	March 07, 2024
 *
-*
-*	TODO: 
-*
 */
 
 
 #include "bio2_md1.h"
 
 
-/*
-	Open
-*/
 std::uintmax_t Resident_Evil_2_MD1::Open(StdFile& File, std::uintmax_t _Ptr)
 {
 	if (b_Open) { Close(); }
@@ -23,7 +17,7 @@ std::uintmax_t Resident_Evil_2_MD1::Open(StdFile& File, std::uintmax_t _Ptr)
 	{
 		if (!File.Open(File.GetPath(), FileAccessMode::Read, true, false))
 		{
-			Str->Message("MD1: Error, could not open at 0x%llX in %s", _Ptr, File.GetPath().filename().string().c_str());
+			Str.Message(L"Resident Evil 2 Model Error: could not open at 0x%llX in \"%ws\"", _Ptr, File.GetPath().filename().wstring().c_str());
 			return _Ptr;
 		}
 	}
@@ -68,39 +62,23 @@ std::uintmax_t Resident_Evil_2_MD1::Open(StdFile& File, std::uintmax_t _Ptr)
 	return _Ptr + (Size() - sizeof(Resident_Evil_2_Model_Header));
 }
 
-
-/*
-	Open
-*/
-bool Resident_Evil_2_MD1::Open(std::filesystem::path Input, std::uintmax_t _Ptr)
-{
-	StdFile m_File;
-
-	m_File.SetPath(Input);
-
-	Open(m_File, _Ptr);
-
-	return b_Open;
-}
-
-
-/*
-	Save
-*/
 std::uintmax_t Resident_Evil_2_MD1::Save(StdFile& File, std::uintmax_t _Ptr)
 {
 	if (!b_Open)
 	{
-		Str->Message("MD1: Error, model is not open");
+		Str.Message(L"Resident Evil 2 Model Error: model is not open");
 		return _Ptr;
 	}
 
 	if (!File.IsOpen())
 	{
-		if (!File.Open(File.GetPath(), FileAccessMode::Write, true, false))
+		if (!File.Open(File.GetPath(), FileAccessMode::Read_Ex, true, false))
 		{
-			Str->Message("MD1: Error, could not create at 0x%llX in %s", _Ptr, File.GetPath().filename().string().c_str());
-			return _Ptr;
+			if (!File.Open(File.GetPath(), FileAccessMode::Write_Ex, true, true))
+			{
+				Str.Message(L"Resident Evil 2 Model Error: could not create at 0x%llX in \"%ws\"", _Ptr, File.GetPath().filename().wstring().c_str());
+				return _Ptr;
+			}
 		}
 	}
 
@@ -156,46 +134,25 @@ std::uintmax_t Resident_Evil_2_MD1::Save(StdFile& File, std::uintmax_t _Ptr)
 	return _Ptr + Size();
 }
 
-
-/*
-	Save
-*/
-bool Resident_Evil_2_MD1::Save(std::filesystem::path Output, std::uintmax_t _Ptr)
-{
-	StdFile m_File;
-
-	m_File.SetPath(Output);
-
-	std::uintmax_t OldPtr = _Ptr;
-
-	_Ptr = Save(m_File, _Ptr);
-
-	return OldPtr != _Ptr;
-}
-
-
-/*
-	Save object
-*/
-bool Resident_Evil_2_MD1::SaveObject(std::filesystem::path Output, std::size_t iObject)
+bool Resident_Evil_2_MD1::SaveObject(std::filesystem::path Path, std::size_t iObject)
 {
 	if (!b_Open)
 	{
-		Str->Message("MD1: Error, model is not open");
+		Str.Message(L"Resident Evil 2 Model Error: model is not open");
 		return false;
 	}
 
 	if ((iObject + 1) > Object.size())
 	{
-		Str->Message("MD1: Error, object index out of range");
+		Str.Message(L"Resident Evil 2 Model Error: object index out of range");
 		return false;
 	}
 
-	StdFile File { Output, FileAccessMode::Write, true, false };
+	StdFile File { Path, FileAccessMode::Write, true, false };
 
 	if (!File.IsOpen())
 	{
-		Str->Message("MD1: Error, could not create %s", Output.filename().string().c_str());
+		Str.Message(L"Resident Evil 2 Model: Error, could not create \"%ws\"", Path.filename().wstring().c_str());
 		return false;
 	}
 
@@ -247,15 +204,11 @@ bool Resident_Evil_2_MD1::SaveObject(std::filesystem::path Output, std::size_t i
 	return true;
 }
 
-
-/*
-	Save all objects
-*/
 bool Resident_Evil_2_MD1::SaveAllObjects(std::filesystem::path Directory, std::filesystem::path Stem)
 {
 	if (!b_Open)
 	{
-		Str->Message("MD1: Error, model is not open");
+		Str.Message(L"Resident Evil 2 Model Error: model is not open");
 		return false;
 	}
 
@@ -265,17 +218,13 @@ bool Resident_Evil_2_MD1::SaveAllObjects(std::filesystem::path Directory, std::f
 
 	for (std::size_t i = 0; i < Object.size(); i++)
 	{
-		std::filesystem::path Output = Str->FormatCStyle("%s\\%s\\%s_%02d.md1", Dir.string().c_str(), Stem.stem().string().c_str(), Stem.stem().string().c_str(), i);
+		std::filesystem::path Output = Str.FormatCStyle(L"%ws\\%ws\\%ws_%02d.md1", Dir.wstring().c_str(), Stem.stem().wstring().c_str(), Stem.stem().wstring().c_str(), i);
 		SaveObject(Output, i);
 	}
 
 	return true;
 }
 
-
-/*
-	Get Sony PlayStation Model
-*/
 std::unique_ptr<Sony_PlayStation_Model> Resident_Evil_2_MD1::GetTMD(void)
 {
 	std::unique_ptr<Sony_PlayStation_Model> Tmd = std::make_unique<Sony_PlayStation_Model>();
@@ -303,15 +252,15 @@ std::unique_ptr<Sony_PlayStation_Model> Resident_Evil_2_MD1::GetTMD(void)
 		for (std::size_t x = 0; x < Object[i].Triangle.size(); x++, nPrimitive++)
 		{
 			PolyGT3.tag = 0x34000609;
-			PolyGT3.tu0 = Object[i].Triangle[x].Texture.u0;
-			PolyGT3.tv0 = Object[i].Triangle[x].Texture.v0;
-			PolyGT3.clut = Object[i].Triangle[x].Texture.Clut;
-			PolyGT3.tu1 = Object[i].Triangle[x].Texture.u1;
-			PolyGT3.tv1 = Object[i].Triangle[x].Texture.v1;
-			PolyGT3.tpage = Object[i].Triangle[x].Texture.Page;
-			PolyGT3.tu2 = Object[i].Triangle[x].Texture.u2;
-			PolyGT3.tv2 = Object[i].Triangle[x].Texture.v2;
-			PolyGT3.p = 0;
+			PolyGT3.tu0 = Object[i].Triangle[x].Texture.tu0;
+			PolyGT3.tv0 = Object[i].Triangle[x].Texture.tv0;
+			PolyGT3.clut = Object[i].Triangle[x].Texture.clut;
+			PolyGT3.tu1 = Object[i].Triangle[x].Texture.tu1;
+			PolyGT3.tv1 = Object[i].Triangle[x].Texture.tv1;
+			PolyGT3.tpage = Object[i].Triangle[x].Texture.tpage;
+			PolyGT3.tu2 = Object[i].Triangle[x].Texture.tu2;
+			PolyGT3.tv2 = Object[i].Triangle[x].Texture.tv2;
+			PolyGT3.p = Object[i].Triangle[x].Texture.pad;
 			PolyGT3.n0 = Object[i].Triangle[x].Primitive.n0;
 			PolyGT3.v0 = Object[i].Triangle[x].Primitive.v0;
 			PolyGT3.n1 = Object[i].Triangle[x].Primitive.n1;
@@ -326,18 +275,18 @@ std::unique_ptr<Sony_PlayStation_Model> Resident_Evil_2_MD1::GetTMD(void)
 		for (std::size_t x = 0; x < Object[i].Quadrangle.size(); x++, nPrimitive++)
 		{
 			PolyGT4.tag = 0x3C00080C;
-			PolyGT4.tu0 = Object[i].Quadrangle[x].Texture.u0;
-			PolyGT4.tv0 = Object[i].Quadrangle[x].Texture.v0;
-			PolyGT4.clut = Object[i].Quadrangle[x].Texture.Clut;
-			PolyGT4.tu1 = Object[i].Quadrangle[x].Texture.u1;
-			PolyGT4.tv1 = Object[i].Quadrangle[x].Texture.v1;
-			PolyGT4.tpage = Object[i].Quadrangle[x].Texture.Page;
-			PolyGT4.tu2 = Object[i].Quadrangle[x].Texture.u2;
-			PolyGT4.tv2 = Object[i].Quadrangle[x].Texture.v2;
-			PolyGT4.p0 = 0;
-			PolyGT4.tu3 = Object[i].Quadrangle[x].Texture.u3;
-			PolyGT4.tv3 = Object[i].Quadrangle[x].Texture.v3;
-			PolyGT4.p1 = 0;
+			PolyGT4.tu0 = Object[i].Quadrangle[x].Texture.tu0;
+			PolyGT4.tv0 = Object[i].Quadrangle[x].Texture.tv0;
+			PolyGT4.clut = Object[i].Quadrangle[x].Texture.clut;
+			PolyGT4.tu1 = Object[i].Quadrangle[x].Texture.tu1;
+			PolyGT4.tv1 = Object[i].Quadrangle[x].Texture.tv1;
+			PolyGT4.tpage = Object[i].Quadrangle[x].Texture.tpage;
+			PolyGT4.tu2 = Object[i].Quadrangle[x].Texture.tu2;
+			PolyGT4.tv2 = Object[i].Quadrangle[x].Texture.tv2;
+			PolyGT4.p0 = Object[i].Quadrangle[x].Texture.pad0;
+			PolyGT4.tu3 = Object[i].Quadrangle[x].Texture.tu3;
+			PolyGT4.tv3 = Object[i].Quadrangle[x].Texture.tv3;
+			PolyGT4.p1 = Object[i].Quadrangle[x].Texture.pad1;
 			PolyGT4.n0 = Object[i].Quadrangle[x].Primitive.n0;
 			PolyGT4.v0 = Object[i].Quadrangle[x].Primitive.v0;
 			PolyGT4.n1 = Object[i].Quadrangle[x].Primitive.n1;
@@ -359,76 +308,6 @@ std::unique_ptr<Sony_PlayStation_Model> Resident_Evil_2_MD1::GetTMD(void)
 	return Tmd;
 }
 
-
-/*
-	Get Resident Evil 3 Model
-*/
-std::unique_ptr<Resident_Evil_3_MD2> Resident_Evil_2_MD1::GetMD2(void)
-{
-	std::unique_ptr<Resident_Evil_3_MD2> Md2 = std::make_unique<Resident_Evil_3_MD2>();
-
-	Resident_Evil_3_Triangle Triangle{};
-	Resident_Evil_3_Quadrangle Quadrangle{};
-
-	for (std::size_t i = 0; i < GetObjectCount(); i++)
-	{
-		Resident_Evil_3_Model_Object Obj;
-
-		Obj.Vertice.resize(Object[i].Vertice.size());
-		std::memcpy(Obj.Vertice.data(), Object[i].Vertice.data(), Object[i].Vertice.size() * sizeof(SVECTOR));
-
-		Obj.Normal.resize(Object[i].Normal.size());
-		std::memcpy(Obj.Normal.data(), Object[i].Normal.data(), Object[i].Normal.size() * sizeof(SVECTOR));
-
-		Obj.Triangle.resize(Object[i].Triangle.size());
-		for (std::size_t x = 0; x < Obj.Triangle.size(); x++)
-		{
-			Triangle.tu0 = Object[i].Triangle[x].Texture.u0;
-			Triangle.tv0 = Object[i].Triangle[x].Texture.v0;
-			Triangle.Clut = Object[i].Triangle[x].Texture.Clut;
-			Triangle.tu1 = Object[i].Triangle[x].Texture.u1;
-			Triangle.tv1 = Object[i].Triangle[x].Texture.v1;
-			Triangle.Page = static_cast<int8_t>(Object[i].Triangle[x].Texture.Page);
-			Triangle.tu2 = Object[i].Triangle[x].Texture.u2;
-			Triangle.tv2 = Object[i].Triangle[x].Texture.v2;
-			Triangle.v0 = static_cast<int8_t>(Object[i].Triangle[x].Primitive.v0);
-			Triangle.v1 = static_cast<int8_t>(Object[i].Triangle[x].Primitive.v1);
-			Triangle.v2 = static_cast<int8_t>(Object[i].Triangle[x].Primitive.v2);
-			std::memcpy(&Obj.Triangle[x], &Triangle, sizeof(Resident_Evil_3_Triangle));
-		}
-
-		Obj.Quadrangle.resize(Object[i].Quadrangle.size());
-		for (std::size_t x = 0; x < Obj.Quadrangle.size(); x++)
-		{
-			Quadrangle.tu0 = Object[i].Quadrangle[x].Texture.u0;
-			Quadrangle.tv0 = Object[i].Quadrangle[x].Texture.v0;
-			Quadrangle.Clut = Object[i].Quadrangle[x].Texture.Clut;
-			Quadrangle.tu1 = Object[i].Quadrangle[x].Texture.u1;
-			Quadrangle.tv1 = Object[i].Quadrangle[x].Texture.v1;
-			Quadrangle.Page = Object[i].Quadrangle[x].Texture.Page;
-			Quadrangle.tu2 = Object[i].Quadrangle[x].Texture.u2;
-			Quadrangle.tv2 = Object[i].Quadrangle[x].Texture.v2;
-			Quadrangle.tu3 = Object[i].Quadrangle[x].Texture.u3;
-			Quadrangle.tv3 = Object[i].Quadrangle[x].Texture.v3;
-			Quadrangle.v0 = static_cast<int8_t>(Object[i].Quadrangle[x].Primitive.v0);
-			Quadrangle.v1 = static_cast<int8_t>(Object[i].Quadrangle[x].Primitive.v1);
-			Quadrangle.v2 = static_cast<int8_t>(Object[i].Quadrangle[x].Primitive.v2);
-			Quadrangle.v3 = static_cast<int8_t>(Object[i].Quadrangle[x].Primitive.v3);
-			std::memcpy(&Obj.Quadrangle[x], &Quadrangle, sizeof(Resident_Evil_3_Quadrangle));
-		}
-
-		Md2->AddObject(Obj);
-	}
-
-	Md2->ForceOpen();
-
-	return Md2;
-}
-
-
-/*
-	Get total vertice count
-*/
 std::size_t Resident_Evil_2_MD1::GetVerticeCount(void) const
 {
 	if (!b_Open) { return 0; }
@@ -443,27 +322,6 @@ std::size_t Resident_Evil_2_MD1::GetVerticeCount(void) const
 	return nVertice;
 }
 
-
-/*
-	Get object vertice count
-*/
-std::size_t Resident_Evil_2_MD1::GetVerticeCount(std::size_t iObject) const
-{
-	if (!b_Open) { return 0; }
-
-	if ((iObject + 1) > Object.size())
-	{
-		Str->Message("MD1: Error, object index out of range");
-		return 0;
-	}
-
-	return Object[iObject].Vertice.size();
-}
-
-
-/*
-	Get total normal count
-*/
 std::size_t Resident_Evil_2_MD1::GetNormalCount(void) const
 {
 	if (!b_Open) { return 0; }
@@ -478,27 +336,6 @@ std::size_t Resident_Evil_2_MD1::GetNormalCount(void) const
 	return nNormal;
 }
 
-
-/*
-	Get object normal count
-*/
-std::size_t Resident_Evil_2_MD1::GetNormalCount(std::size_t iObject) const
-{
-	if (!b_Open) { return 0; }
-
-	if ((iObject + 1) > Object.size())
-	{
-		Str->Message("MD1: Error, object index out of range");
-		return 0;
-	}
-
-	return Object[iObject].Normal.size();
-}
-
-
-/*
-	Get total triangle count
-*/
 std::size_t Resident_Evil_2_MD1::GetTriangleCount(void) const
 {
 	if (!b_Open) { return 0; }
@@ -513,27 +350,6 @@ std::size_t Resident_Evil_2_MD1::GetTriangleCount(void) const
 	return nTriangle;
 }
 
-
-/*
-	Get object triangle count
-*/
-std::size_t Resident_Evil_2_MD1::GetTriangleCount(std::size_t iObject) const
-{
-	if (!b_Open) { return 0; }
-
-	if ((iObject + 1) > Object.size())
-	{
-		Str->Message("MD1: Error, object index out of range");
-		return 0;
-	}
-
-	return Object[iObject].Triangle.size();
-}
-
-
-/*
-	Get total quadrangle count
-*/
 std::size_t Resident_Evil_2_MD1::GetQuadrangleCount(void) const
 {
 	if (!b_Open) { return 0; }
@@ -549,27 +365,6 @@ std::size_t Resident_Evil_2_MD1::GetQuadrangleCount(void) const
 
 }
 
-
-/*
-	Get object quadrangle count
-*/
-std::size_t Resident_Evil_2_MD1::GetQuadrangleCount(std::size_t iObject) const
-{
-	if (!b_Open) { return 0; }
-
-	if ((iObject + 1) > Object.size())
-	{
-		Str->Message("MD1: Error, object index out of range");
-		return 0;
-	}
-
-	return Object[iObject].Quadrangle.size();
-}
-
-
-/*
-	Get file size
-*/
 std::uintmax_t Resident_Evil_2_MD1::Size(void) const
 {
 	if (!b_Open) { return 0; }
@@ -584,10 +379,6 @@ std::uintmax_t Resident_Evil_2_MD1::Size(void) const
 	return Size;
 }
 
-
-/*
-	Close
-*/
 void Resident_Evil_2_MD1::Close(void)
 {
 	b_Open = false;

@@ -3,18 +3,12 @@
 *	Megan Grass
 *	March 07, 2024
 *
-*
-*	TODO:
-*
 */
 
 
 #include "bio3_md2.h"
 
 
-/*
-	Open
-*/
 std::uintmax_t Resident_Evil_3_MD2::Open(StdFile& File, std::uintmax_t _Ptr)
 {
 	if (b_Open) { Close(); }
@@ -23,7 +17,7 @@ std::uintmax_t Resident_Evil_3_MD2::Open(StdFile& File, std::uintmax_t _Ptr)
 	{
 		if (!File.Open(File.GetPath(), FileAccessMode::Read, true, false))
 		{
-			Str->Message("MD2: Error, could not open at 0x%llX in %s", _Ptr, File.GetPath().filename().string().c_str());
+			Str.Message(L"Resident Evil 3 Model Error: could not open at 0x%llX in \"%ws\"", _Ptr, File.GetPath().filename().wstring().c_str());
 			return _Ptr;
 		}
 	}
@@ -60,39 +54,23 @@ std::uintmax_t Resident_Evil_3_MD2::Open(StdFile& File, std::uintmax_t _Ptr)
 	return _Ptr + (Size() - sizeof(Resident_Evil_3_Model_Header));
 }
 
-
-/*
-	Open
-*/
-bool Resident_Evil_3_MD2::Open(std::filesystem::path Input, std::uintmax_t _Ptr)
-{
-	StdFile m_File;
-
-	m_File.SetPath(Input);
-
-	Open(m_File, _Ptr);
-
-	return b_Open;
-}
-
-
-/*
-	Save
-*/
 std::uintmax_t Resident_Evil_3_MD2::Save(StdFile& File, std::uintmax_t _Ptr)
 {
 	if (!b_Open)
 	{
-		Str->Message("MD2: Error, model is not open");
+		Str.Message(L"Resident Evil 3 Model Error: model is not open");
 		return _Ptr;
 	}
 
 	if (!File.IsOpen())
 	{
-		if (!File.Open(File.GetPath(), FileAccessMode::Write, true, false))
+		if (!File.Open(File.GetPath(), FileAccessMode::Read_Ex, true, false))
 		{
-			Str->Message("MD2: Error, could not create at 0x%llX in %s", _Ptr, File.GetPath().filename().string().c_str());
-			return _Ptr;
+			if (!File.Open(File.GetPath(), FileAccessMode::Write_Ex, true, true))
+			{
+				Str.Message(L"Resident Evil 3 Model Error: could not create at 0x%llX in \"%ws\"", _Ptr, File.GetPath().filename().wstring().c_str());
+				return _Ptr;
+			}
 		}
 	}
 
@@ -136,45 +114,25 @@ std::uintmax_t Resident_Evil_3_MD2::Save(StdFile& File, std::uintmax_t _Ptr)
 	return _Ptr + Size();
 }
 
-
-/*
-	Save
-*/
-bool Resident_Evil_3_MD2::Save(std::filesystem::path Output, std::uintmax_t _Ptr)
-{
-	StdFile m_File;
-
-	m_File.SetPath(Output);
-
-	std::uintmax_t OldPtr = _Ptr;
-
-	_Ptr = Save(m_File, _Ptr);
-
-	return OldPtr != _Ptr;
-}
-
-
-/*
-	Save object
-*/
-bool Resident_Evil_3_MD2::SaveObject(std::filesystem::path Output, std::size_t iObject)
+bool Resident_Evil_3_MD2::SaveObject(std::filesystem::path Path, std::size_t iObject)
 {
 	if (!b_Open)
 	{
-		Str->Message("MD2: Error, model is not open");
+		Str.Message(L"Resident Evil 3 Model Error: model is not open");
 		return false;
 	}
 
 	if ((iObject + 1) > Object.size())
 	{
-		Str->Message("MD2: Error, object index out of range");
+		Str.Message(L"Resident Evil 3 Model Error: object index out of range");
 		return false;
 	}
 
-	StdFile File{ Output, FileAccessMode::Write, true, false };
+	StdFile File{ Path, FileAccessMode::Write, true, false };
+
 	if (!File.IsOpen())
 	{
-		Str->Message("MD2: Error, could not create %s", Output.filename().string().c_str());
+		Str.Message(L"Resident Evil 3 Model: Error, could not create \"%ws\"", Path.filename().wstring().c_str());
 		return false;
 	}
 
@@ -210,15 +168,11 @@ bool Resident_Evil_3_MD2::SaveObject(std::filesystem::path Output, std::size_t i
 	return true;
 }
 
-
-/*
-	Save all objects
-*/
 bool Resident_Evil_3_MD2::SaveAllObjects(std::filesystem::path Directory, std::filesystem::path Stem)
 {
 	if (!b_Open)
 	{
-		Str->Message("MD2: Error, model is not open");
+		Str.Message(L"Resident Evil 3 Model Error: model is not open");
 		return false;
 	}
 
@@ -228,17 +182,13 @@ bool Resident_Evil_3_MD2::SaveAllObjects(std::filesystem::path Directory, std::f
 
 	for (std::size_t i = 0; i < Object.size(); i++)
 	{
-		std::filesystem::path Output = Str->FormatCStyle("%s\\%s\\%s_%02d.md2", Dir.string().c_str(), Stem.stem().string().c_str(), Stem.stem().string().c_str(), i);
+		std::filesystem::path Output = Str.FormatCStyle(L"%ws\\%ws\\%ws_%02d.md2", Dir.wstring().c_str(), Stem.stem().wstring().c_str(), Stem.stem().wstring().c_str(), i);
 		SaveObject(Output, i);
 	}
 
 	return true;
 }
 
-
-/*
-	Get Sony PlayStation Model
-*/
 std::unique_ptr<Sony_PlayStation_Model> Resident_Evil_3_MD2::GetTMD(void)
 {
 	std::unique_ptr<Sony_PlayStation_Model> Tmd = std::make_unique<Sony_PlayStation_Model>();
@@ -322,10 +272,6 @@ std::unique_ptr<Sony_PlayStation_Model> Resident_Evil_3_MD2::GetTMD(void)
 	return Tmd;
 }
 
-
-/*
-	Get total vertice count
-*/
 std::size_t Resident_Evil_3_MD2::GetVerticeCount(void) const
 {
 	if (!b_Open) { return 0; }
@@ -340,27 +286,19 @@ std::size_t Resident_Evil_3_MD2::GetVerticeCount(void) const
 	return nVertice;
 }
 
-
-/*
-	Get object vertice count
-*/
-std::size_t Resident_Evil_3_MD2::GetVerticeCount(std::size_t iObject) const
+std::size_t Resident_Evil_3_MD2::GetVerticeCount(std::size_t iObject)
 {
 	if (!b_Open) { return 0; }
 
 	if ((iObject + 1) > Object.size())
 	{
-		Str->Message("MD2: Error, object index out of range");
+		Str.Message(L"Resident Evil 3 Model Error: object index out of range");
 		return 0;
 	}
 
 	return Object[iObject].Vertice.size();
 }
 
-
-/*
-	Get total normal count
-*/
 std::size_t Resident_Evil_3_MD2::GetNormalCount(void) const
 {
 	if (!b_Open) { return 0; }
@@ -375,27 +313,19 @@ std::size_t Resident_Evil_3_MD2::GetNormalCount(void) const
 	return nNormal;
 }
 
-
-/*
-	Get object normal count
-*/
-std::size_t Resident_Evil_3_MD2::GetNormalCount(std::size_t iObject) const
+std::size_t Resident_Evil_3_MD2::GetNormalCount(std::size_t iObject)
 {
 	if (!b_Open) { return 0; }
 
 	if ((iObject + 1) > Object.size())
 	{
-		Str->Message("MD2: Error, object index out of range");
+		Str.Message(L"Resident Evil 3 Model Error: object index out of range");
 		return 0;
 	}
 
 	return Object[iObject].Normal.size();
 }
 
-
-/*
-	Get total triangle count
-*/
 std::size_t Resident_Evil_3_MD2::GetTriangleCount(void) const
 {
 	if (!b_Open) { return 0; }
@@ -410,27 +340,19 @@ std::size_t Resident_Evil_3_MD2::GetTriangleCount(void) const
 	return nTriangle;
 }
 
-
-/*
-	Get object triangle count
-*/
-std::size_t Resident_Evil_3_MD2::GetTriangleCount(std::size_t iObject) const
+std::size_t Resident_Evil_3_MD2::GetTriangleCount(std::size_t iObject)
 {
 	if (!b_Open) { return 0; }
 
 	if ((iObject + 1) > Object.size())
 	{
-		Str->Message("MD2: Error, object index out of range");
+		Str.Message(L"Resident Evil 3 Model Error: object index out of range");
 		return 0;
 	}
 
 	return Object[iObject].Triangle.size();
 }
 
-
-/*
-	Get total quadrangle count
-*/
 std::size_t Resident_Evil_3_MD2::GetQuadrangleCount(void) const
 {
 	if (!b_Open) { return 0; }
@@ -446,27 +368,19 @@ std::size_t Resident_Evil_3_MD2::GetQuadrangleCount(void) const
 
 }
 
-
-/*
-	Get object quadrangle count
-*/
-std::size_t Resident_Evil_3_MD2::GetQuadrangleCount(std::size_t iObject) const
+std::size_t Resident_Evil_3_MD2::GetQuadrangleCount(std::size_t iObject)
 {
 	if (!b_Open) { return 0; }
 
 	if ((iObject + 1) > Object.size())
 	{
-		Str->Message("MD2: Error, object index out of range");
+		Str.Message(L"Resident Evil 3 Model Error: object index out of range");
 		return 0;
 	}
 
 	return Object[iObject].Quadrangle.size();
 }
 
-
-/*
-	Get file size
-*/
 std::uintmax_t Resident_Evil_3_MD2::Size(void) const
 {
 	if (!b_Open) { return 0; }
@@ -479,10 +393,6 @@ std::uintmax_t Resident_Evil_3_MD2::Size(void) const
 	return Size;
 }
 
-
-/*
-	Close
-*/
 void Resident_Evil_3_MD2::Close(void)
 {
 	b_Open = false;

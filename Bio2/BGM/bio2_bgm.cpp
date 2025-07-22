@@ -19,10 +19,12 @@ bool Resident_Evil_2_BGM::Open(std::filesystem::path Input)
 {
 	if (b_Open) { Close(); }
 
+	Standard_String Str;
+
 	StdFile File { Input, FileAccessMode::Read, true, false };
 	if (!File.IsOpen())
 	{
-		Str->Message("BGM: Error, could not open %s", Input.filename().string().c_str());
+		Str.Message("BGM: Error, could not open %s", Input.filename().string().c_str());
 		return false;
 	}
 
@@ -77,16 +79,18 @@ bool Resident_Evil_2_BGM::Open(std::filesystem::path Input)
 */
 bool Resident_Evil_2_BGM::Save(std::filesystem::path Output)
 {
+	Standard_String Str;
+
 	if (!b_Open)
 	{
-		Str->Message("BGM: Error, no file is open");
+		Str.Message("BGM: Error, no file is open");
 		return false;
 	}
 
 	StdFile File { Output, FileAccessMode::Write_Ex, true, false };
 	if (!File.IsOpen())
 	{
-		Str->Message("BGM: Error, could not create %s", Output.filename().string().c_str());
+		Str.Message("BGM: Error, could not create %s", Output.filename().string().c_str());
 		return false;
 	}
 
@@ -132,6 +136,8 @@ bool Resident_Evil_2_BGM::Save(std::filesystem::path Output)
 */
 bool Resident_Evil_2_BGM::Extract(std::filesystem::path Input)
 {
+	Standard_String Str;
+
 	std::unique_ptr<Resident_Evil_2_BGM> Bgm = std::make_unique<Resident_Evil_2_BGM>();
 
 	if (!Bgm->Open(Input))
@@ -143,7 +149,7 @@ bool Resident_Evil_2_BGM::Extract(std::filesystem::path Input)
 	std::filesystem::path Dir = FS.GetDirectory(Input);
 	FS.CreateDirectory(Dir / Input.stem());
 
-	std::filesystem::path Filename = Str->FormatCStyle("%s\\%s\\%s.ini", Dir.string().c_str(), Input.stem().string().c_str(), Input.stem().string().c_str());
+	std::filesystem::path Filename = Str.FormatCStyle("%s\\%s\\%s.ini", Dir.string().c_str(), Input.stem().string().c_str(), Input.stem().string().c_str());
 
 	std::unique_ptr<StdText> Text = std::make_unique<StdText>();
 	Text->SetBOM(TextFileBOM::UTF8);
@@ -156,12 +162,12 @@ bool Resident_Evil_2_BGM::Extract(std::filesystem::path Input)
 
 	for (std::size_t i = 0; i < Bgm->Seq->GetMidiCount(); i++)
 	{
-		Filename = Str->FormatCStyle("%s\\%s\\%s_%02d.seq", Dir.string().c_str(), Input.stem().string().c_str(), Input.stem().string().c_str(), i);
+		Filename = Str.FormatCStyle("%s\\%s\\%s_%02d.seq", Dir.string().c_str(), Input.stem().string().c_str(), Input.stem().string().c_str(), i);
 		Text->AddLine("%s\n", Filename.filename().string().c_str());
 		Bgm->Seq->SaveSEQ(Filename, i);
 	}
 
-	Filename = Str->FormatCStyle("%s\\%s\\%s.vh", Dir.string().c_str(), Input.stem().string().c_str(), Input.stem().string().c_str());
+	Filename = Str.FormatCStyle("%s\\%s\\%s.vh", Dir.string().c_str(), Input.stem().string().c_str(), Input.stem().string().c_str());
 	Text->AddLine("%s\n", Filename.filename().string().c_str());
 	Bgm->Vab->SaveVH(Filename);
 
@@ -183,17 +189,19 @@ bool Resident_Evil_2_BGM::Extract(std::filesystem::path Input)
 */
 bool Resident_Evil_2_BGM::Assemble(std::filesystem::path Config)
 {
+	Standard_String Str;
+
 	std::unique_ptr<StdText> Text = std::make_unique<StdText>();
 	if (!Text->Open(Config, FileAccessMode::Read))
 	{
-		Str->Message("BGM: Error, could not open %s", Config.filename().string().c_str());
+		Str.Message("BGM: Error, could not open %s", Config.filename().string().c_str());
 		return false;
 	}
 
 	StrVec Header = Text->GetStrVec(Text->GetLine(0));
-	if (Header.empty() || (Header.size() < 2) || (Str->ToUpper(Header[0]) != "BIO2") || (Str->ToUpper(Header[1]) != "BGM"))
+	if (Header.empty() || (Header.size() < 2) || (Str.ToUpper(Header[0]) != "BIO2") || (Str.ToUpper(Header[1]) != "BGM"))
 	{
-		Str->Message("BGM: Assemble error, %s doesn't appear to be properly configured", Config.filename().string().c_str());
+		Str.Message("BGM: Assemble error, %s doesn't appear to be properly configured", Config.filename().string().c_str());
 		return false;
 	}
 
@@ -209,7 +217,7 @@ bool Resident_Evil_2_BGM::Assemble(std::filesystem::path Config)
 	}
 
 	String Ext = FS.GetFileExtension(Text->GetLine(2)).string();
-	if (Str->ToUpper(Ext) == ".SEQ")
+	if (Str.ToUpper(Ext) == ".SEQ")
 	{
 		if (!Bgm->Seq->OpenSEQ(Dir / FS.GetFileName(Text->GetLine(2))))
 		{

@@ -22,19 +22,9 @@
 
 #pragma once
 
-#include <std_basic_fstream.h>
-
-#include <std_text.h>
-
 #include <sony_executable.h>
 
-#include <sony_texture.h>
-
 #include <sony_bitstream.h>
-
-#include <sony_soundbank.h>
-
-#include <bio_common.h>
 
 #include "adt/bio2_adt.h"
 
@@ -43,10 +33,6 @@
 #include "cpt/bio2_cpt.h"
 
 #include "die/bio2_die.h"
-
-#include <bio2_animation.h>
-
-#include "md1/bio2_md1.h"
 
 #include "sld/bio2_sld.h"
 
@@ -111,7 +97,7 @@ public:
 		Rdt(std::make_unique<Resident_Evil_2_RDT>()),
 		b_PreferAsm(false)
 	{
-		Game = Resident_Evil_Video_Game::Resident_Evil_2;
+		Game = Video_Game::Resident_Evil_2;
 	}
 	virtual ~Resident_Evil_2(void)
 	{

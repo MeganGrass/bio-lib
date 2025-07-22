@@ -120,11 +120,13 @@ void LZO_Compression::output2(std::int32_t x, std::int32_t y)
 }
 bool LZO_Compression::Compress(std::filesystem::path Input, std::filesystem::path Output)
 {
+	Standard_String Str;
+
 	m_Input->Open(Input, FileAccessMode::Read_Ex, true, false);
 
 	if (!m_Input->IsOpen())
 	{
-		Str->Message("LZO Compression: Error, could not open %s", Input.filename().string().c_str());
+		Str.Message("LZO Compression: Error, could not open %s", Input.filename().string().c_str());
 		return false;
 	}
 
@@ -132,7 +134,7 @@ bool LZO_Compression::Compress(std::filesystem::path Input, std::filesystem::pat
 
 	if (!m_Output->IsOpen())
 	{
-		Str->Message("LZO Compression: Error, could not create %s", Output.filename().string().c_str());
+		Str.Message("LZO Compression: Error, could not create %s", Output.filename().string().c_str());
 		return false;
 	}
 

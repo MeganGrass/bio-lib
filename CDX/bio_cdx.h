@@ -11,10 +11,6 @@
 
 #pragma once
 
-#include <std_basic_fstream.h>
-
-#include <std_text.h>
-
 #include <lzo.h>
 
 #include <bio_common.h>
@@ -104,7 +100,7 @@ public:
 		Create BSS CDX file containers
 		 - if bConvertBss is true, BSS files in Directory are converted to the new format
 	*/
-	bool CreateBSS(std::filesystem::path Directory, std::filesystem::path OutDirectory, Resident_Evil_Video_Game Game = Resident_Evil_Video_Game::Resident_Evil_2, bool bConvertBss = false);
+	bool CreateBSS(std::filesystem::path Directory, std::filesystem::path OutDirectory, Video_Game Game = Video_Game::Resident_Evil_2, bool bConvertBss = false);
 
 	/*
 		Create DO2 CDX file container

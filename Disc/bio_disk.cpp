@@ -12,9 +12,6 @@
 #include <bio_disk.h>
 
 
-/*
-    Print Command Line Help
-*/
 void Capcom_Disk::PrintHelp(void)
 {
     std::cout << "Capcom Disk: Help" << std::endl << std::endl;
@@ -27,10 +24,6 @@ void Capcom_Disk::PrintHelp(void)
     std::cout << "\t\t<lba> Parsable text file created with -retext from cutom mkpsxiso" << std::endl << std::endl;
 }
 
-
-/*
-    Command Line Interface
-*/
 void Capcom_Disk::Commandline(StrVec Args)
 {
     Standard_String Str;
@@ -115,10 +108,6 @@ void Capcom_Disk::Commandline(StrVec Args)
 
 }
 
-
-/*
-    Get disk version string
-*/
 std::string Capcom_Disk::GetVersion(Capcom_Disk_Version Version)
 {
     switch (Version)
@@ -132,10 +121,6 @@ std::string Capcom_Disk::GetVersion(Capcom_Disk_Version Version)
     return "Unknown";
 }
 
-
-/*
-    Get Filetype from path
-*/
 Capcom_File Capcom_Disk::GetFiletype(std::filesystem::path Path)
 {
     if (!Path.extension().string().compare(".XA")) { return Capcom_File::XA; }
@@ -151,10 +136,6 @@ Capcom_File Capcom_Disk::GetFiletype(std::filesystem::path Path)
     return Capcom_File::Normal;
 }
 
-
-/*
-    Get Filetype string
-*/
 std::string Capcom_Disk::GetFiletype(Capcom_File File)
 {
     switch (File)
@@ -172,10 +153,6 @@ std::string Capcom_Disk::GetFiletype(Capcom_File File)
 	return "Unknown";
 }
 
-
-/*
-    Update
-*/
 bool Capcom_Disk::Update(std::uintmax_t pFileList, Capcom_Disk_Version Version, std::filesystem::path ExeFilename, std::filesystem::path LbaHeader)
 {
 	std::unique_ptr<Sony_PlayStation_Executable> Exe = std::make_unique<Sony_PlayStation_Executable>();

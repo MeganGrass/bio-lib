@@ -18,16 +18,6 @@
 
 #pragma once
 
-#include <std_basic_fstream.h>
-
-#include <std_text.h>
-
-#include <sony_executable.h>
-
-#include <sony_texture.h>
-
-#include <sony_soundbank.h>
-
 #include <bio2.h>
 
 #include "clut/bio2_nov96_clut.h"
@@ -51,7 +41,7 @@ public:
 	explicit Resident_Evil_2_Nov96(void) :
 		Bio2(std::make_unique<Resident_Evil_2>())
 	{
-		Game = Resident_Evil_Video_Game::Resident_Evil_2_Nov_6_1996;
+		Game = Video_Game::Resident_Evil_2_Nov_6_1996;
 	}
 	virtual ~Resident_Evil_2_Nov96(void)
 	{

@@ -105,11 +105,13 @@ bool Resident_Evil_2_CPT::Decompress(std::vector<std::uint8_t> Input, std::vecto
 */
 bool Resident_Evil_2_CPT::Decompress(std::filesystem::path Input)
 {
+	Standard_String Str;
+
 	StdFile m_Input { Input, FileAccessMode::Read_Ex, true, false };
 
 	if (!m_Input)
 	{
-		Str->Message("CPT Decompression: Error, could not open %s", Input.filename().string().c_str());
+		Str.Message("CPT Decompression: Error, could not open %s", Input.filename().string().c_str());
 		return false;
 	}
 
@@ -131,9 +133,9 @@ bool Resident_Evil_2_CPT::Decompress(std::filesystem::path Input)
 
 		if (Decompress(CPT, Pixels))
 		{
-			std::filesystem::path Output = Str->FormatCStyle("%s/%s_%02d.bmp", Dir.string().c_str(), Input.stem().string().c_str(), Counter);
+			std::filesystem::path Output = Str.FormatCStyle("%s/%s_%02d.bmp", Dir.string().c_str(), Input.stem().string().c_str(), Counter);
 
-			Standard_Image Image { ImageFormat::BMP, 256, 256, 24, 0 };
+			Standard_Image Image { 24, 256, 256 };
 
 			for (std::int32_t y = 0; y < 256; y++)
 			{
@@ -144,7 +146,7 @@ bool Resident_Evil_2_CPT::Decompress(std::filesystem::path Input)
 				}
 			}
 
-			Image.SaveAsBitmap(Output);
+			Image.SaveBMP(Output);
 
 			Image.Close();
 		}

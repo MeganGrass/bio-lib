@@ -3,17 +3,12 @@
 *	Megan Grass
 *	May 29, 2024
 *
-*
-*	TODO:
-*
 */
 
 
 #pragma once
 
 #include <lib_gte.h>
-
-#include <std_basic_fstream.h>
 
 #include <std_text.h>
 
@@ -45,17 +40,12 @@ public:
 	/*
 		Construction
 	*/
-	explicit Resident_Evil_2_RVD(void)
-	{
-	}
+	explicit Resident_Evil_2_RVD(void) {}
 
 	/*
 		Destruction
 	*/
-	~Resident_Evil_2_RVD(void)
-	{
-		Close();
-	}
+	~Resident_Evil_2_RVD(void) = default;
 
 	/*
 		Copy

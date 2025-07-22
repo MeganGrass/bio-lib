@@ -3,25 +3,21 @@
 *	Megan Grass
 *	April 20, 2024
 *
-*
-*	TODO:
-*
 */
 
 
 #include "bio2_sca.h"
 
 
-/*
-	Open
-*/
 std::uintmax_t Resident_Evil_2_SCA::Open(StdFile& File, std::uintmax_t _Ptr)
 {
+	Standard_String Str;
+
 	if (!File.IsOpen())
 	{
 		if (!File.Open(File.GetPath(), FileAccessMode::Read, true, false))
 		{
-			Str->Message("Resident Evil 2: Error, could not open SCA at 0x%llX in %s", _Ptr, File.GetPath().filename().string().c_str());
+			Str.Message("Resident Evil 2: Error, could not open SCA at 0x%llX in %s", _Ptr, File.GetPath().filename().string().c_str());
 			return _Ptr;
 		}
 	}
@@ -35,10 +31,6 @@ std::uintmax_t Resident_Evil_2_SCA::Open(StdFile& File, std::uintmax_t _Ptr)
 	return _Ptr + sizeof(Resident_Evil_2_SCA_Header) + Data.size();
 }
 
-
-/*
-	Open
-*/
 bool Resident_Evil_2_SCA::Open(std::filesystem::path Path, std::uintmax_t _Ptr)
 {
 	StdFile m_File;
@@ -52,17 +44,15 @@ bool Resident_Evil_2_SCA::Open(std::filesystem::path Path, std::uintmax_t _Ptr)
 	return OldPtr != _Ptr;
 }
 
-
-/*
-	Save
-*/
 std::uintmax_t Resident_Evil_2_SCA::Save(StdFile& File, std::uintmax_t _Ptr)
 {
+	Standard_String Str;
+
 	if (!File.IsOpen())
 	{
 		if (!File.Open(File.GetPath(), FileAccessMode::Write, true, false))
 		{
-			Str->Message("Resident Evil 2: Error, could not create SCA at 0x%llX in %s", _Ptr, File.GetPath().filename().string().c_str());
+			Str.Message("Resident Evil 2: Error, could not create SCA at 0x%llX in %s", _Ptr, File.GetPath().filename().string().c_str());
 			return _Ptr;
 		}
 	}
@@ -74,10 +64,6 @@ std::uintmax_t Resident_Evil_2_SCA::Save(StdFile& File, std::uintmax_t _Ptr)
 	return _Ptr + sizeof(Resident_Evil_2_SCA_Header) + (Data.size() * sizeof(Resident_Evil_2_SCA_Data));
 }
 
-
-/*
-	Save
-*/
 bool Resident_Evil_2_SCA::Save(std::filesystem::path Path, std::uintmax_t _Ptr)
 {
 	StdFile m_File;
@@ -91,20 +77,12 @@ bool Resident_Evil_2_SCA::Save(std::filesystem::path Path, std::uintmax_t _Ptr)
 	return OldPtr != _Ptr;
 }
 
-
-/*
-	Close
-*/
 void Resident_Evil_2_SCA::Close(void)
 {
 	std::memset(&Header, 0, sizeof(Resident_Evil_2_SCA_Header));
 	Data.clear();
 }
 
-
-/*
-	Calculate Axis Center Point
-*/
 void Resident_Evil_2_SCA::CalcCxCz(void)
 {
 	std::int32_t MinX = 0x7FFFFFFF, MaxX = 0x80000000;
@@ -127,19 +105,11 @@ void Resident_Evil_2_SCA::CalcCxCz(void)
 	}
 }
 
-
-/*
-	Get Area
-*/
 std::uint32_t Resident_Evil_2_SCA::GetArea(std::int32_t X, std::int32_t Z, std::int32_t Sx, std::int32_t Sz)
 {
 	return (1 << ((std::uint32_t)(X - Sx) >> 0x1E)) << ((std::uint32_t)(Z - Sz) >> 0x1E & 2);
 }
 
-
-/*
-	Set Area
-*/
 void Resident_Evil_2_SCA::SetArea(std::size_t iCollision)
 {
 	VECTOR p0{};  // Bottom-Left
@@ -170,14 +140,24 @@ void Resident_Evil_2_SCA::SetArea(std::size_t iCollision)
 	std::uint32_t Area3 = GetArea(p3.vx, p3.vz, Header.Cx, Header.Cz);
 
 	// Complete
-	Data[iCollision].Type.Bits.Area = (Area0 | Area1 | Area2 | Area3);
+	Data[iCollision].Type.Bits.Quadrant = (Area0 | Area1 | Area2 | Area3);
 }
 
+Resident_Evil_2_Slope_Hypotenuse Resident_Evil_2_SCA::GetSlopeHypotenuse(std::size_t iCollision)
+{
+	if (Data[iCollision].Type.Bits.Hypotenuse)
+	{
+		if (Data[iCollision].Type.Bits.Axis) { return Resident_Evil_2_Slope_Hypotenuse::Type_D; }
+		else { return Resident_Evil_2_Slope_Hypotenuse::Type_B; }
+	}
+	else
+	{
+		if (Data[iCollision].Type.Bits.Axis) { return Resident_Evil_2_Slope_Hypotenuse::Type_C; }
+		else { return Resident_Evil_2_Slope_Hypotenuse::Type_A; }
+	}
+}
 
-/*
-	Get Ground (Low)
-*/
-std::uint32_t Resident_Evil_2_SCA::GetGroundLow(std::size_t iCollision)
+std::int32_t Resident_Evil_2_SCA::GetLow(std::size_t iCollision)
 {
 	std::uint32_t Floor = Data[iCollision].Floor;
 
@@ -194,21 +174,11 @@ std::uint32_t Resident_Evil_2_SCA::GetGroundLow(std::size_t iCollision)
 	return nFloor;
 }
 
-
-/*
-	Get Ground (High)
-*/
-std::uint32_t Resident_Evil_2_SCA::GetGroundHigh(std::size_t iCollision)
+std::int32_t Resident_Evil_2_SCA::GetHigh(std::size_t iCollision)
 {
-	std::uint16_t Type = Data[iCollision].Type.Data;
-
-	return (Type >> 11) * -100 + (Type >> 6 & 0x1F) * -1800;
+	return (Data[iCollision].Type.Bits.Height * -100) + (Data[iCollision].Type.Bits.nFloor * -1800);
 }
 
-
-/*
-	Get Floor
-*/
 std::uint32_t Resident_Evil_2_SCA::GetFloor(std::size_t iCollision)
 {
 	std::uint32_t Floor = Data[iCollision].Floor;
@@ -226,10 +196,6 @@ std::uint32_t Resident_Evil_2_SCA::GetFloor(std::size_t iCollision)
 	return 1;
 }
 
-
-/*
-	Set Floor
-*/
 std::uint32_t Resident_Evil_2_SCA::SetFloor(std::size_t iCollision, std::int32_t Bit)
 {
 	std::uint32_t Floor = 0;

@@ -396,9 +396,11 @@ std::uintmax_t Resident_Evil_2_Bytecode::CalcScdSize(StdFile& File, std::uintmax
 */
 bool Resident_Evil_2_Bytecode::Open(StdFile& File, std::uintmax_t Ptr)
 {
+	Standard_String Str;
+
 	if (!File.IsOpen())
 	{
-		Str->Message(L"Failed to open file: " + File.GetPath().filename().wstring());
+		Str.Message(L"Failed to open file: " + File.GetPath().filename().wstring());
 		return false;
 	}
 
@@ -439,6 +441,8 @@ bool Resident_Evil_2_Bytecode::Open(std::filesystem::path _Path)
 */
 bool Resident_Evil_2_Bytecode::Disassemble(std::filesystem::path _Path)
 {
+	Standard_String Str;
+
 	StdFile File { _Path, FileAccessMode::Read_Ex, true, false };
 	if (!Open(_Path)) { return false; }
 
@@ -456,7 +460,7 @@ bool Resident_Evil_2_Bytecode::Disassemble(std::filesystem::path _Path)
 	do {
 		Opcode = m_Bytecode[i].Opcode();
 
-		Stream << Str->FormatCStyle("0x%08X:\t", FileSize);
+		Stream << Str.FormatCStyle("0x%08X:\t", FileSize);
 		FileSize += Size(m_Bytecode[i].Opcode());
 		Stream << Name(m_Bytecode[i].Opcode()) << "(";
 		for (std::size_t v = 0; v < iBytecode[Opcode].size(); v++)
@@ -468,7 +472,7 @@ bool Resident_Evil_2_Bytecode::Disassemble(std::filesystem::path _Path)
 			else if (Value.type() == typeid(short)) { Stream << FormatCStyle("%d", std::any_cast<short>(Value)); }
 			if (v < (iBytecode[Opcode].size() - 1)) { Stream << ", "; }*/
 		}
-		Stream << Str->FormatCStyle(");\n");
+		Stream << Str.FormatCStyle(");\n");
 		TextFile.AddLine(Stream.str());
 		Stream.str("");
 

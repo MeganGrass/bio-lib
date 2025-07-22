@@ -17,18 +17,20 @@
 */
 bool Resident_Evil_2_PDEMO::Open(std::filesystem::path Input)
 {
+	Standard_String Str;
+
 	b_Open = false;
 
 	StdFile m_File { Input, FileAccessMode::Read, true, false };
 	if (!m_File.IsOpen())
 	{
-		Str->Message("PDEMO: Error, could not open %s", Input.filename().string().c_str());
+		Str.Message("PDEMO: Error, could not open %s", Input.filename().string().c_str());
 		return false;
 	}
 
 	if (m_File.Size() != 0x746)
 	{
-		Str->Message("PDEMO: Error, invalid file size: %llX", m_File.Size());
+		Str.Message("PDEMO: Error, invalid file size: %llX", m_File.Size());
 		return false;
 	}
 
@@ -45,16 +47,18 @@ bool Resident_Evil_2_PDEMO::Open(std::filesystem::path Input)
 */
 bool Resident_Evil_2_PDEMO::Save(std::filesystem::path Output)
 {
+	Standard_String Str;
+
 	if (!b_Open)
 	{
-		Str->Message("PDEMO: Error, file is not open");
+		Str.Message("PDEMO: Error, file is not open");
 		return false;
 	}
 
 	StdFile m_File { Output, FileAccessMode::Write, true, false };
 	if (!m_File.IsOpen())
 	{
-		Str->Message("PDEMO: Error, could not create %s", Output.filename().string().c_str());
+		Str.Message("PDEMO: Error, could not create %s", Output.filename().string().c_str());
 		return false;
 	}
 
@@ -71,6 +75,8 @@ bool Resident_Evil_2_PDEMO::Save(std::filesystem::path Output)
 */
 bool Resident_Evil_2_PDEMO::DisassembleToText(std::filesystem::path Input)
 {
+	Standard_String Str;
+
 	std::unique_ptr<Resident_Evil_2_PDEMO> Demo = std::make_unique<Resident_Evil_2_PDEMO>();
 	if (!Demo->Open(Input))
 	{
@@ -82,7 +88,7 @@ bool Resident_Evil_2_PDEMO::DisassembleToText(std::filesystem::path Input)
 
 	std::unique_ptr<StdText> Text = std::make_unique<StdText>();
 	Text->SetBOM(TextFileBOM::UTF8);
-	if (!Text->Open(Str->FormatCStyle("%s\\%s.ini", Dir.string().c_str(), Input.stem().string().c_str()), FileAccessMode::Write))
+	if (!Text->Open(Str.FormatCStyle("%s\\%s.ini", Dir.string().c_str(), Input.stem().string().c_str()), FileAccessMode::Write))
 	{
 		return false;
 	}
@@ -124,17 +130,19 @@ bool Resident_Evil_2_PDEMO::DisassembleToText(std::filesystem::path Input)
 */
 bool Resident_Evil_2_PDEMO::AssembleText(std::filesystem::path Config)
 {
+	Standard_String Str;
+
 	std::unique_ptr<StdText> Text = std::make_unique<StdText>();
 	if (!Text->Open(Config, FileAccessMode::Read))
 	{
-		Str->Message("PDEMO: Error, could not open %s", Config.filename().string().c_str());
+		Str.Message("PDEMO: Error, could not open %s", Config.filename().string().c_str());
 		return false;
 	}
 
 	StrVec Header = Text->GetStrVec(Text->GetLine(0));
-	if (Header.empty() || (Header.size() < 2) || (Str->ToUpper(Header[0]) != "BIO2") || (Str->ToUpper(Header[1]) != "PDEMO"))
+	if (Header.empty() || (Header.size() < 2) || (Str.ToUpper(Header[0]) != "BIO2") || (Str.ToUpper(Header[1]) != "PDEMO"))
 	{
-		Str->Message("PDEMO: Assemble error, %s doesn't appear to be properly configured", Config.filename().string().c_str());
+		Str.Message("PDEMO: Assemble error, %s doesn't appear to be properly configured", Config.filename().string().c_str());
 		return false;
 	}
 

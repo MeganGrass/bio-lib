@@ -17,13 +17,15 @@
 */
 std::uintmax_t Resident_Evil_2_EDT::Open(StdFile& File, std::uintmax_t Count, std::uintmax_t _Ptr)
 {
+	Standard_String Str;
+
 	Close();
 
 	if (!File.IsOpen())
 	{
 		if (!File.Open(File.GetPath(), FileAccessMode::Read, true, false))
 		{
-			Str->Message("EDT: Error, could not open at 0x%llX in %s", _Ptr, File.GetPath().filename().string().c_str());
+			Str.Message("EDT: Error, could not open at 0x%llX in %s", _Ptr, File.GetPath().filename().string().c_str());
 			return _Ptr;
 		}
 	}
@@ -95,9 +97,11 @@ bool Resident_Evil_2_EDT::Open(std::filesystem::path Input, std::uintmax_t Count
 */
 std::uintmax_t Resident_Evil_2_EDT::Save(StdFile& File, std::uintmax_t _Ptr)
 {
+	Standard_String Str;
+
 	if (Data.empty())
 	{
-		Str->Message("EDT: Error, no data to save");
+		Str.Message("EDT: Error, no data to save");
 		return _Ptr;
 	}
 
@@ -105,7 +109,7 @@ std::uintmax_t Resident_Evil_2_EDT::Save(StdFile& File, std::uintmax_t _Ptr)
 	{
 		if (!File.Open(File.GetPath(), FileAccessMode::Write, true, false))
 		{
-			Str->Message("EDT: Error, could not create at 0x%llX in %s", _Ptr, File.GetPath().filename().string().c_str());
+			Str.Message("EDT: Error, could not create at 0x%llX in %s", _Ptr, File.GetPath().filename().string().c_str());
 			return _Ptr;
 		}
 	}

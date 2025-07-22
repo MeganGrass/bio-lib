@@ -18,23 +18,15 @@
 
 #pragma once
 
-#include <std_basic_fstream.h>
-
-#include <std_text.h>
-
 #include <sony_executable.h>
-
-#include <sony_texture.h>
 
 #include <sony_bitstream.h>
 
 #include <sony_soundbank.h>
 
-#include <bio_common.h>
-
-#include <bio3_model.h>
-
 #include "sld/bio3_sld.h"
+
+#include <bio_common.h>
 
 
 class Resident_Evil_3 :
@@ -47,8 +39,6 @@ private:
 	// Resident Evil 3 SLD
 	std::unique_ptr<Resident_Evil_3_SLD> Sld;
 
-	std::unique_ptr<Resident_Evil_3_Model> Test;
-
 	// Print Command Line Help
 	void PrintHelp(void);
 
@@ -59,16 +49,14 @@ public:
 	*/
 	explicit Resident_Evil_3(void) :
 		Bs(std::make_unique<Sony_PlayStation_Bitstream>()),
-		Sld(std::make_unique<Resident_Evil_3_SLD>()),
-		Test(std::make_unique<Resident_Evil_3_Model>())
+		Sld(std::make_unique<Resident_Evil_3_SLD>())
 	{
-		Game = Resident_Evil_Video_Game::Resident_Evil_3;
+		Game = Video_Game::Resident_Evil_3;
 	}
 	virtual ~Resident_Evil_3(void)
 	{
 		Bs.reset();
 		Sld.reset();
-		Test.reset();
 	}
 
 	/*
@@ -90,10 +78,5 @@ public:
 		Extract contents of BSS file container
 	*/
 	bool ExtractBSS(std::filesystem::path Input);
-
-	/*
-		Extract contents of Model file container
-	*/
-	bool ExtractModel(std::filesystem::path Input) { return Test->Open(Input); }
 
 };

@@ -17,11 +17,13 @@
 */
 std::uintmax_t Resident_Evil_2_PRI::Open(StdFile& File, std::uintmax_t _Ptr)
 {
+	Standard_String Str;
+
 	if (!File.IsOpen())
 	{
 		if (!File.Open(File.GetPath(), FileAccessMode::Read, true, false))
 		{
-			Str->Message("Resident Evil 2: Error, could not open PRI at 0x%llX in %s", _Ptr, File.GetPath().filename().string().c_str());
+			Str.Message("Resident Evil 2: Error, could not open PRI at 0x%llX in %s", _Ptr, File.GetPath().filename().string().c_str());
 			return _Ptr;
 		}
 	}

@@ -483,10 +483,12 @@ bool Resident_Evil_2_ADT::Decompress(std::vector<std::uint8_t> src, std::vector<
 */
 bool Resident_Evil_2_ADT::Decompress(std::filesystem::path Input, std::filesystem::path Output)
 {
+	Standard_String Str;
+
 	StdFile m_Input{ Input, FileAccessMode::Read_Ex, true, false };
 	if (!m_Input)
 	{
-		Str->Message("ADT Compression: Error, could not open %s", Input.filename().string().c_str());
+		Str.Message("ADT Compression: Error, could not open %s", Input.filename().string().c_str());
 		return false;
 	}
 
@@ -498,14 +500,14 @@ bool Resident_Evil_2_ADT::Decompress(std::filesystem::path Input, std::filesyste
 
 	if (!Decompress(ADT, Binary))
 	{
-		Str->Message("ADT Compression: Error, could not decompress %s", Input.filename().string().c_str());
+		Str.Message("ADT Compression: Error, could not decompress %s", Input.filename().string().c_str());
 		return false;
 	}
 
 	StdFile m_Output{ Output, FileAccessMode::Write_Ex, true, true };
 	if (!m_Output)
 	{
-		Str->Message("ADT Compression: Error, could not create %s", Output.filename().string().c_str());
+		Str.Message("ADT Compression: Error, could not create %s", Output.filename().string().c_str());
 		return false;
 	}
 	m_Output.Write(0, Binary.data(), Binary.size());

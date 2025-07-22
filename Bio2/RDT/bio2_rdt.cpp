@@ -16,35 +16,13 @@
 #include "bio2_rdt.h"
 
 
-/*
-	Set game
-*/
-void Resident_Evil_2_RDT::SetGame(Resident_Evil_Video_Game _Game)
-{
-	switch(_Game)
-	{
-	case Resident_Evil_Video_Game::Resident_Evil_2_Oct_30_1997:
-	case Resident_Evil_Video_Game::Resident_Evil_2_Trial:
-	case Resident_Evil_Video_Game::Resident_Evil_2:
-	case Resident_Evil_Video_Game::Resident_Evil_2_Dual_Shock:
-		Game = _Game;
-		break;
-	default:
-		Game = Resident_Evil_Video_Game::Resident_Evil_2;
-		break;
-	}
-}
-
-
-/*
-	Open
-*/
-bool Resident_Evil_2_RDT::Open(std::filesystem::path Path)
+bool Resident_Evil_2_RDT::Open(std::filesystem::path Path, std::uintmax_t _Ptr)
 {
 	StdFile File { Path, FileAccessMode::Read, true, false };
+
 	if (!File.IsOpen())
 	{
-		Str->Message("Resident Evil 2: RDT Error, could not open %s", File.GetPath().filename().string().c_str());
+		Str.Message(L"Resident Evil 2 RDT Error: could not open at 0x%llX in \"%ws\"", _Ptr, File.GetPath().filename().wstring().c_str());
 		return false;
 	}
 
@@ -52,16 +30,104 @@ bool Resident_Evil_2_RDT::Open(std::filesystem::path Path)
 	if (b_Open) { Close(); }
 
 	// Meta
+	m_Path = Standard_FileSystem().GetDirectory(Path);
 	GetStageRoom(Path.filename().string().c_str());
 
 	// Header
-	File.Read(0, &Header, sizeof(Resident_Evil_2_RDT_Header));
+	if (GameType() & BIO2NOV96)
+	{
+		Resident_Evil_2_RDT_Nov96 Nov96{};
+		File.Read(_Ptr, &Nov96, sizeof(Resident_Evil_2_RDT_Nov96));
+
+		Header.nSprite = Nov96.nSprite;
+		Header.nCut = Nov96.nCut;
+		Header.nOmodel = Nov96.nOmodel;
+		Header.nItem = Nov96.nItem;
+		Header.nDoor = Nov96.nDoor;
+		Header.nRoom_at = Nov96.nRoom_at;
+		Header.Reverb_lv = Nov96.Reverb_lv;
+		Header.nSprite_max = Nov96.nSprite_max;
+		Header.pEdt = 0;
+		Header.pVh = 0;
+		Header.pVb = 0;
+		Header.pZero0 = 0;
+		Header.pZero1 = 0;
+		Header.pRbj_end = 0;
+		Header.pSca = Nov96.pSca;
+		Header.pRcut = Nov96.pRcut;
+		Header.pVcut = Nov96.pVcut;
+		Header.pLight = Nov96.pLight;
+		Header.pOmodel = Nov96.pOmodel;
+		Header.pFloor = Nov96.pFloor;
+		Header.pBlock = Nov96.pBlock;
+		Header.pMessage = Nov96.pMessage;
+		Header.pMessage_sub = 0;
+		Header.pScrl = 0;
+		Header.pScdx = 0;
+		Header.pScd = 0;
+		Header.pEsp_hed = Nov96.pEsp_hed;
+		Header.pEsp_end = Nov96.pEsp_end;
+		Header.pEsp_tim = Nov96.pEsp_tim;
+		Header.pEsp_tim_end = Nov96.pEsp_tim_end;
+		Header.pRbj = Nov96.pRbj;
+
+		// ROOM1180.RDT uses old standard
+		if (Stage == 1 && Room == 0x18)
+		{
+			Header.pFloor = 0;
+			Header.pBlock = 0;
+			Header.pEsp_hed = 0;
+		}
+
+		// BLK is broken in 109
+	}
+	else if (GameType() & BIO2TRIAL)
+	{
+		Resident_Evil_2_RDT_Header_Trial_Ver Trial{};
+		File.Read(_Ptr, &Trial, sizeof(Resident_Evil_2_RDT_Header_Trial_Ver));
+
+		Header.nSprite = Trial.nSprite;
+		Header.nCut = Trial.nCut;
+		Header.nOmodel = Trial.nOmodel;
+		Header.nItem = Trial.nItem;
+		Header.nDoor = Trial.nDoor;
+		Header.nRoom_at = Trial.nRoom_at;
+		Header.Reverb_lv = Trial.Reverb_lv;
+		Header.nSprite_max = Trial.nSprite_max;
+		Header.pEdt = 0;
+		Header.pVh = 0;
+		Header.pVb = 0;
+		Header.pZero0 = 0;
+		Header.pZero1 = 0;
+		Header.pRbj_end = Trial.pRbj_end;
+		Header.pSca = Trial.pSca;
+		Header.pRcut = Trial.pRcut;
+		Header.pVcut = Trial.pVcut;
+		Header.pLight = Trial.pLight;
+		Header.pOmodel = Trial.pOmodel;
+		Header.pFloor = Trial.pFloor;
+		Header.pBlock = Trial.pBlock;
+		Header.pMessage = Trial.pMessage;
+		Header.pMessage_sub = Trial.pMessage_sub;
+		Header.pScrl = Trial.pScrl;
+		Header.pScdx = Trial.pScdx;
+		Header.pScd = Trial.pScd;
+		Header.pEsp_hed = Trial.pEsp_hed;
+		Header.pEsp_end = Trial.pEsp_end;
+		Header.pEsp_tim = Trial.pEsp_tim;
+		Header.pEsp_tim_end = Trial.pEsp_tim_end;
+		Header.pRbj = Trial.pRbj;
+	}
+	else
+	{
+		File.Read(_Ptr, &Header, sizeof(Resident_Evil_2_RDT_Header));
+	}
 
 	// Fail-Safe
 	{
 		if (Header.nCut > BIO2_CAMERA_MAX)
 		{
-			Str->Message("Resident Evil 2: Aborting RDT, abnormal number of cameras detected in %s", File.GetPath().filename().string().c_str());
+			Str.Message("Resident Evil 2: Aborting RDT, abnormal number of cameras detected in %s", File.GetPath().filename().string().c_str());
 			return false;
 		}
 
@@ -90,7 +156,7 @@ bool Resident_Evil_2_RDT::Open(std::filesystem::path Path)
 			(Header.pEsp_tim_end > FileSize) ||
 			(Header.pRbj > FileSize))
 		{
-			Str->Message("Resident Evil 2: Aborting RDT, abnormal data offsets detected in %s", File.GetPath().filename().string().c_str());
+			Str.Message("Resident Evil 2: Aborting RDT, abnormal data offsets detected in %s", File.GetPath().filename().string().c_str());
 			return false;
 		}
 	}
@@ -213,7 +279,7 @@ bool Resident_Evil_2_RDT::Open(std::filesystem::path Path)
 	if (Header.pScrl)
 	{
 		Scrl->Create(16, 320, 240, 0);
-		Scrl->ImportPixels(File, Header.pScrl, 0x25800);
+		Scrl->ReadPixels(File, Header.pScrl, 320, 240);
 	}
 
 	// Object Models
@@ -240,7 +306,7 @@ bool Resident_Evil_2_RDT::Open(std::filesystem::path Path)
 				}
 				else
 				{
-					Omodel.back().first->Open(File, Link[i].pTexture);
+					Omodel.back().first->OpenTIM(File, Link[i].pTexture);
 				}
 			}
 			if (Link[i].pModel && (Link[i].pModel != 0xFFFFFFFF))
@@ -258,7 +324,7 @@ bool Resident_Evil_2_RDT::Open(std::filesystem::path Path)
 	}
 
 	// Sony PlayStation Soundbank
-	if (std::to_underlying(Game) & BIO2TRIAL)
+	if (GameType() & BIO2TRIAL)
 	{
 		Resident_Evil_2_RDT_Header_Trial_Ver Header_Trial{};
 		File.Read(0, &Header_Trial, sizeof(Resident_Evil_2_RDT_Header_Trial_Ver));
@@ -283,10 +349,6 @@ bool Resident_Evil_2_RDT::Open(std::filesystem::path Path)
 	return b_Open = true;
 }
 
-
-/*
-	Close
-*/
 void Resident_Evil_2_RDT::Close(void)
 {
 	// Flag
@@ -377,27 +439,5 @@ void Resident_Evil_2_RDT::Close(void)
 	Vab1->CloseVAB();
 
 	// Model Animation
-	Rbj->CloseEDD();
-	Rbj->CloseEMR();
-}
-
-
-/*
-	Set camera count
-*/
-void Resident_Evil_2_RDT::SetCameraCount(std::uint8_t Count) noexcept
-{
-	if (Count > BIO2_CAMERA_MAX) { Count = BIO2_CAMERA_MAX; }
-	Header.nCut = Count;
-}
-
-
-/*
-	Set object model count
-*/
-void Resident_Evil_2_RDT::SetObjectModelCount(std::uint8_t Count) noexcept
-{
-	if (Count > BIO2_OMODEL_MAX) { Count = BIO2_OMODEL_MAX; }
-	Header.nOmodel = Count;
-	Omodel.resize(Count);
+	Rbj->Close();
 }

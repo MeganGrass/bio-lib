@@ -18,25 +18,17 @@
 
 #pragma once
 
-#include <std_basic_fstream.h>
-
-#include <std_text.h>
-
 #include <sony_executable.h>
-
-#include <sony_texture.h>
 
 #include <sony_bitstream.h>
 
 #include <sony_soundbank.h>
 
-#include <bio_common.h>
-
-#include <bio1_model.h>
-
 #include "pak/bio1_pak.h"
 
 #include "clut/bio1_clut.h"
+
+#include <bio_common.h>
 
 
 class Resident_Evil :
@@ -45,9 +37,6 @@ private:
 
 	// Sony PlayStation Bitstream
 	std::unique_ptr<Sony_PlayStation_Bitstream> Bs;
-
-	// Resident Evil EMD
-	std::unique_ptr<Resident_Evil_Model> Emd;
 
 	// Resident Evil PAK
 	std::unique_ptr<Resident_Evil_PAK> Pak;
@@ -62,15 +51,13 @@ public:
 	*/
 	explicit Resident_Evil(void) :
 		Bs(std::make_unique<Sony_PlayStation_Bitstream>()),
-		Emd(std::make_unique<Resident_Evil_Model>()),
 		Pak(std::make_unique<Resident_Evil_PAK>())
 	{
-		Game = Resident_Evil_Video_Game::Resident_Evil;
+		Game = Video_Game::Resident_Evil;
 	}
 	virtual ~Resident_Evil(void)
 	{
 		Bs.reset();
-		Emd.reset();
 		Pak.reset();
 	}
 
@@ -93,16 +80,6 @@ public:
 		Extract contents of BSS file container
 	*/
 	bool ExtractBSS(std::filesystem::path Input);
-
-	/*
-		Extract contents of EMD file container
-	*/
-	bool ExtractEMD(std::filesystem::path Input, Resident_Evil_Video_Game Game) { return Emd->Extract(Input, Game); }
-
-	/*
-		Create EMD file container
-	*/
-	bool AssembleEMD(std::filesystem::path Input) { return Emd->Assemble(Input); }
 
 	/*
 		Extract contents of PIX file container

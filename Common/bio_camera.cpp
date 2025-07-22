@@ -3,131 +3,105 @@
 *	Megan Grass
 *	March 07, 2024
 *
-*
-*	TODO:
-*
 */
 
 
-#include "bio_global.h"
+#include <bio_camera.h>
 
-
-/*
-	Resident Evil 2 Dual Shock (SLUS_007.48)
-*/
-MATRIX Resident_Evil_Camera::Set_view(VECTOR2 Eye, VECTOR2 At)
+void Resident_Evil_Camera::Shutdown(void) noexcept
 {
-	MATRIX Mat{};
-	MATRIX World{};	// Gs world-to-screen matrix
-
-	G->GTE->SetIdentity(&Mat);
-	G->GTE->SetIdentity(&World);
-
-	long DeltaX = At.x - Eye.x;
-	long DeltaY = At.y - Eye.y;
-	long DeltaZ = At.z - Eye.z;
-
-	long Length = G->GTE->SquareRoot0(DeltaX * DeltaX + DeltaY * DeltaY + DeltaZ * DeltaZ);
-	long LengthXZ = G->GTE->SquareRoot0(DeltaX * DeltaX + DeltaZ * DeltaZ);
-
-	Mat.m[2][2] = static_cast<short>((LengthXZ * ONE) / Length);
-	Mat.m[2][1] = static_cast<short>((DeltaY * ONE) / Length);
-	Mat.m[1][2] = -Mat.m[2][1];
-	Mat.m[1][1] = Mat.m[2][2];
-
-	G->GTE->MulMatrix(&World, &Mat);
-
-	if (LengthXZ != 0)
+#if MSTD_DX9
+	if (Render && Render->NormalState())
 	{
-		G->GTE->SetIdentity(&Mat);
+		if (m_Background)
+		{
+			m_Background->Release();
+			m_Background.reset(nullptr);
+		}
 
-		Mat.m[0][0] = static_cast<short>((DeltaZ * ONE) / LengthXZ);
-		Mat.m[2][2] = Mat.m[0][0];
-		Mat.m[2][0] = static_cast<short>((DeltaX * ONE) / LengthXZ);
-		Mat.m[0][2] = -Mat.m[2][0];
-
-		G->GTE->MulMatrix(&World, &Mat);
+		if (m_BackgroundVert)
+		{
+			m_BackgroundVert->Release();
+			m_BackgroundVert.reset(nullptr);
+		}
 	}
-
-	VECTOR Up{ -Eye.x, -Eye.y, -Eye.z };
-
-	G->GTE->ApplyMatrixLV(&World, &Up, (VECTOR*)World.t);
-
-	return World;
+#endif
 }
 
-
-/*
-	Set
-*/
-void Resident_Evil_Camera::Set_view(std::uint32_t ViewR, VECTOR2 Eye, VECTOR2 At)
+void Resident_Evil_Camera::Reset(void)
 {
-	G->GTE->SetGeomScreen(ViewR);
-
-	MATRIX Mat = Set_view(Eye, At);
-
-	View.m00 = static_cast<float>(Mat.m[0][0]) / ONE; View.m01 = static_cast<float>(Mat.m[0][1]) / ONE; View.m02 = static_cast<float>(Mat.m[0][2]) / ONE; View.m03 = -static_cast<float>(Mat.t[0]) / ONE;
-	View.m10 = static_cast<float>(Mat.m[1][0]) / ONE; View.m11 = static_cast<float>(Mat.m[1][1]) / ONE; View.m12 = static_cast<float>(Mat.m[1][2]) / ONE; View.m13 = -static_cast<float>(Mat.t[1]) / ONE;
-	View.m20 = static_cast<float>(Mat.m[2][0]) / ONE; View.m21 = static_cast<float>(Mat.m[2][1]) / ONE; View.m22 = static_cast<float>(Mat.m[2][2]) / ONE; View.m23 = -static_cast<float>(Mat.t[2]) / ONE;
-	View.m30 = 0.0f; View.m31 = 0.0f; View.m32 = 0.0f; View.m33 = 1.0f;
-
-	if (!b_Mirror)
-	{
-		View.m00 = -View.m00;
-		View.m01 = -View.m01;
-		View.m02 = -View.m02;
-		View.m03 = -View.m03;
-	}
-
-    float Right = 160.0f;
-    float Left = -160.0f;
-    float Top = 120.0f;
-    float Bottom = -120.0f;
-    float Near = 1.0f;
-    float Far = 1000.0f;
-    float FovY = 2.0f * std::atan(120.0f / ViewR);
-    float FovX = 2.0f * std::atan(160.0f / ViewR);
-    float ScaleX = 1.0f / std::tan(FovX / 2.0f);
-    float ScaleY = 1.0f / std::tan(FovY / 2.0f);
-    float ScaleZ = Far / (Near - Far);
-    float OffsetX = (Left + Right) / (Left - Right);
-    float OffsetY = (Top + Bottom) / (Top - Bottom);
-    float OffsetZ = Near * Far / (Near - Far);
-    Projection.m00 = ScaleX; Projection.m01 = 0.0f; Projection.m02 = 0.0f; Projection.m03 = 0.0f;
-    Projection.m10 = 0.0f; Projection.m11 = ScaleY; Projection.m12 = 0.0f; Projection.m13 = 0.0f;
-    Projection.m20 = OffsetX; Projection.m21 = OffsetY; Projection.m22 = OffsetZ; Projection .m23 = -1.0f;
-    Projection.m30 = 0.0f; Projection.m31 = 0.0f; Projection.m32 = ScaleZ; Projection.m33 = 0.0f;
+	Stage = 0;
+	Room = 0;
+	m_Path.clear();
+	m_Cut = 0;
+	m_CutMax = 0;
+	m_FOV = (0x6DD4 >> 7);
+	m_Eye = { -16000, -7200, -16000 };
+	m_At = { 0, 7200, 0 };
+	m_TexWidth = 0.0f;
+	m_TexHeight = 0.0f;
+	m_Background.reset(nullptr);
+	Set(m_FOV, m_Eye, m_At);
 }
 
+void Resident_Evil_Camera::SetMeta(std::filesystem::path _Path, std::uint8_t _Stage, std::uint8_t _Room, std::uint8_t CutMax) noexcept
+{
+	m_Path = _Path;
+	Stage = _Stage;
+	Room = _Room;
+	m_CutMax = CutMax;
+}
 
-/*
-	Set ortho
-*/
 void Resident_Evil_Camera::SetOrtho(float Width, float Height)
 {
-	m_Width = Width;
-	m_Height = Height;
-	Orthogonal.OrthogonalOffCenterRight(0.0f, m_Width, m_Height, 0.0f, 0.0f, 1.0f);
+	m_OrthoWidth = Width;
+	m_OrthoHeight = Height;
+	Orthogonal->OrthogonalOffCenterRight(0.0f, m_OrthoWidth, m_OrthoHeight, 0.0f, 0.0f, 1.0f);
 }
 
+std::uint8_t Resident_Evil_Camera::SetImage(std::uint8_t iCut)
+{
+	if (m_CutMax) { m_Cut = std::clamp(iCut, (uint8_t)0, (uint8_t)(m_CutMax - 1)); }
+	else { m_Cut = 0; }
 
-/*
-	Get background vertices
-*/
-std::vector<vec4t> Resident_Evil_Camera::GetVert(void) const
+	std::unique_ptr<Standard_Image> Image = std::make_unique<Standard_Image>();
+	Image->Str.hWnd = Str.hWnd;
+
+#ifdef LIB_PNG
+	if (Image->OpenPNG(Str.FormatCStyle(L"%ws\\ROOM%d%02x%02d.png", m_Path.wstring().c_str(), Stage, Room, m_Cut)))
+	{
+		m_TexWidth = (float)Image->GetWidth();
+		m_TexHeight = (float)Image->GetHeight();
+#if MSTD_DX9
+		m_Background.reset(Render->CreateTexture(Image));
+#endif
+	}
+#endif
+
+	return m_Cut;
+}
+
+std::vector<vec4t> Resident_Evil_Camera::GetImageVert(void) const
 {
 	std::vector<vec4t> Vert(4);
 
 	float l = -0.5f;
-	float r = (m_Width - 0.5f);
+	float r = (m_OrthoWidth - 0.5f);
 	float t = -0.5f;
-	float b = (m_Height - 0.5f);
+	float b = (m_OrthoHeight - 0.5f);
 
-	if (b_Mirror)
+	if (b_HorzFlipTex)
 	{
 		float tmp = l;
 		l = r;
 		r = tmp;
+	}
+
+	if (b_VertFlipTex)
+	{
+		float tmp = t;
+		t = b;
+		b = tmp;
 	}
 
 	Vert[0].vec.Set(l, b, 1.0f, 1.0f);	Vert[0].uv.Set(0.0f, 0.0f);
@@ -136,4 +110,110 @@ std::vector<vec4t> Resident_Evil_Camera::GetVert(void) const
 	Vert[3].vec.Set(r, t, 1.0f, 1.0f);	Vert[3].uv.Set(1.0f, 1.0f);
 
 	return Vert;
+}
+
+void Resident_Evil_Camera::SetTopDownPerspective(void)
+{
+	b_ViewBackground = false;
+	b_ViewTopDown = true;
+
+	View->Identity();
+	View->RotateX(View->Radian(90.0f));
+
+	Projection->OrthogonalOffCenterLeft(
+		-((m_OrthoWidth / 2.0f) / m_Cy) + m_Cx, ((m_OrthoWidth / 2.0f) / m_Cy) + m_Cx,
+		-((m_OrthoHeight / 2.0f) / m_Cy) - m_Cz, ((m_OrthoHeight / 2.0f) / m_Cy) - m_Cz,
+		4096.0f, -1.0f
+	);
+
+	World->SetWorld(vec3{ 0.0f, 0.0f, 0.0f }, vec3{ 0.0f, 0.0f, 0.0f }, vec3{ 1.0f, 1.0f, 1.0f });
+
+#if MSTD_DX9
+	if (Render && Render->NormalState())
+	{
+		Render->SetWorld(World);
+		Render->SetView(View);
+		Render->SetProjection(Projection);
+	}
+#endif
+}
+
+MATRIX2 Resident_Evil_Camera::Set_view(VECTOR2 Eye, VECTOR2 At) const
+{
+	MATRIX2 Mat MATRIX_IDENTITY;
+	MATRIX2 World MATRIX_IDENTITY;
+
+	long DeltaX = At.x - Eye.x;
+	long DeltaY = At.y - Eye.y;
+	long DeltaZ = At.z - Eye.z;
+
+	long Length = GTE->SquareRoot0(DeltaX * DeltaX + DeltaY * DeltaY + DeltaZ * DeltaZ);
+	long LengthXZ = GTE->SquareRoot0(DeltaX * DeltaX + DeltaZ * DeltaZ);
+
+	Mat.m22 = (std::uint16_t)((LengthXZ * ONE) / Length);
+	Mat.m21 = (std::uint16_t)((DeltaY * ONE) / Length);
+	Mat.m12 = -Mat.m21;
+	Mat.m11 = Mat.m22;
+
+	GTE->MulMatrix((MATRIX*)&World, (MATRIX*)&Mat);
+
+	if (LengthXZ != 0)
+	{
+		MATRIX2_SET_IDENTITY(&Mat);
+
+		Mat.m00 = (std::uint16_t)((DeltaZ * ONE) / LengthXZ);
+		Mat.m22 = Mat.m00;
+		Mat.m20 = (std::uint16_t)((DeltaX * ONE) / LengthXZ);
+		Mat.m02 = -Mat.m20;
+
+		GTE->MulMatrix((MATRIX*)&World, (MATRIX*)&Mat);
+	}
+
+	VECTOR Vec0{ -Eye.x, -Eye.y, -Eye.z };
+	VECTOR Vec1{ 0, 0, 0 };
+
+	GTE->ApplyMatrixLV((MATRIX*)&World, &Vec0, &Vec1);
+
+	World.tx = Vec1.vx;
+	World.ty = Vec1.vy;
+	World.tz = Vec1.vz;
+
+	return World;
+}
+
+void Resident_Evil_Camera::Set(std::uint32_t FOV, VECTOR2 Eye, VECTOR2 At)
+{
+	b_ViewBackground = true;
+	b_ViewTopDown = false;
+
+	m_FOV = FOV;
+	m_Eye = Eye;
+	m_At = At;
+
+	GTE->SetGeomScreen(m_FOV);
+
+	MATRIX2 Mat = Set_view(m_Eye, m_At);
+
+	View->m00 =  GTE->ToFloat(Mat.m00); View->m01 =  GTE->ToFloat(Mat.m01); View->m02 =  GTE->ToFloat(Mat.m02); View->m03 =  GTE->ToFloat(Mat.tx);
+	View->m10 =  GTE->ToFloat(Mat.m10); View->m11 =  GTE->ToFloat(Mat.m11); View->m12 =  GTE->ToFloat(Mat.m12); View->m13 =  GTE->ToFloat(Mat.ty);
+	View->m20 = -GTE->ToFloat(Mat.m20); View->m21 = -GTE->ToFloat(Mat.m21); View->m22 = -GTE->ToFloat(Mat.m22); View->m23 = -GTE->ToFloat(Mat.tz);
+	View->m30 = 0.0f; View->m31 = 0.0f; View->m32 = 0.0f; View->m33 = 1.0f;
+
+	PROJECTION Proj(m_FOV);
+
+    Projection->m00 = Proj.ScaleX;	Projection->m01 = 0.0f;			Projection->m02 = 0.0f;			Projection->m03 = 0.0f;
+	Projection->m10 = 0.0f;			Projection->m11 = Proj.ScaleY;	Projection->m12 = 0.0f;			Projection->m13 = 0.0f;
+	Projection->m20 = Proj.OffsetX;	Projection->m21 = Proj.OffsetY;	Projection->m22 = Proj.OffsetZ;	Projection->m23 = -1.0f;
+	Projection->m30 = 0.0f;			Projection->m31 = 0.0f;			Projection->m32 = Proj.ScaleZ;	Projection->m33 = 0.0f;
+
+	World->SetWorld(vec3{ 0.0f, 0.0f, 0.0f }, vec3{ 0.0f, 0.0f, 0.0f }, vec3{ 1.0f, 1.0f, 1.0f });
+
+#if MSTD_DX9
+	if (Render && Render->NormalState())
+	{
+		Render->SetWorld(World);
+		Render->SetView(View);
+		Render->SetProjection(Projection);
+	}
+#endif
 }

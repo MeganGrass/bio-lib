@@ -184,11 +184,13 @@ void Resident_Evil_2_Nov96::Commandline(StrVec Args)
 */
 bool Resident_Evil_2_Nov96::ExtractITP(std::filesystem::path Input)
 {
+	Standard_String Str;
+
 	StdFile m_Input{ Input, FileAccessMode::Read_Ex, true, false };
 
 	if (!m_Input)
 	{
-		Str->Message("ITP Extraction: Error, could not open %s", Input.filename().string().c_str());
+		Str.Message("ITP Extraction: Error, could not open %s", Input.filename().string().c_str());
 		return false;
 	}
 
@@ -202,33 +204,22 @@ bool Resident_Evil_2_Nov96::ExtractITP(std::filesystem::path Input)
 
 	std::uintmax_t Counter = 0;
 
-	std::vector<std::uint8_t> Palette(sizeof(bio2_nov96_st_00_clut00));
+	std::vector<Sony_Pixel_16bpp> Palette(sizeof(bio2_nov96_st_00_clut00) / sizeof(Sony_Pixel_16bpp));
 
-	std::memcpy(Palette.data(), bio2_nov96_st_00_clut00, sizeof(bio2_nov96_st_00_clut00));
+	std::memcpy(Palette.data(), bio2_nov96_st_00_clut00, sizeof(bio2_nov96_st_00_clut00) / sizeof(Sony_Pixel_16bpp));
 
 	while (Offset < FileSize)
 	{
-		Sony_PlayStation_Texture Texture;
+		Sony_PlayStation_Texture Texture{ m_Input, Offset };
+		if (!Texture.IsOpen()) { break; }
 
-		Texture.STP4Bpp() = false;
+		std::filesystem::path Filename = Str.FormatCStyle("%s/%s/%s_%02d_Large.tim", Dir.string().c_str(), Input.stem().string().c_str(), Input.stem().string().c_str(), Counter);
 
-		Texture.Open(m_Input, Offset);
+		Texture.SaveTIM(Filename);
 
-		std::uintmax_t TextureSize = Texture.Size();
+		Texture.SaveBMP(Filename.replace_extension(".bmp"));
 
-		if (!TextureSize) { break; }
-
-		std::filesystem::path Filename = Str->FormatCStyle("%s/%s/%s_%02d_Large.tim", Dir.string().c_str(), Input.stem().string().c_str(), Input.stem().string().c_str(), Counter);
-
-		Texture.Save(Filename);
-
-		std::unique_ptr<Standard_Image> Image = Texture.GetBitmap();
-
-		Image->SaveAsBitmap(Filename.replace_extension(".bmp"));
-
-		Image->Close();
-
-		Offset += TextureSize;
+		Offset += Texture.Size();
 
 		std::uint32_t DummyBytes = 0;
 
@@ -236,32 +227,20 @@ bool Resident_Evil_2_Nov96::ExtractITP(std::filesystem::path Input)
 
 		if (DummyBytes)
 		{
-			Texture.SetWidth(80);
-
-			Texture.SetHeight(30);
-
-			Texture.ImportPixels(m_Input, Offset, 0x960);
+			Texture.ReadPixels(m_Input, Offset, 80, 30);
 		}
 		else
 		{
-			Texture.SetWidth(40);
-
-			Texture.SetHeight(30);
-
-			Texture.ImportPixels(m_Input, Offset, 0x4B0);
+			Texture.ReadPixels(m_Input, Offset, 80, 30);
 		}
 
-		Texture.ImportPalette(Palette);
+		Texture.PastePalette(Palette, 0);
 
-		Filename = Str->FormatCStyle("%s/%s/%s_%02d_Small.tim", Dir.string().c_str(), Input.stem().string().c_str(), Input.stem().string().c_str(), Counter);
+		Filename = Str.FormatCStyle("%s/%s/%s_%02d_Small.tim", Dir.string().c_str(), Input.stem().string().c_str(), Input.stem().string().c_str(), Counter);
 
-		Texture.Save(Filename);
+		Texture.SaveTIM(Filename);
 
-		Image = Texture.GetBitmap();
-
-		Image->SaveAsBitmap(Filename.replace_extension(".bmp"));
-
-		Image->Close();
+		Texture.SaveBMP(Filename.replace_extension(".bmp"));
 
 		Offset += 0x1000 - (Offset % 0x1000);
 
@@ -279,11 +258,13 @@ bool Resident_Evil_2_Nov96::ExtractITP(std::filesystem::path Input)
 */
 bool Resident_Evil_2_Nov96::ExtractPIX(std::filesystem::path Input)
 {
+	Standard_String Str;
+
 	StdFile m_Input{ Input, FileAccessMode::Read_Ex, true, false };
 
 	if (!m_Input)
 	{
-		Str->Message("PIX Conversion: Error, could not open %s", Input.filename().string().c_str());
+		Str.Message("PIX Conversion: Error, could not open %s", Input.filename().string().c_str());
 		return false;
 	}
 
@@ -299,31 +280,23 @@ bool Resident_Evil_2_Nov96::ExtractPIX(std::filesystem::path Input)
 	{
 		m_Input.CreateDirectory(Dir / Input.stem());
 
-		std::vector<std::uint8_t> Palette(sizeof(bio2_nov96_st_00_clut00));
+		std::vector<Sony_Pixel_16bpp> Palette(sizeof(bio2_nov96_st_00_clut00) / sizeof(Sony_Pixel_16bpp));
 
 		std::memcpy(Palette.data(), bio2_nov96_st_00_clut00, sizeof(bio2_nov96_st_00_clut00));
 
 		while (Offset < FileSize)
 		{
-			Sony_PlayStation_Texture Texture;
+			Sony_PlayStation_Texture Texture{ 8, 40, 30, 1 };
 
-			Texture.STP4Bpp() = false;
+			Texture.PastePalette(Palette, 0);
 
-			Texture.Create(8, 40, 30, 1);
+			Texture.ReadPixels(m_Input, Offset, 40, 30);
 
-			Texture.ImportPalette(Palette);
+			std::filesystem::path Filename = Str.FormatCStyle("%s/%s/%s_%02d.tim", Dir.string().c_str(), Input.stem().string().c_str(), Input.stem().string().c_str(), Counter);
 
-			Texture.ImportPixels(m_Input, Offset, 0x4B0);
+			Texture.SaveTIM(Filename);
 
-			std::filesystem::path Filename = Str->FormatCStyle("%s/%s/%s_%02d.tim", Dir.string().c_str(), Input.stem().string().c_str(), Input.stem().string().c_str(), Counter);
-
-			Texture.Save(Filename);
-
-			std::unique_ptr<Standard_Image> Image = Texture.GetBitmap();
-
-			Image->SaveAsBitmap(Filename.replace_extension(".bmp"));
-
-			Image->Close();
+			Texture.SaveBMP(Filename.replace_extension(".bmp"));
 
 			Offset += 0x4B0;
 
@@ -351,37 +324,33 @@ bool Resident_Evil_2_Nov96::ExtractPIX(std::filesystem::path Input)
 	{
 		m_Input.CreateDirectory(Dir / Input.stem());
 
-		Sony_PlayStation_Texture Texture;
-
-		Texture.STP4Bpp() = false;
-
-		Texture.Create(4, 256, 256, 3);
+		Sony_PlayStation_Texture Texture{ 4, 256, 256, 3 };
 
 		std::uintmax_t ClutPtr = 0;
 
-		std::vector<std::uint8_t> Palette(sizeof(std::uint16_t) * 16);
+		std::vector<Sony_Pixel_16bpp> Palette(48);
 		std::memcpy(Palette.data(), &bio2_nov96_tex_clut[0x540], (sizeof(std::uint16_t) * 16));
-		Texture.ImportPalette(Palette, 0);
+		Texture.PastePalette(Palette, 0);
 		std::memcpy(Palette.data(), &bio2_nov96_tex_clut[0x580], (sizeof(std::uint16_t) * 16));
-		Texture.ImportPalette(Palette, 1);
+		Texture.PastePalette(Palette, 1);
 		std::memcpy(Palette.data(), &bio2_nov96_tex_clut[0x5C0], (sizeof(std::uint16_t) * 16));
-		Texture.ImportPalette(Palette, 2);
+		Texture.PastePalette(Palette, 2);
 
-		Texture.ImportPixels(m_Input, Offset, 0x8000);
+		Texture.ReadPixels(m_Input, Offset, 256, 256);
 
-		std::filesystem::path Filename = Str->FormatCStyle("%s/%s/%s.tim", Dir.string().c_str(), Input.stem().string().c_str(), Input.stem().string().c_str());
+		std::filesystem::path Filename = Str.FormatCStyle("%s/%s/%s.tim", Dir.string().c_str(), Input.stem().string().c_str(), Input.stem().string().c_str());
 
-		Texture.Save(Filename);
+		Texture.SaveTIM(Filename);
 
-		std::unique_ptr<Standard_Image> Image = Texture.GetBitmap();
+		std::unique_ptr<Standard_Image> Image = Texture.ExportImage();
 
-		for (uint32_t iClut = 0; iClut < Texture.GetClutSize(); iClut++)
+		for (uint32_t iClut = 0; iClut < Texture.GetPaletteCount(); iClut++)
 		{
-			Texture.UpdateBitmapPalette(Image, iClut);
+			Texture.UpdateImagePalette(Image, iClut);
 
-			Filename = Str->FormatCStyle("%s/%s/%s_%02d.tim", Dir.string().c_str(), Input.stem().string().c_str(), Input.stem().string().c_str(), iClut);
+			Filename = Str.FormatCStyle("%s/%s/%s_%02d.tim", Dir.string().c_str(), Input.stem().string().c_str(), Input.stem().string().c_str(), iClut);
 
-			Image->SaveAsBitmap(Filename.replace_extension(".bmp"));
+			Image->SaveBMP(Filename.replace_extension(".bmp"));
 		}
 
 		Image->Close();
@@ -393,19 +362,13 @@ bool Resident_Evil_2_Nov96::ExtractPIX(std::filesystem::path Input)
 
 	if (FileSize == 0x25800)
 	{
-		Sony_PlayStation_Texture Texture;
+		Sony_PlayStation_Texture Texture{ 16, 320, 240, 0 };
 
-		Texture.Create(16, 320, 240, 0);
+		Texture.ReadPixels(m_Input, 0, 320, 240);
 
-		Texture.ImportPixels(m_Input, 0, 0x25800);
+		Texture.SaveTIM(Input.replace_extension(".tim"));
 
-		Texture.Save(Input.replace_extension(".tim"));
-
-		std::unique_ptr<Standard_Image> Image = Texture.GetBitmap();
-
-		Image->SaveAsBitmap(Input.replace_extension(".bmp"));
-
-		Image->Close();
+		Texture.SaveBMP(Input.replace_extension(".bmp"));
 	}
 
 	m_Input.Close();

@@ -18,10 +18,6 @@
 
 #include <bio1.h>
 
-
-/*
-	Print Command Line Help
-*/
 void Resident_Evil::PrintHelp(void)
 {
 	std::cout << "Resident Evil: Help" << std::endl << std::endl;
@@ -35,10 +31,6 @@ void Resident_Evil::PrintHelp(void)
 	std::cout << "PAK decompression: https://github.com/pmandin/reevengi-tools" << std::endl;
 }
 
-
-/*
-	Command Line Interface
-*/
 void Resident_Evil::Commandline(StrVec Args)
 {
 	Standard_String Str;
@@ -86,70 +78,12 @@ void Resident_Evil::Commandline(StrVec Args)
 
 		if (Args[i] == "AUG95")
 		{
-			Game = Resident_Evil_Video_Game::Resident_Evil_Aug_4_1995;
+			Game = Video_Game::Resident_Evil_Aug_4_1995;
 		}
 
 		if (Args[i] == "OCT95")
 		{
-			Game = Resident_Evil_Video_Game::Resident_Evil_Oct_4_1995;
-		}
-
-		if (Args[i] == "EMD")
-		{
-			if (i + 2 < Args.size())
-			{
-				String Op = Args[i + 1];
-				std::filesystem::path Input = Args[i + 2];
-
-				if (FS.Exists(Input))
-				{
-					if (Str.ToUpper(Op) == "ASM")
-					{
-						std::cout << "Resident Evil: Assembling " << Input.filename() << std::endl;
-						if (AssembleEMD(Input))
-						{
-							std::cout << "Resident Evil: EMD assembly successful" << std::endl;
-						}
-						else
-						{
-							std::cout << "Resident Evil: EMD error" << std::endl;
-						}
-					}
-					if (Str.ToUpper(Op) == "DIS")
-					{
-						/*std::cout << "Resident Evil: Extracting contents of " << Input.filename() << std::endl;
-						if (ExtractEMD(Input, Game))
-						{
-							std::cout << "Resident Evil: EMD extraction successful" << std::endl;
-						}
-						else
-						{
-							std::cout << "Resident Evil: EMD error" << std::endl;
-						}*/
-
-						Emd->SetGame(Game);
-						ExtractEMD(Input, Game);
-						if (Emd->Open(Input))
-						{
-							std::cout << "Resident Evil: Successfully opened" << std::endl;
-							if (Emd->Save(Input.replace_extension("test.emd")))
-							{
-								std::cout << "Resident Evil: Successfully saved" << std::endl;
-							}
-						}
-					}
-				}
-				else
-				{
-					std::cout << "Resident Evil: EMD error, input file not found" << std::endl;
-				}
-			}
-			else
-			{
-				std::cout << "Resident Evil: EMD error, not enough arguments" << std::endl << std::endl;
-				PrintHelp();
-			}
-
+			Game = Video_Game::Resident_Evil_Oct_4_1995;
 		}
 
 		if (Args[i] == "PAK")
@@ -218,23 +152,21 @@ void Resident_Evil::Commandline(StrVec Args)
 
 }
 
-
-/*
-	Extract contents of BSS file container
-*/
 bool Resident_Evil::ExtractBSS(std::filesystem::path Input)
 {
+	Standard_String Str;
+
 	StdFile m_Input { Input, FileAccessMode::Read_Ex, true, false };
 
 	if (!m_Input)
 	{
-		Str->Message("BSS Extraction: Error, could not open %s", Input.filename().string().c_str());
+		Str.Message("BSS Extraction: Error, could not open %s", Input.filename().string().c_str());
 		return false;
 	}
 
 	if (m_Input.Size() % 32768 != 0)
 	{
-		Str->Message("BSS Extraction: Error, file size is not a multiple of 32768");
+		Str.Message("BSS Extraction: Error, file size is not a multiple of 32768");
 		return false;
 	}
 
@@ -242,7 +174,7 @@ bool Resident_Evil::ExtractBSS(std::filesystem::path Input)
 
 	if (!nBs)
 	{
-		Str->Message("BSS Extraction: Error, no bitstreams to extract");
+		Str.Message("BSS Extraction: Error, no bitstreams to extract");
 		return false;
 	}
 
@@ -286,7 +218,7 @@ bool Resident_Evil::ExtractBSS(std::filesystem::path Input)
 
 		m_Input.Read(pBs, BS.data(), Bs_size);
 
-		std::filesystem::path OutStr = Str->FormatCStyle("%s/ROOM_%X%02X_%02d.bs", Dir.string().c_str(), Stage, Room, i);
+		std::filesystem::path OutStr = Str.FormatCStyle("%s/ROOM_%X%02X_%02d.bs", Dir.string().c_str(), Stage, Room, i);
 
 		m_Input.Create(OutStr, BS);
 
@@ -302,7 +234,7 @@ bool Resident_Evil::ExtractBSS(std::filesystem::path Input)
 
 		std::cout << "BSS Extraction: Converting to bitmap" << std::endl;
 
-		Standard_Image Image { ImageFormat::BMP, 320, 240, 32, 0 };
+		Standard_Image Image { 32, 320, 240, 0 };
 
 		size_t pImg = 0;
 
@@ -315,7 +247,7 @@ bool Resident_Evil::ExtractBSS(std::filesystem::path Input)
 			}
 		}
 
-		Image.SaveAsBitmap(OutStr.replace_extension(".bmp"));
+		Image.SaveBMP(OutStr.replace_extension(".bmp"));
 
 		std::cout << "BSS Extraction: Conversion complete" << std::endl;
 	}
@@ -325,62 +257,48 @@ bool Resident_Evil::ExtractBSS(std::filesystem::path Input)
 	return true;
 }
 
-
-/*
-	Extract contents of PIX file container
-*/
 bool Resident_Evil::ExtractPIX(std::filesystem::path Input)
 {
+	Standard_String Str;
+
 	StdFile m_Input { Input, FileAccessMode::Read_Ex, true, false };
 
 	if (!m_Input)
 	{
-		Str->Message("PIX Conversion: Error, could not open %s", Input.filename().string().c_str());
+		Str.Message("PIX Conversion: Error, could not open %s", Input.filename().string().c_str());
 		return false;
 	}
 
 	std::filesystem::path Dir = m_Input.GetDirectory();
-
 	std::uintmax_t FileSize = m_Input.Size();
-
 	std::uintmax_t Offset = 0;
-
 	std::uintmax_t Counter = 0;
 
 	if ((Input.filename() == "FONT01.PIX") || (Input.filename() == "FONT02.PIX"))
 	{
-		std::vector<std::uint8_t> Normal(sizeof(bio1_dc_font_normal));
-		std::memcpy(Normal.data(), bio1_dc_font_normal, sizeof(bio1_dc_font_normal));
+		std::vector<Sony_Pixel_16bpp> Normal(sizeof(bio1_dc_font_normal) / sizeof(Sony_Pixel_16bpp));
+		std::memcpy(Normal.data(), bio1_dc_font_normal, sizeof(bio1_dc_font_normal) / sizeof(Sony_Pixel_16bpp));
 
-		std::vector<std::uint8_t> Green(sizeof(bio1_dc_font_green));
-		std::memcpy(Green.data(), bio1_dc_font_green, sizeof(bio1_dc_font_green));
+		std::vector<Sony_Pixel_16bpp> Green(sizeof(bio1_dc_font_green) / sizeof(Sony_Pixel_16bpp));
+		std::memcpy(Green.data(), bio1_dc_font_green, sizeof(bio1_dc_font_green) / sizeof(Sony_Pixel_16bpp));
 
-		std::vector<std::uint8_t> Red(sizeof(bio1_dc_font_red));
-		std::memcpy(Red.data(), bio1_dc_font_red, sizeof(bio1_dc_font_red));
+		std::vector<Sony_Pixel_16bpp> Red(sizeof(bio1_dc_font_red) / sizeof(Sony_Pixel_16bpp));
+		std::memcpy(Red.data(), bio1_dc_font_red, sizeof(bio1_dc_font_red) / sizeof(Sony_Pixel_16bpp));
 
-		std::vector<std::uint8_t> Grey(sizeof(bio1_dc_font_grey));
-		std::memcpy(Grey.data(), bio1_dc_font_grey, sizeof(bio1_dc_font_grey));
+		std::vector<Sony_Pixel_16bpp> Grey(sizeof(bio1_dc_font_grey) / sizeof(Sony_Pixel_16bpp));
+		std::memcpy(Grey.data(), bio1_dc_font_grey, sizeof(bio1_dc_font_grey) / sizeof(Sony_Pixel_16bpp));
 
 		Sony_PlayStation_Texture Texture { 4, 256, 56, 4 };
 
-		Texture.ImportPalette(Normal, 0);
-		Texture.ImportPalette(Green, 1);
-		Texture.ImportPalette(Red, 2);
-		Texture.ImportPalette(Grey, 3);
+		Texture.PastePalette(Normal, 0);
+		Texture.PastePalette(Green, 1);
+		Texture.PastePalette(Red, 2);
+		Texture.PastePalette(Grey, 3);
 
-		Texture.ImportPixels(m_Input, Offset, 0x1C00);
+		Texture.ReadPixels(m_Input, Offset, 256, 56);
 
-		Texture.Save(Input.replace_extension(".tim"));
-
-		Texture.STP4Bpp() = false;
-
-		std::unique_ptr<Standard_Image> Image = Texture.GetBitmap();
-
-		Image->SaveAsBitmap(Input.replace_extension(".bmp"));
-
-		Image->Close();
-
-		m_Input.Close();
+		Texture.SaveTIM(Input.replace_extension(".tim"));
+		Texture.SaveBMP(Input.replace_extension(".bmp"));
 
 		return true;
 	}
@@ -393,122 +311,69 @@ bool Resident_Evil::ExtractPIX(std::filesystem::path Input)
 
 		while (Offset < FileSize)
 		{
+			std::vector<Sony_Pixel_16bpp> Palette(32);
+
 			Sony_PlayStation_Texture Texture{ 4, 512, 192, 2 };
+			Texture.ReadPalette(m_Input, Offset, 2);
+			Texture.ReadPixels(m_Input, Offset + 0x40, 512, 192);
 
-			Texture.STP4Bpp() = false;
-
-			std::vector<std::uint8_t> Palette(0x20);
-			m_Input.Read(Offset, &Palette.data()[0], 0x20);
-			Texture.ImportPalette(Palette, 0);
-			m_Input.Read(Offset + 0x20, &Palette.data()[0], 0x20);
-			Texture.ImportPalette(Palette, 1);
-
-			Offset += 0x40;
-			Texture.ImportPixels(m_Input, Offset, 0xC000);
 			Offset += 0xC800 - (Offset % 0xC800);
 
-			std::filesystem::path Filename = Str->FormatCStyle("%s/%s/%s_%02d.tim", Dir.string().c_str(), Input.stem().string().c_str(), Input.stem().string().c_str(), Counter);
-			Texture.Save(Filename);
+			std::filesystem::path Filename = Str.FormatCStyle("%s/%s/%s_%02d.tim", Dir.string().c_str(), Input.stem().string().c_str(), Input.stem().string().c_str(), Counter);
+			Texture.SaveTIM(Filename);
 
-			std::unique_ptr<Standard_Image> Image = Texture.GetBitmap();
-			for (uint32_t iClut = 0; iClut < Texture.GetClutSize(); iClut++)
+			std::unique_ptr<Standard_Image> Image = Texture.ExportImage();
+
+			for (uint16_t iClut = 0; iClut < Texture.GetPaletteCount(); iClut++)
 			{
-				Texture.UpdateBitmapPalette(Image, iClut);
-				Filename = Str->FormatCStyle("%s/%s/%s_%02d_%02d.tim", Dir.string().c_str(), Input.stem().string().c_str(), Input.stem().string().c_str(), Counter, iClut);
-				Image->SaveAsBitmap(Filename.replace_extension(".bmp"));
+				Filename = Str.FormatCStyle("%s/%s/%s_%02d_%02d.tim", Dir.string().c_str(), Input.stem().string().c_str(), Input.stem().string().c_str(), Counter, iClut);
+				Texture.UpdateImagePalette(Image, iClut);
+				Image->SaveBMP(Filename.replace_extension(".bmp"));
 			}
-			Image->Close();
 
 			Counter++;
 		}
-
-		m_Input.Close();
-		return true;
 	}
 
 	if ((Input.filename() == "ITEM_ALL.PIX") || (Input.filename() == "ITEM_MIX.PIX") || (Input.filename() == "MEDAL.PIX"))
 	{
-		m_Input.CreateDirectory(Dir / Input.stem());
-
-		std::vector<std::uint8_t> Palette(sizeof(bio1_status_clut02));
-
+		std::vector<Sony_Pixel_16bpp> Palette(sizeof(bio1_status_clut02) / sizeof(Sony_Pixel_16bpp));
 		std::memcpy(Palette.data(), bio1_status_clut02, sizeof(bio1_status_clut02));
 
 		while (Offset < FileSize)
 		{
-			Sony_PlayStation_Texture Texture;
+			std::filesystem::path Filename = Str.FormatCStyle("%s/%s/%s_%02d.tim", Dir.string().c_str(), Input.stem().string().c_str(), Input.stem().string().c_str(), Counter);
 
-			Texture.STP4Bpp() = false;
-
-			Texture.Create(8, 40, 30, 1);
-
-			Texture.ImportPalette(Palette);
-
-			Texture.ImportPixels(m_Input, Offset, 0x4B0);
-
-			std::filesystem::path Filename = Str->FormatCStyle("%s/%s/%s_%02d.tim", Dir.string().c_str(), Input.stem().string().c_str(), Input.stem().string().c_str(), Counter);
-
-			Texture.Save(Filename);
-
-			std::unique_ptr<Standard_Image> Image = Texture.GetBitmap();
-
-			Image->SaveAsBitmap(Filename.replace_extension(".bmp"));
-
-			Image->Close();
+			Sony_PlayStation_Texture Texture{ 8, 40, 30, 1 };
+			Texture.PastePalette(Palette, 0);
+			Texture.ReadPixels(m_Input, Offset, 40, 30);
+			Texture.SaveTIM(Filename);
+			Texture.SaveBMP(Filename.replace_extension(".bmp"));
 
 			Offset += 0x4B0;
 
 			Counter++;
 		}
-
-		m_Input.Close();
-
-		return true;
 	}
 
 	if (FileSize == 0x8820)
 	{
-		std::vector<std::uint8_t> Palette(0x20);
-		m_Input.Read(Offset, Palette.data(), 0x20);
-
-		Offset += 0x20;
+		std::vector<Sony_Pixel_16bpp> Palette(16);
+		m_Input.Read(Offset, Palette.data(), Palette.size());
 
 		Sony_PlayStation_Texture Texture { 4, 512, 136, 1 };
-
-		Texture.STP4Bpp() = false;
-
-		Texture.ImportPalette(Palette);
-
-		Texture.ImportPixels(m_Input, Offset, 0x8800);
-
-		Texture.Save(Input.replace_extension(".tim"));
-
-		std::unique_ptr<Standard_Image> Image = Texture.GetBitmap();
-
-		Image->SaveAsBitmap(Input.replace_extension(".bmp"));
-
-		Image->Close();
-
-		m_Input.Close();
-
-		return true;
+		Texture.PastePalette(Palette, 0);
+		Texture.ReadPixels(m_Input, Offset + 0x20, 512, 136);
+		Texture.SaveTIM(Input.replace_extension(".tim"));
+		Texture.SaveBMP(Input.replace_extension(".bmp"));
 	}
 
 	if ((FileSize == 0x25800) || (Input.filename() == "RC1121.PIX"))
 	{
-		Sony_PlayStation_Texture Texture;
-
-		Texture.Create(16, 320, 240, 0);
-
-		Texture.ImportPixels(m_Input, 0, 0x25800);
-
-		Texture.Save(Input.replace_extension(".tim"));
-
-		std::unique_ptr<Standard_Image> Image = Texture.GetBitmap();
-
-		Image->SaveAsBitmap(Input.replace_extension(".bmp"));
-
-		Image->Close();
+		Sony_PlayStation_Texture Texture{ 16, 320, 240, 0 };
+		Texture.ReadPixels(m_Input, Offset, 320, 240);
+		Texture.SaveTIM(Input.replace_extension(".tim"));
+		Texture.SaveBMP(Input.replace_extension(".bmp"));
 	}
 
 	m_Input.Close();

@@ -1,7 +1,7 @@
 /*
 *
 *	Megan Grass
-*	September 20, 2024
+*	March 9, 2024
 *
 *
 *	TODO:
@@ -20,9 +20,6 @@
 #include <bio3.h>
 
 
-/*
-	Print Command Line Help
-*/
 void CDX_File_Container::PrintHelp(void)
 {
 	std::cout << "CDX File Container: Help" << std::endl << std::endl;
@@ -71,10 +68,6 @@ void CDX_File_Container::PrintHelp(void)
 	std::cout << "\t%DIR%\\ROOM100\\ROOM_100_00_MASK.TIM" << std::endl << std::endl;
 }
 
-
-/*
-	Command Line Interface
-*/
 void CDX_File_Container::Commandline(StrVec Args)
 {
 	Standard_String Str;
@@ -83,7 +76,7 @@ void CDX_File_Container::Commandline(StrVec Args)
 
 	CDX_File_Type Type = CDX_File_Type::Normal;
 
-	Resident_Evil_Video_Game Game = Resident_Evil_Video_Game::Resident_Evil_2;
+	Video_Game Game = Video_Game::Resident_Evil_2;
 
 	bool bConvert = false;
 
@@ -164,15 +157,15 @@ void CDX_File_Container::Commandline(StrVec Args)
 				switch (std::stoull(Args[i + 1]))
 				{
 				case 1:
-					Game = Resident_Evil_Video_Game::Resident_Evil;
+					Game = Video_Game::Resident_Evil;
 					std::cout << "CDX File Container: BSS type " << "Resident Evil" << std::endl;
 					break;
 				case 2:
-					Game = Resident_Evil_Video_Game::Resident_Evil_2;
+					Game = Video_Game::Resident_Evil_2;
 					std::cout << "CDX File Container: BSS type " << "Resident Evil 2" << std::endl;
 					break;
 				case 3:
-					Game = Resident_Evil_Video_Game::Resident_Evil_3;
+					Game = Video_Game::Resident_Evil_3;
 					std::cout << "CDX File Container: BSS type " << "Resident Evil 3" << std::endl;
 					break;
 				default:
@@ -221,10 +214,6 @@ void CDX_File_Container::Commandline(StrVec Args)
 	}
 }
 
-
-/*
-	Get CDX file type from integer
-*/
 CDX_File_Type CDX_File_Container::GetType(std::uintmax_t Integral)
 {
 	switch (Integral)
@@ -249,10 +238,6 @@ CDX_File_Type CDX_File_Container::GetType(std::uintmax_t Integral)
 	return CDX_File_Type::Normal;
 }
 
-
-/*
-	Get CDX file type string
-*/
 std::string CDX_File_Container::GetType(CDX_File_Type Type)
 {
 	switch (Type)
@@ -277,10 +262,6 @@ std::string CDX_File_Container::GetType(CDX_File_Type Type)
 	return "Normal";
 }
 
-
-/*
-	Write list of files to CDX
-*/
 bool CDX_File_Container::Write(StdFile& CDX, std::vector<std::filesystem::path> FileList)
 {
 	Standard_String Str;
@@ -333,10 +314,6 @@ bool CDX_File_Container::Write(StdFile& CDX, std::vector<std::filesystem::path> 
 	return true;
 }
 
-
-/*
-	Create a Normal CDX file container
-*/
 bool CDX_File_Container::Create(CDX_File_Type Type, std::filesystem::path Directory, std::filesystem::path Filename)
 {
 	Standard_String Str;
@@ -382,11 +359,7 @@ bool CDX_File_Container::Create(CDX_File_Type Type, std::filesystem::path Direct
 	return bRet;
 }
 
-
-/*
-	Create a BSS CDX file containers
-*/
-bool CDX_File_Container::CreateBSS(std::filesystem::path Directory, std::filesystem::path OutDirectory, Resident_Evil_Video_Game Game, bool bConvertBss)
+bool CDX_File_Container::CreateBSS(std::filesystem::path Directory, std::filesystem::path OutDirectory, Video_Game Game, bool bConvertBss)
 {
 	Standard_String Str;
 
@@ -414,13 +387,13 @@ bool CDX_File_Container::CreateBSS(std::filesystem::path Directory, std::filesys
 
 	switch (Game)
 	{
-	case Resident_Evil_Video_Game::Resident_Evil:
+	case Video_Game::Resident_Evil:
 		iCutMax = BIO1_CAMERA_MAX;
 		break;
-	case Resident_Evil_Video_Game::Resident_Evil_2:
+	case Video_Game::Resident_Evil_2:
 		iCutMax = BIO2_CAMERA_MAX;
 		break;
-	case Resident_Evil_Video_Game::Resident_Evil_3:
+	case Video_Game::Resident_Evil_3:
 		iCutMax = BIO3_CAMERA_MAX;
 		break;
 	default:
@@ -443,7 +416,7 @@ bool CDX_File_Container::CreateBSS(std::filesystem::path Directory, std::filesys
 
 		switch (Game)
 		{
-		case Resident_Evil_Video_Game::Resident_Evil:
+		case Video_Game::Resident_Evil:
 		{
 			Resident_Evil Bio1;
 			for (std::size_t i = 0; i < FileList.size(); i++)
@@ -452,7 +425,7 @@ bool CDX_File_Container::CreateBSS(std::filesystem::path Directory, std::filesys
 			}
 		}
 			break;
-		case Resident_Evil_Video_Game::Resident_Evil_2:
+		case Video_Game::Resident_Evil_2:
 		{
 			Resident_Evil_2 Bio2;
 			for (std::size_t i = 0; i < FileList.size(); i++)
@@ -461,7 +434,7 @@ bool CDX_File_Container::CreateBSS(std::filesystem::path Directory, std::filesys
 			}
 		}
 			break;
-		case Resident_Evil_Video_Game::Resident_Evil_3:
+		case Video_Game::Resident_Evil_3:
 		{
 			Resident_Evil_3 Bio3;
 			for (std::size_t i = 0; i < FileList.size(); i++)
@@ -544,10 +517,6 @@ bool CDX_File_Container::CreateBSS(std::filesystem::path Directory, std::filesys
 	return true;
 }
 
-
-/*
-	Create a DO2 CDX file container
-*/
 bool CDX_File_Container::CreateDO2(std::filesystem::path Directory, std::filesystem::path OutDirectory)
 {
 	Standard_String Str;
@@ -594,10 +563,6 @@ bool CDX_File_Container::CreateDO2(std::filesystem::path Directory, std::filesys
 	return bRet;
 }
 
-
-/*
-	Create a EMD CDX file container/s
-*/
 bool CDX_File_Container::CreateEMD(std::filesystem::path Directory, std::filesystem::path OutFilename, bool bConvertCdEms)
 {
 	Standard_String Str;
@@ -647,10 +612,6 @@ bool CDX_File_Container::CreateEMD(std::filesystem::path Directory, std::filesys
 	return Bio2.AssembleEMS(Dir, OutFilename);
 }
 
-
-/*
-	Create a PLD CDX file container
-*/
 bool CDX_File_Container::CreatePLD(std::filesystem::path Directory, std::filesystem::path OutDirectory)
 {
 	Standard_String Str;
@@ -704,10 +665,6 @@ bool CDX_File_Container::CreatePLD(std::filesystem::path Directory, std::filesys
 	return bRet;
 }
 
-
-/*
-	Create a PLW CDX file containers
-*/
 bool CDX_File_Container::CreatePLW(std::filesystem::path Directory, std::filesystem::path OutDirectory, bool bInitialBuild)
 {
 	Standard_String Str;
@@ -817,10 +774,6 @@ bool CDX_File_Container::CreatePLW(std::filesystem::path Directory, std::filesys
 	return true;
 }
 
-
-/*
-	Create SND ARMS CDX file container
-*/
 bool CDX_File_Container::CreateSndARMS(std::filesystem::path Directory, std::filesystem::path OutDirectory)
 {
 	Standard_String Str;
@@ -874,10 +827,6 @@ bool CDX_File_Container::CreateSndARMS(std::filesystem::path Directory, std::fil
 	return bRet;
 }
 
-
-/*
-	Create SND CORE CDX file container
-*/
 bool CDX_File_Container::CreateSndCORE(std::filesystem::path Directory, std::filesystem::path OutDirectory, bool bInitialBuild)
 {
 	Standard_String Str;
@@ -957,10 +906,6 @@ bool CDX_File_Container::CreateSndCORE(std::filesystem::path Directory, std::fil
 	return bRet;
 }
 
-
-/*
-	Create BGM CDX file containers
-*/
 bool CDX_File_Container::CreateSndBGM(std::filesystem::path Directory, std::filesystem::path OutDirectory, bool bSub)
 {
 	Standard_String Str;
@@ -1036,10 +981,6 @@ bool CDX_File_Container::CreateSndBGM(std::filesystem::path Directory, std::file
 	return true;
 }
 
-
-/*
-	Create RDT CDX file container
-*/
 bool CDX_File_Container::CreateRDT(std::filesystem::path Directory, std::filesystem::path OutDirectory, std::uint8_t Disk)
 {
 	Standard_String Str;

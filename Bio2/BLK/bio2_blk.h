@@ -13,8 +13,6 @@
 
 #include <lib_gte.h>
 
-#include <std_basic_fstream.h>
-
 #include <std_text.h>
 
 #include <bitset>

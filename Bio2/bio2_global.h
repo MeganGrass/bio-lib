@@ -31,9 +31,18 @@ struct DATA_POS
 
 struct DVIEW
 {
-	std::uint32_t X;
-	std::uint32_t Y;
-	std::uint32_t Z;
+	std::int32_t x;
+	std::int32_t y;
+	std::int32_t z;
+};
+
+
+struct BOX
+{
+	std::int16_t x;
+	std::int16_t z;
+	std::uint16_t w;
+	std::uint16_t d;
 };
 
 

@@ -82,36 +82,6 @@ void Resident_Evil_3::Commandline(StrVec Args)
 
 		}
 
-		if (Args[i] == "EMD")
-		{
-			if (i + 1 < Args.size())
-			{
-				std::filesystem::path Input = Args[i + 1];
-				if (FS.Exists(Input))
-				{
-					std::cout << "Resident Evil 3: Extracting contents of " << Input.filename() << std::endl;
-					if (ExtractModel(Input))
-					{
-						std::cout << "Resident Evil 3: Model extraction successful" << std::endl;
-					}
-					else
-					{
-						std::cout << "Resident Evil 3: Model error" << std::endl;
-					}
-				}
-				else
-				{
-					std::cout << "Resident Evil 3: Model error, input file not found" << std::endl;
-				}
-			}
-			else
-			{
-				std::cout << "Resident Evil 3: Model error, not enough arguments" << std::endl << std::endl;
-				PrintHelp();
-			}
-
-		}
-
 		if (Args[i] == "SLD")
 		{
 			if (i + 1 < Args.size())
@@ -154,17 +124,19 @@ void Resident_Evil_3::Commandline(StrVec Args)
 */
 bool Resident_Evil_3::ExtractBSS(std::filesystem::path Input)
 {
+	Standard_String Str;
+
 	StdFile m_Input { Input, FileAccessMode::Read_Ex, true, false };
 
 	if (!m_Input)
 	{
-		Str->Message("BSS Extraction: Error, could not open %s", Input.filename().string().c_str());
+		Str.Message("BSS Extraction: Error, could not open %s", Input.filename().string().c_str());
 		return false;
 	}
 
 	if (m_Input.Size() % 65536 != 0)
 	{
-		Str->Message("BSS Extraction: Error, file size is not a multiple of 65536");
+		Str.Message("BSS Extraction: Error, file size is not a multiple of 65536");
 		return false;
 	}
 
@@ -172,13 +144,13 @@ bool Resident_Evil_3::ExtractBSS(std::filesystem::path Input)
 
 	if (!nBs)
 	{
-		Str->Message("BSS Extraction: Error, no bitstreams to extract");
+		Str.Message("BSS Extraction: Error, no bitstreams to extract");
 		return false;
 	}
 
 	GetStageRoom(m_Input.GetFileName().stem().string());
 
-	std::filesystem::path Dir = m_Input.GetDirectory() / Str->FormatCStyle("ROOM%X%02X", Stage, Room);
+	std::filesystem::path Dir = m_Input.GetDirectory() / Str.FormatCStyle("ROOM%X%02X", Stage, Room);
 
 	m_Input.CreateDirectory(Dir);
 
@@ -240,7 +212,7 @@ bool Resident_Evil_3::ExtractBSS(std::filesystem::path Input)
 
 		m_Input.Read(pBs, BS.data(), Index.Bs_size);
 
-		std::filesystem::path OutStr = Str->FormatCStyle("%s/ROOM_%X%02X_%02d.bs", Dir.string().c_str(), Stage, Room, i);
+		std::filesystem::path OutStr = Str.FormatCStyle("%s/ROOM_%X%02X_%02d.bs", Dir.string().c_str(), Stage, Room, i);
 
 		m_Input.Create(OutStr, BS);
 
@@ -256,7 +228,7 @@ bool Resident_Evil_3::ExtractBSS(std::filesystem::path Input)
 
 		std::cout << "BSS Extraction: Converting to bitmap" << std::endl;
 
-		Standard_Image Image { ImageFormat::BMP, 320, 240, 32, 0 };
+		Standard_Image Image { 32, 320, 240 };
 
 		size_t pImg = 0;
 
@@ -269,7 +241,7 @@ bool Resident_Evil_3::ExtractBSS(std::filesystem::path Input)
 			}
 		}
 
-		Image.SaveAsBitmap(OutStr.replace_extension(".bmp"));
+		Image.SaveBMP(OutStr.replace_extension(".bmp"));
 
 		std::cout << "BSS Extraction: Conversion complete" << std::endl;
 
@@ -279,7 +251,7 @@ bool Resident_Evil_3::ExtractBSS(std::filesystem::path Input)
 
 			m_Input.Read(pSld, SLD.data(), Sld_size);
 
-			OutStr = Str->FormatCStyle("%s/ROOM_%X%02X_%02d_MASK.sld", Dir.string().c_str(), Stage, Room, i);
+			OutStr = Str.FormatCStyle("%s/ROOM_%X%02X_%02d_MASK.sld", Dir.string().c_str(), Stage, Room, i);
 
 			m_Input.Create(OutStr, SLD);
 
@@ -297,9 +269,9 @@ bool Resident_Evil_3::ExtractBSS(std::filesystem::path Input)
 
 				Sony_PlayStation_Texture Texture { OutStr };
 
-				std::unique_ptr<Standard_Image> Image = Texture.GetBitmap();
+				std::unique_ptr<Standard_Image> Image = Texture.ExportImage();
 
-				Image->SaveAsBitmap(OutStr.replace_extension(".bmp"));
+				Image->SaveBMP(OutStr.replace_extension(".bmp"));
 
 				Image->Close();
 			}

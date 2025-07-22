@@ -100,10 +100,12 @@ bool Resident_Evil_2_SLD::Decompress(std::vector<std::uint8_t> SLD, std::vector<
 */
 bool Resident_Evil_2_SLD::Decompress(std::filesystem::path Input)
 {
+	Standard_String Str;
+
 	StdFile m_Input { Input, FileAccessMode::Read_Ex, true, false };
 	if (!m_Input)
 	{
-		Str->Message("SLD Decompression: Error, could not open %s", Input.filename().string().c_str());
+		Str.Message("SLD Decompression: Error, could not open %s", Input.filename().string().c_str());
 		return false;
 	}
 
@@ -115,28 +117,28 @@ bool Resident_Evil_2_SLD::Decompress(std::filesystem::path Input)
 
 	if (!Decompress(SLD, TIM))
 	{
-		Str->Message("SLD Decompression: Error, could not decompress %s", Input.filename().string().c_str());
+		Str.Message("SLD Decompression: Error, could not decompress %s", Input.filename().string().c_str());
 		return false;
 	}
 
 	StdFile m_Output { Input.replace_extension(".tim"), FileAccessMode::Write_Ex, true, true};
 	if (!m_Output)
 	{
-		Str->Message("SLD Decompression: Error, could not create %s", Input.filename().string().c_str());
+		Str.Message("SLD Decompression: Error, could not create %s", Input.filename().string().c_str());
 		return false;
 	}
 	m_Output.Write(0, TIM.data(), TIM.size());
 	m_Output.Close();
 
 	Sony_PlayStation_Texture Texture { Input };
-	if (!Texture)
+	if (!Texture.IsOpen())
 	{
-		Str->Message("SLD Compression: Error, decompressed data (%llx bytes) does not contain TIM header", TIM.size(), Input.filename().string().c_str());
+		Str.Message("SLD Compression: Error, decompressed data (%llx bytes) does not contain TIM header", TIM.size(), Input.filename().string().c_str());
 		return false;
 	}
 
-	std::unique_ptr<Standard_Image> Image = Texture.GetBitmap();
-	Image->SaveAsBitmap(Input.replace_extension(".bmp"));
+	std::unique_ptr<Standard_Image> Image = Texture.ExportImage();
+	Image->SaveBMP(Input.replace_extension(".bmp"));
 	Image->Close();
 
 	return true;

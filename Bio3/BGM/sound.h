@@ -1,3 +1,6 @@
+
+#include "std_data_types.h"
+
 #pragma once
 
 typedef struct tagLegends_2_Sequence {
