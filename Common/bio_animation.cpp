@@ -1,7 +1,7 @@
 /*
 *
 *	Megan Grass
-*	March 07, 2024
+*	July 11, 2025
 *
 */
 
@@ -629,29 +629,68 @@ std::uintmax_t Resident_Evil_Animation::SizeEMR(void)
 	return FileSize + (nFrames * GetFrameLength());
 }
 
+bool Resident_Evil_Animation::OpenRBJ(StdFile& File, std::uintmax_t _Ptr)
+{
+	Close();
+
+	m_Type = Resident_Evil_Animation_Type::Room;
+	b_IsContainer = true;
+
+	if (!File.IsOpen())
+	{
+		if (!File.Open(File.GetPath(), FileAccessMode::Read, true, false))
+		{
+			Str.Message(L"Resident Evil Animation Error: could not read RBJ data at 0x%llX in \"%ws\"", _Ptr, File.GetPath().filename().wstring().c_str());
+			return _Ptr;
+		}
+	}
+
+	struct HEADER
+	{
+		std::uint32_t IndexOffset;
+		std::uint32_t DataCount;
+	} Header;
+
+	File.Read(_Ptr, &Header, sizeof(Header));
+
+	std::vector<std::uint32_t> Pointer(Header.DataCount * 2);
+
+	File.Read(_Ptr + Header.IndexOffset, Pointer.data(), Pointer.size() * sizeof(std::uint32_t));
+
+	Data.resize(Header.DataCount);
+
+	for (size_t i = 0, x = 0; i < Data.size(); i++, x += 2)
+	{
+		Data[i].Str.hWnd = Str.hWnd;
+		Data[i].Game = Game;
+		Data[i].m_Type = m_Type;
+
+		if (!Pointer[x + 0] || Pointer[x + 0] == 0xFFFFFFFF) { continue; }
+		if (!Pointer[x + 1] || Pointer[x + 1] == 0xFFFFFFFF) { continue; }
+
+		File.Read(_Ptr + Pointer[x], &Data[i].EntityList, sizeof(Entity));
+
+		Data[i].OpenEDD(File, _Ptr + Pointer[x + 1]);
+		Data[i].OpenEMR(File, _Ptr + Pointer[x + 0] + sizeof(Entity));
+	}
+
+	return true;
+}
+
 void Resident_Evil_Animation::Close(void)
 {
 	b_EddOpen = false;
 	b_EmrOpen = false;
-
-	for (auto& j : Joints)
-	{
-		j.Ref.clear();
-	}
-
-	for (auto& a : Clip)
-	{
-		for (auto& f : a)
-		{
-			f.Rotation.clear();
-		}
-		a.clear();
-	}
+	b_IsContainer = false;
 
 	Joints.clear();
 	Clip.clear();
 
-	Skeleton.reset();
+	Skeleton->Reset();
+
+	std::memset(&EntityList, 0, sizeof(Entity));
+
+	Data.clear();
 }
 
 std::uint16_t Resident_Evil_Animation::GetFrameLength(void) const

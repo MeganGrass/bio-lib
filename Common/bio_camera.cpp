@@ -1,7 +1,7 @@
 /*
 *
 *	Megan Grass
-*	March 07, 2024
+*	April 16, 2024
 *
 */
 
@@ -10,20 +10,27 @@
 
 void Resident_Evil_Camera::Shutdown(void) noexcept
 {
+	b_ViewBackground = false;
+	b_ViewSprite = false;
+	b_DrawLine = false;
+	b_DrawSwitch = false;
 #if MSTD_DX9
-	if (Render && Render->NormalState())
+	if (m_Background)
 	{
-		if (m_Background)
-		{
-			m_Background->Release();
-			m_Background.reset(nullptr);
-		}
+		m_Background->Release();
+		m_Background.reset(nullptr);
+	}
 
-		if (m_BackgroundVert)
-		{
-			m_BackgroundVert->Release();
-			m_BackgroundVert.reset(nullptr);
-		}
+	if (m_BackgroundVert)
+	{
+		m_BackgroundVert->Release();
+		m_BackgroundVert.reset(nullptr);
+	}
+
+	if (m_Sprite)
+	{
+		m_Sprite->Release();
+		m_Sprite.reset(nullptr);
 	}
 #endif
 }
@@ -33,76 +40,94 @@ void Resident_Evil_Camera::Reset(void)
 	Stage = 0;
 	Room = 0;
 	m_Path.clear();
-	m_Cut = 0;
-	m_CutMax = 0;
+	Cut = 0;
+	CutMax = 0;
 	m_FOV = (0x6DD4 >> 7);
 	m_Eye = { -16000, -7200, -16000 };
 	m_At = { 0, 7200, 0 };
 	m_TexWidth = 0.0f;
 	m_TexHeight = 0.0f;
 	m_Background.reset(nullptr);
-	Set(m_FOV, m_Eye, m_At);
+	if (!b_ViewModelEdit) { Set(m_FOV, m_Eye, m_At); }
+	else { Set(m_ModelFOV, m_ModelEye, m_ModelAt); }
 }
 
-void Resident_Evil_Camera::SetMeta(std::filesystem::path _Path, std::uint8_t _Stage, std::uint8_t _Room, std::uint8_t CutMax) noexcept
+void Resident_Evil_Camera::SetMeta(std::filesystem::path _Path, std::uint8_t _Stage, std::uint8_t _Room, std::uint8_t _CutMax) noexcept
 {
 	m_Path = _Path;
 	Stage = _Stage;
 	Room = _Room;
-	m_CutMax = CutMax;
+	CutMax = _CutMax;
 }
 
 void Resident_Evil_Camera::SetOrtho(float Width, float Height)
 {
 	m_OrthoWidth = Width;
 	m_OrthoHeight = Height;
-	Orthogonal->OrthogonalOffCenterRight(0.0f, m_OrthoWidth, m_OrthoHeight, 0.0f, 0.0f, 1.0f);
+	m_OrthoScaleX = m_OrthoWidth / m_NativeWidth;
+	m_OrthoScaleY = m_OrthoHeight / m_NativeHeight;
+	Orthogonal->OrthogonalOffCenterLeft(0.0f, m_OrthoWidth, 0.0f, m_OrthoHeight, 0.0f, 1.0f);
 }
 
 std::uint8_t Resident_Evil_Camera::SetImage(std::uint8_t iCut)
 {
-	if (m_CutMax) { m_Cut = std::clamp(iCut, (uint8_t)0, (uint8_t)(m_CutMax - 1)); }
-	else { m_Cut = 0; }
+	if (CutMax) { Cut = std::clamp(iCut, (uint8_t)0, (uint8_t)(CutMax - 1)); }
+	else { Cut = 0; }
+
+	m_TexWidth = 0;
+	m_TexHeight = 0;
+
+	m_TexSprWidth = 0;
+	m_TexSprHeight = 0;
 
 	std::unique_ptr<Standard_Image> Image = std::make_unique<Standard_Image>();
 	Image->Str.hWnd = Str.hWnd;
 
+	std::filesystem::path Background = Str.FormatCStyle(L"%ws\\ROOM%d%02x%02d.png", m_Path.wstring().c_str(), Stage, Room, Cut);
+
+	std::filesystem::path Sprite = Str.FormatCStyle(L"%ws\\ROOM_%d%02x_%02d_mask.png", m_Path.wstring().c_str(), Stage, Room, Cut);
+
 #ifdef LIB_PNG
-	if (Image->OpenPNG(Str.FormatCStyle(L"%ws\\ROOM%d%02x%02d.png", m_Path.wstring().c_str(), Stage, Room, m_Cut)))
+	if (Standard_FileSystem().Exists(Background) && Image->OpenPNG(Background))
 	{
 		m_TexWidth = (float)Image->GetWidth();
 		m_TexHeight = (float)Image->GetHeight();
-#if MSTD_DX9
-		m_Background.reset(Render->CreateTexture(Image));
-#endif
 	}
 #endif
 
-	return m_Cut;
+#if MSTD_DX9
+	m_Background.reset(Render->CreateTexture(Image));
+#endif
+
+	Image->Close();
+
+#ifdef LIB_PNG
+	if (Standard_FileSystem().Exists(Sprite) && Image->OpenPNG(Sprite))
+	{
+		m_TexSprWidth = (float)Image->GetWidth();
+		m_TexSprHeight = (float)Image->GetHeight();
+	}
+#endif
+
+#if MSTD_DX9
+	m_Sprite.reset(Render->CreateTexture(Image, false, 0, 0, true));
+#endif
+
+	return Cut;
 }
 
 std::vector<vec4t> Resident_Evil_Camera::GetImageVert(void) const
 {
 	std::vector<vec4t> Vert(4);
 
+	// adjust for direct-x 9 half texel
 	float l = -0.5f;
 	float r = (m_OrthoWidth - 0.5f);
-	float t = -0.5f;
-	float b = (m_OrthoHeight - 0.5f);
-
-	if (b_HorzFlipTex)
-	{
-		float tmp = l;
-		l = r;
-		r = tmp;
-	}
-
-	if (b_VertFlipTex)
-	{
-		float tmp = t;
-		t = b;
-		b = tmp;
-	}
+	float t = 0.5f;
+	float b = (m_OrthoHeight + 0.5f);
+	
+	if (b_HorzFlipTex) std::swap(l, r);
+	if (b_VertFlipTex) std::swap(t, b);
 
 	Vert[0].vec.Set(l, b, 1.0f, 1.0f);	Vert[0].uv.Set(0.0f, 0.0f);
 	Vert[1].vec.Set(r, b, 1.0f, 1.0f);	Vert[1].uv.Set(1.0f, 0.0f);
@@ -114,7 +139,6 @@ std::vector<vec4t> Resident_Evil_Camera::GetImageVert(void) const
 
 void Resident_Evil_Camera::SetTopDownPerspective(void)
 {
-	b_ViewBackground = false;
 	b_ViewTopDown = true;
 
 	View->Identity();
@@ -129,12 +153,9 @@ void Resident_Evil_Camera::SetTopDownPerspective(void)
 	World->SetWorld(vec3{ 0.0f, 0.0f, 0.0f }, vec3{ 0.0f, 0.0f, 0.0f }, vec3{ 1.0f, 1.0f, 1.0f });
 
 #if MSTD_DX9
-	if (Render && Render->NormalState())
-	{
-		Render->SetWorld(World);
-		Render->SetView(View);
-		Render->SetProjection(Projection);
-	}
+	Render->SetWorld(World);
+	Render->SetView(View);
+	Render->SetProjection(Projection);
 #endif
 }
 
@@ -183,23 +204,31 @@ MATRIX2 Resident_Evil_Camera::Set_view(VECTOR2 Eye, VECTOR2 At) const
 
 void Resident_Evil_Camera::Set(std::uint32_t FOV, VECTOR2 Eye, VECTOR2 At)
 {
-	b_ViewBackground = true;
 	b_ViewTopDown = false;
 
-	m_FOV = FOV;
-	m_Eye = Eye;
-	m_At = At;
+	if (b_ViewModelEdit)
+	{
+		m_ModelFOV = FOV;
+		m_ModelEye = Eye;
+		m_ModelAt = At;
+	}
+	else
+	{
+		m_FOV = FOV;
+		m_Eye = Eye;
+		m_At = At;
+	}
 
-	GTE->SetGeomScreen(m_FOV);
+	GTE->SetGeomScreen(FOV);
 
-	MATRIX2 Mat = Set_view(m_Eye, m_At);
+	MATRIX2 Mat = Set_view(Eye, At);
 
 	View->m00 =  GTE->ToFloat(Mat.m00); View->m01 =  GTE->ToFloat(Mat.m01); View->m02 =  GTE->ToFloat(Mat.m02); View->m03 =  GTE->ToFloat(Mat.tx);
 	View->m10 =  GTE->ToFloat(Mat.m10); View->m11 =  GTE->ToFloat(Mat.m11); View->m12 =  GTE->ToFloat(Mat.m12); View->m13 =  GTE->ToFloat(Mat.ty);
 	View->m20 = -GTE->ToFloat(Mat.m20); View->m21 = -GTE->ToFloat(Mat.m21); View->m22 = -GTE->ToFloat(Mat.m22); View->m23 = -GTE->ToFloat(Mat.tz);
 	View->m30 = 0.0f; View->m31 = 0.0f; View->m32 = 0.0f; View->m33 = 1.0f;
 
-	PROJECTION Proj(m_FOV);
+	PROJECTION Proj(FOV);
 
     Projection->m00 = Proj.ScaleX;	Projection->m01 = 0.0f;			Projection->m02 = 0.0f;			Projection->m03 = 0.0f;
 	Projection->m10 = 0.0f;			Projection->m11 = Proj.ScaleY;	Projection->m12 = 0.0f;			Projection->m13 = 0.0f;
@@ -209,11 +238,8 @@ void Resident_Evil_Camera::Set(std::uint32_t FOV, VECTOR2 Eye, VECTOR2 At)
 	World->SetWorld(vec3{ 0.0f, 0.0f, 0.0f }, vec3{ 0.0f, 0.0f, 0.0f }, vec3{ 1.0f, 1.0f, 1.0f });
 
 #if MSTD_DX9
-	if (Render && Render->NormalState())
-	{
-		Render->SetWorld(World);
-		Render->SetView(View);
-		Render->SetProjection(Projection);
-	}
+	Render->SetWorld(World);
+	Render->SetView(View);
+	Render->SetProjection(Projection);
 #endif
 }

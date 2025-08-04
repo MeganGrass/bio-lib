@@ -1,7 +1,7 @@
 /*
 *
 *	Megan Grass
-*	March 07, 2024
+*	July 13, 2025
 *
 */
 
@@ -53,12 +53,18 @@ void Resident_Evil_Model::SetWorld(const MATVECTOR& Vec) const
 	float RY = GTE->ToFloat(std::clamp((std::int16_t)Vec.ry, (std::int16_t)-ONE, (std::int16_t)ONE)) * 360.0f;
 	float RZ = GTE->ToFloat(std::clamp((std::int16_t)Vec.rz, (std::int16_t)-ONE, (std::int16_t)ONE)) * 360.0f;
 
-	Standard_Matrix Neg = Standard_Matrix().Translate(-vec3{ XX, YY, ZZ });
-	Standard_Matrix Pos = Standard_Matrix().Translate(vec3{ XX, YY, ZZ });
-	Standard_Matrix R = Standard_Matrix().YawPitchRoll(vec3{ World->Radian(RX), World->Radian(RY), World->Radian(RZ) });
-	Standard_Matrix T = Standard_Matrix().Translate(vec3{ GTE->ToFloat(Vec.x), GTE->ToFloat(Vec.y), GTE->ToFloat(Vec.z) });
+	float SX = GTE->ToFloat(Vec.sx);
+	float SY = GTE->ToFloat(Vec.sy);
+	float SZ = GTE->ToFloat(Vec.sz);
 
-	*World = T * (Pos * R * Neg);
+	//Standard_Matrix Neg = Standard_Matrix().Translate(-vec3{ XX, YY, ZZ });
+	//Standard_Matrix Pos = Standard_Matrix().Translate(vec3{ XX, YY, ZZ });
+	Standard_Matrix S = Standard_Matrix().Scale(vec3{ SX, SY, SZ });
+	Standard_Matrix R = Standard_Matrix().YawPitchRoll(vec3{ World->Radian(RX), World->Radian(RY), World->Radian(RZ) });
+	Standard_Matrix T = Standard_Matrix().Translate(vec3{ XX, YY, ZZ });
+
+	//*World = T * (Pos * R * S * Neg);
+	*World = T * R * S;
 }
 
 #if MSTD_DX9
@@ -72,10 +78,22 @@ std::unique_ptr<DX9_MODEL> Resident_Evil_Model::ExportDX9(std::unique_ptr<FIXED_
 	{
 		Temp->TextureWidth = (float)Texture->GetWidth();
 		Temp->TextureHeight = (float)Texture->GetHeight();
-		Temp->Texture.resize(Texture->GetPaletteCount());
-		for (uint16_t i = 0; i < Texture->GetPaletteCount(); i++)
+
+		if (Temp->TextureWidth && Temp->TextureHeight)
 		{
-			Temp->Texture[i].reset(Render->CreateTexture(Texture, i, Sony_Texture_Transparency::Superblack, 0xFF00FF, true));
+			if (Texture->GetPaletteCount())
+			{
+				Temp->Texture.resize(Texture->GetPaletteCount());
+				for (uint16_t i = 0; i < Texture->GetPaletteCount(); i++)
+				{
+					Temp->Texture[i].reset(Render->CreateTexture(Texture, i, Sony_Texture_Transparency::Superblack, 0xFF00FF, true));
+				}
+			}
+			else
+			{
+				Temp->Texture.resize(1);
+				Temp->Texture[0].reset(Render->CreateTexture(Texture, 0, Sony_Texture_Transparency::Superblack, 0xFF00FF, true));
+			}
 		}
 	}
 
@@ -113,25 +131,75 @@ std::unique_ptr<DX9_MODEL> Resident_Evil_Model::ExportDX9(std::unique_ptr<FIXED_
 }
 #endif
 
-bool Resident_Evil_Model::OpenObject(std::filesystem::path Path, std::uintmax_t _Ptr, bool b_ReplaceModel)
+bool Resident_Evil_Model::Open(std::filesystem::path Path, std::uintmax_t _Ptr, bool b_Bio1Enemy)
 {
-	if (b_ReplaceModel) { if (m_Model->IsOpen()) { m_Model->Close(); } }
-	else if (m_Model->IsOpen()) { Close(); }
+	bool b_Open = false;
 
 	String Extension = Path.extension().string();
 
-	if (Standard_String().ToUpper(Extension) == ".TMD")
+	if (Standard_String().ToUpper(Extension) == ".TMD" || Standard_String().ToUpper(Extension) == ".MD1" || Standard_String().ToUpper(Extension) == ".MD2")
 	{
-		m_Model->Open(Path, _Ptr);
+		b_Open = OpenObject(Path, _Ptr);
 	}
-	if (Standard_String().ToUpper(Extension) == ".MD1")
+
+	if (Standard_String().ToUpper(Extension) == ".PLD")
 	{
-		m_Model = Resident_Evil_2_MD1(Str.hWnd, Path, _Ptr).GetTMD();
+		b_Open = OpenPlayer(Path, _Ptr);
 	}
-	if (Standard_String().ToUpper(Extension) == ".MD2")
+
+	if (Standard_String().ToUpper(Extension) == ".EMD")
 	{
-		m_Model = Resident_Evil_3_MD2(Str.hWnd, Path, _Ptr).GetTMD();
+		if (GameType() & (AUG95 | OCT95 | BIO1))
+		{
+			b_Bio1Enemy ? b_Open = OpenEnemy(Path, _Ptr) : b_Open = OpenPlayer(Path, _Ptr);
+		}
+		else
+		{
+			b_Open = OpenEnemy(Path, _Ptr);
+		}
 	}
+
+	if (Standard_String().ToUpper(Extension) == ".EMW" || Standard_String().ToUpper(Extension) == ".PLW")
+	{
+		b_Open = OpenWeapon(Path, _Ptr);
+	}
+
+	return b_Open;
+}
+
+bool Resident_Evil_Model::OpenObject(std::filesystem::path Path, std::uintmax_t _Ptr)
+{
+	if (m_Model) { m_Model->Close(); }
+
+	String Extension = Path.extension().string();
+
+	if (Standard_String().ToUpper(Extension) == ".TMD") { m_Model->Open(Path, _Ptr); }
+	if (Standard_String().ToUpper(Extension) == ".MD1") { m_Model = Resident_Evil_2_MD1(Str.hWnd, Path, _Ptr).GetTMD(); }
+	if (Standard_String().ToUpper(Extension) == ".MD2") { m_Model = Resident_Evil_3_MD2(Str.hWnd, Path, _Ptr).GetTMD(); }
+
+#if MSTD_DX9
+	if (!m_Texture->IsOpen())
+	{
+		Standard_FileSystem().SetFileExtension(Path, L".tim");
+		if (Standard_FileSystem().Exists(Path)) { m_Texture->OpenTIM(Path); }
+	}
+	if (m_Texture->IsOpen())
+	{
+		CloseModelDX9();
+
+		std::unique_ptr<FIXED_MODEL> Temp = m_Model->Export(m_Texture->GetWidth(), m_Texture->GetHeight());
+		m_DX9Model = ExportDX9(Temp, m_Texture);
+	}
+	else
+	{
+		CloseModelDX9();
+
+		std::unique_ptr<Sony_PlayStation_Texture> DummyTexture = std::make_unique<Sony_PlayStation_Texture>();
+
+		std::unique_ptr<FIXED_MODEL> Temp = m_Model->Export(0, 0);
+		m_DX9Model = ExportDX9(Temp, DummyTexture);
+	}
+#endif
 
 	return m_Model->IsOpen();
 }
@@ -145,7 +213,7 @@ bool Resident_Evil_Model::OpenPlayer(std::filesystem::path Path, std::uintmax_t 
 		return false;
 	}
 
-	if (m_Model->IsOpen()) { Close(); }
+	Close();
 
 	std::vector<std::uint32_t> Pointer = GetDataPtr(m_File, _Ptr);
 
@@ -154,18 +222,16 @@ bool Resident_Evil_Model::OpenPlayer(std::filesystem::path Path, std::uintmax_t 
 	if (GameType() & (AUG95 | OCT95))
 	{
 		if (Pointer[1]) { Animation(NORMAL)->OpenEDD(m_File, Pointer[1]); }
-		if (Pointer[1]) { Animation(NORMAL)->OpenEMR(m_File, Pointer[0]); }
+		if (Pointer[1]) { if (Animation(NORMAL)->IsEDDOpen()) Animation(NORMAL)->OpenEMR(m_File, Pointer[0]); }
 		if (Pointer[2]) { m_Model->Open(m_File, Pointer[2]); }
 		if (Pointer[3]) { m_Texture->OpenTIM(m_File, Pointer[3]); }
-		if (Animation(NORMAL)->IsOpen()) { Animation(NORMAL)->CreateSkeleton(); }
 	}
 	else if (GameType() & BIO1)
 	{
 		if (Pointer[3]) { Animation(NORMAL)->OpenEDD(m_File, Pointer[3]); }
-		if (Pointer[3]) { Animation(NORMAL)->OpenEMR(m_File, Pointer[2]); }
+		if (Pointer[3]) { if (Animation(NORMAL)->IsEDDOpen()) Animation(NORMAL)->OpenEMR(m_File, Pointer[2]); }
 		if (Pointer[4]) { m_Model->Open(m_File, Pointer[4]); }
 		if (Pointer[5]) { m_Texture->OpenTIM(m_File, Pointer[5]); }
-		if (Animation(NORMAL)->IsOpen()) { Animation(NORMAL)->CreateSkeleton(); }
 	}
 	else if (GameType() & (BIO2NOV96 | BIO2TRIAL | BIO2))
 	{
@@ -175,14 +241,9 @@ bool Resident_Evil_Model::OpenPlayer(std::filesystem::path Path, std::uintmax_t 
 			return false;
 		}
 		if (Pointer[0]) { Animation(NORMAL)->OpenEDD(m_File, Pointer[0]); }
-		if (Pointer[1]) { Animation(NORMAL)->OpenEMR(m_File, Pointer[1]); }
-		if (Pointer[2])
-		{
-			std::unique_ptr<Resident_Evil_2_MD1> Model = std::make_unique<Resident_Evil_2_MD1>(Str.hWnd, m_File, Pointer[2]);
-			m_Model = Model->GetTMD();
-		}
+		if (Pointer[1]) { if (Animation(NORMAL)->IsEDDOpen()) Animation(NORMAL)->OpenEMR(m_File, Pointer[1]); }
+		if (Pointer[2]) { m_Model = Resident_Evil_2_MD1(Str.hWnd, m_File, Pointer[2]).GetTMD(); }
 		if (Pointer[3]) { m_Texture->OpenTIM(m_File, Pointer[3]); }
-		if (Animation(NORMAL)->IsOpen()) { Animation(NORMAL)->CreateSkeleton(); }
 	}
 	else if (GameType() & BIO3)
 	{
@@ -192,20 +253,17 @@ bool Resident_Evil_Model::OpenPlayer(std::filesystem::path Path, std::uintmax_t 
 			return false;
 		}
 		if (Pointer[0]) { Animation(NORMAL)->OpenEDD(m_File, Pointer[0]); }
-		if (Pointer[1]) { Animation(NORMAL)->OpenEMR(m_File, Pointer[1]); }
-		if (Pointer[2])
-		{
-			std::unique_ptr<Resident_Evil_3_MD2> Model = std::make_unique<Resident_Evil_3_MD2>(Str.hWnd, m_File, Pointer[2]);
-			m_Model = Model->GetTMD();
-		}
+		if (Pointer[1]) { if (Animation(NORMAL)->IsEDDOpen()) Animation(NORMAL)->OpenEMR(m_File, Pointer[1]); }
+		if (Pointer[2]) { m_Model = Resident_Evil_3_MD2(Str.hWnd, m_File, Pointer[2]).GetTMD(); }
 		if (Pointer[3])
 		{
 			m_Binary00.resize((std::size_t)(Pointer[4] - Pointer[3]));
 			m_File.Read(Pointer[3], m_Binary00.data(), m_Binary00.size());
 		}
 		if (Pointer[4]) { m_Texture->OpenTIM(m_File, Pointer[4]); }
-		if (Animation(NORMAL)->IsOpen()) { Animation(NORMAL)->CreateSkeleton(); }
 	}
+
+	if (Animation(NORMAL)->IsOpen()) { Animation(NORMAL)->CreateSkeleton(); }
 
 #if MSTD_DX9
 	std::unique_ptr<FIXED_MODEL> Temp = m_Model->Export(m_Texture->GetWidth(), m_Texture->GetHeight());
@@ -224,7 +282,7 @@ bool Resident_Evil_Model::OpenEnemy(std::filesystem::path Path, std::uintmax_t _
 		return false;
 	}
 
-	if (m_Model->IsOpen()) { Close(); }
+	Close();
 
 	std::vector<std::uint32_t> Pointer = GetDataPtr(m_File, _Ptr);
 
@@ -233,20 +291,18 @@ bool Resident_Evil_Model::OpenEnemy(std::filesystem::path Path, std::uintmax_t _
 	if (GameType() & (AUG95 | OCT95))
 	{
 		if (Pointer[1]) { Animation(NORMAL)->OpenEDD(m_File, Pointer[1]); }
-		if (Pointer[1]) { Animation(NORMAL)->OpenEMR(m_File, Pointer[0]); }
+		if (Pointer[1]) { if (Animation(NORMAL)->IsEDDOpen()) Animation(NORMAL)->OpenEMR(m_File, Pointer[0]); }
 		if (Pointer[2]) { m_Model->Open(m_File, Pointer[2]); }
 		if (Pointer[3]) { m_Texture->OpenTIM(m_File, Pointer[3]); }
-		if (Animation(NORMAL)->IsOpen()) { Animation(NORMAL)->CreateSkeleton(); }
 	}
 	else if (GameType() & BIO1)
 	{
 		if (Pointer[1]) { Animation(NORMAL)->OpenEDD(m_File, Pointer[1]); }
-		if (Pointer[1]) { Animation(NORMAL)->OpenEMR(m_File, Pointer[0]); }
+		if (Pointer[1]) { if (Animation(NORMAL)->IsEDDOpen()) Animation(NORMAL)->OpenEMR(m_File, Pointer[0]); }
 		if (Pointer[3]) { Animation(DAMAGE)->OpenEDD(m_File, Pointer[3]); }
-		if (Pointer[3]) { Animation(DAMAGE)->OpenEMR(m_File, Pointer[2]); }
+		if (Pointer[3]) { if (Animation(DAMAGE)->IsEDDOpen()) Animation(DAMAGE)->OpenEMR(m_File, Pointer[2]); }
 		if (Pointer[4]) { m_Model->Open(m_File, Pointer[4]); }
 		if (Pointer[5]) { m_Texture->OpenTIM(m_File, Pointer[5]); }
-		if (Animation(NORMAL)->IsOpen()) { Animation(NORMAL)->CreateSkeleton(); }
 	}
 	else if (GameType() & BIO2NOV96)
 	{
@@ -261,19 +317,13 @@ bool Resident_Evil_Model::OpenEnemy(std::filesystem::path Path, std::uintmax_t _
 			m_File.Read(Pointer[0], m_Binary00.data(), m_Binary00.size());
 		}
 		if (Pointer[1]) { Animation(NORMAL)->OpenEDD(m_File, Pointer[1]); }
-		if (Pointer[2]) { Animation(NORMAL)->OpenEMR(m_File, Pointer[2]); }
+		if (Pointer[2]) { if (Animation(NORMAL)->IsEDDOpen()) Animation(NORMAL)->OpenEMR(m_File, Pointer[2]); }
 		if (Pointer[3]) { Animation(NORMAL_EX0)->OpenEDD(m_File, Pointer[3]); }
-		if (Pointer[4]) { Animation(NORMAL_EX0)->OpenEMR(m_File, Pointer[4]); }
+		if (Pointer[4]) { if (Animation(NORMAL_EX0)->IsEDDOpen()) Animation(NORMAL_EX0)->OpenEMR(m_File, Pointer[4]); }
 		if (Pointer[5]) { Animation(DAMAGE)->OpenEDD(m_File, Pointer[5]); }
-		if (Pointer[6]) { Animation(DAMAGE)->OpenEMR(m_File, Pointer[6]); }
-		if (Pointer[7])
-		{
-			std::unique_ptr<Resident_Evil_2_MD1> Model = std::make_unique<Resident_Evil_2_MD1>(Str.hWnd, m_File, Pointer[7]);
-			m_Model = Model->GetTMD();
-		}
+		if (Pointer[6]) { if (Animation(DAMAGE)->IsEDDOpen()) Animation(DAMAGE)->OpenEMR(m_File, Pointer[6]); }
+		if (Pointer[7]) { m_Model = Resident_Evil_2_MD1(Str.hWnd, m_File, Pointer[7]).GetTMD(); }
 		if (Pointer[8]) { m_Texture->OpenTIM(m_File, Pointer[8]); }
-		if (Animation(NORMAL)->IsOpen()) { Animation(NORMAL)->CreateSkeleton(); }
-		Animation(NORMAL_EX0)->Skeleton = Animation(NORMAL)->Skeleton;
 	}
 	else if (GameType() & (BIO2TRIAL | BIO2))
 	{
@@ -288,18 +338,12 @@ bool Resident_Evil_Model::OpenEnemy(std::filesystem::path Path, std::uintmax_t _
 			m_File.Read(Pointer[0], m_Binary00.data(), m_Binary00.size());
 		}
 		if (Pointer[1]) { Animation(NORMAL)->OpenEDD(m_File, Pointer[1]); }
-		if (Pointer[2]) { Animation(NORMAL)->OpenEMR(m_File, Pointer[2]); }
+		if (Pointer[2]) { if (Animation(NORMAL)->IsEDDOpen()) Animation(NORMAL)->OpenEMR(m_File, Pointer[2]); }
 		if (Pointer[3]) { Animation(NORMAL_EX0)->OpenEDD(m_File, Pointer[3]); }
-		if (Pointer[4]) { Animation(NORMAL_EX0)->OpenEMR(m_File, Pointer[4]); }
+		if (Pointer[4]) { if (Animation(NORMAL_EX0)->IsEDDOpen()) Animation(NORMAL_EX0)->OpenEMR(m_File, Pointer[4]); }
 		if (Pointer[5]) { Animation(DAMAGE)->OpenEDD(m_File, Pointer[5]); }
-		if (Pointer[6]) { Animation(DAMAGE)->OpenEMR(m_File, Pointer[6]); }
-		if (Pointer[7])
-		{
-			std::unique_ptr<Resident_Evil_2_MD1> Model = std::make_unique<Resident_Evil_2_MD1>(Str.hWnd, m_File, Pointer[7]);
-			m_Model = Model->GetTMD();
-		}
-		if (Animation(NORMAL)->IsOpen()) { Animation(NORMAL)->CreateSkeleton(); }
-		Animation(NORMAL_EX0)->Skeleton = Animation(NORMAL)->Skeleton;
+		if (Pointer[6]) { if (Animation(DAMAGE)->IsEDDOpen()) Animation(DAMAGE)->OpenEMR(m_File, Pointer[6]); }
+		if (Pointer[7]) { m_Model = Resident_Evil_2_MD1(Str.hWnd, m_File, Pointer[7]).GetTMD(); }
 	}
 	else if (GameType() & BIO3)
 	{
@@ -319,39 +363,40 @@ bool Resident_Evil_Model::OpenEnemy(std::filesystem::path Path, std::uintmax_t _
 			m_File.Read(Pointer[1], m_Binary01.data(), m_Binary01.size());
 		}
 		if (Pointer[2]) { Animation(NORMAL)->OpenEDD(m_File, Pointer[2]); }
-		if (Pointer[3]) { Animation(NORMAL)->OpenEMR(m_File, Pointer[3]); }
+		if (Pointer[3]) { if (Animation(NORMAL)->IsEDDOpen()) Animation(NORMAL)->OpenEMR(m_File, Pointer[3]); }
 		if (Pointer[4]) { Animation(NORMAL_EX1)->OpenEDD(m_File, Pointer[4]); }
-		if (Pointer[5]) { Animation(NORMAL_EX1)->OpenEMR(m_File, Pointer[5]); }
+		if (Pointer[5]) { if (Animation(NORMAL_EX1)->IsEDDOpen()) Animation(NORMAL_EX1)->OpenEMR(m_File, Pointer[5]); }
 		if (Pointer[6]) { Animation(DAMAGE)->OpenEDD(m_File, Pointer[6]); }
-		if (Pointer[7]) { Animation(DAMAGE)->OpenEMR(m_File, Pointer[7]); }
+		if (Pointer[7]) { if (Animation(DAMAGE)->IsEDDOpen()) Animation(DAMAGE)->OpenEMR(m_File, Pointer[7]); }
 		if (Pointer[8])
 		{
 			m_WeaponBinary.resize((std::size_t)(Pointer[9] - Pointer[8]));
 			m_File.Read(Pointer[0], m_WeaponBinary.data(), m_WeaponBinary.size());
 		}
 		if (Pointer[9]) { Animation(WEAPON_EX0)->OpenEDD(m_File, Pointer[9]); }
-		if (Pointer[10]) { Animation(WEAPON_EX0)->OpenEMR(m_File, Pointer[10]); }
+		if (Pointer[10]) { if (Animation(WEAPON_EX0)->IsEDDOpen()) Animation(WEAPON_EX0)->OpenEMR(m_File, Pointer[10]); }
 		if (Pointer[11]) { Animation(WEAPON_EX1)->OpenEDD(m_File, Pointer[11]); }
-		if (Pointer[12]) { Animation(WEAPON_EX1)->OpenEMR(m_File, Pointer[12]); }
-		if (Pointer[13])
-		{
-			std::unique_ptr<Resident_Evil_3_MD2> Model = std::make_unique<Resident_Evil_3_MD2>(Str.hWnd, m_File, Pointer[13]);
-			m_WeaponModel = Model->GetTMD();
-		}
-		if (Pointer[14])
-		{
-			std::unique_ptr<Resident_Evil_3_MD2> Model = std::make_unique<Resident_Evil_3_MD2>(Str.hWnd, m_File, Pointer[14]);
-			m_Model = Model->GetTMD();
-		}
-		if (Animation(NORMAL)->IsOpen()) { Animation(NORMAL)->CreateSkeleton(); }
-		if (Animation(NORMAL_EX1)->IsOpen()) { Animation(NORMAL_EX1)->CreateSkeleton(); }
-		if (Animation(WEAPON_EX0)->IsOpen()) { Animation(WEAPON_EX0)->CreateSkeleton(); }
-		if (Animation(WEAPON_EX1)->IsOpen()) { Animation(WEAPON_EX1)->CreateSkeleton(); }
+		if (Pointer[12]) { if (Animation(WEAPON_EX1)->IsEDDOpen()) Animation(WEAPON_EX1)->OpenEMR(m_File, Pointer[12]); }
+		if (Pointer[13]) { m_WeaponModel = Resident_Evil_3_MD2(Str.hWnd, m_File, Pointer[13]).GetTMD(); }
+		if (Pointer[14]) { m_Model = Resident_Evil_3_MD2(Str.hWnd, m_File, Pointer[14]).GetTMD(); }
+	}
+
+	if (Animation(NORMAL)->IsOpen()) { Animation(NORMAL)->CreateSkeleton(); }
+	if (Animation(NORMAL_EX0)->IsOpen()) { Animation(NORMAL_EX0)->Skeleton = Animation(NORMAL)->Skeleton->Clone(); }
+	if (Animation(NORMAL_EX1)->IsOpen()) { Animation(NORMAL_EX1)->Skeleton = Animation(NORMAL)->Skeleton->Clone(); }
+	if (Animation(WEAPON_EX0)->IsOpen()) { Animation(WEAPON_EX0)->CreateSkeleton(); }
+	if (Animation(WEAPON_EX1)->IsOpen()) { Animation(WEAPON_EX1)->CreateSkeleton(); }
+
+	if (GameType() & (BIO2TRIAL | BIO2 | BIO3))
+	{
+		Standard_FileSystem().SetFileExtension(Path, L".tim");
+		m_Texture->OpenTIM(Path);
 	}
 
 #if MSTD_DX9
 	std::unique_ptr<FIXED_MODEL> Temp = m_Model->Export(m_Texture->GetWidth(), m_Texture->GetHeight());
 	m_DX9Model = ExportDX9(Temp, m_Texture);
+
 	if (GameType() & BIO3)
 	{
 		std::unique_ptr<FIXED_MODEL> Temp = m_WeaponModel->Export(m_Texture->GetWidth(), m_Texture->GetHeight());
@@ -371,7 +416,7 @@ bool Resident_Evil_Model::OpenWeapon(std::filesystem::path Path, std::uintmax_t 
 		return false;
 	}
 
-	if (m_WeaponModel->IsOpen()) { CloseWeapon(); }
+	CloseWeapon();
 
 	std::vector<std::uint32_t> Pointer = GetDataPtr(m_File, _Ptr);
 
@@ -380,7 +425,7 @@ bool Resident_Evil_Model::OpenWeapon(std::filesystem::path Path, std::uintmax_t 
 	if (GameType() & (AUG95 | OCT95 | BIO1))
 	{
 		if (Pointer[1]) { Animation(WEAPON)->OpenEDD(m_File, Pointer[1]); }
-		if (Pointer[1]) { Animation(WEAPON)->OpenEMR(m_File, Pointer[0]); }
+		if (Pointer[1]) { if (Animation(WEAPON)->IsEDDOpen()) Animation(WEAPON)->OpenEMR(m_File, Pointer[0]); }
 		if (Pointer[2]) { m_WeaponModel->Open(m_File, Pointer[2]); }
 	}
 	else if (GameType() & (BIO2NOV96 | BIO2TRIAL | BIO2))
@@ -391,14 +436,9 @@ bool Resident_Evil_Model::OpenWeapon(std::filesystem::path Path, std::uintmax_t 
 			return false;
 		}
 		if (Pointer[0]) { Animation(WEAPON)->OpenEDD(m_File, Pointer[0]); }
-		if (Pointer[1]) { Animation(WEAPON)->OpenEMR(m_File, Pointer[1]); }
-		if (Pointer[2])
-		{
-			std::unique_ptr<Resident_Evil_2_MD1> Model = std::make_unique<Resident_Evil_2_MD1>(Str.hWnd, m_File, Pointer[2]);
-			m_WeaponModel = Model->GetTMD();
-		}
+		if (Pointer[1]) { if (Animation(WEAPON)->IsEDDOpen()) Animation(WEAPON)->OpenEMR(m_File, Pointer[1]); }
+		if (Pointer[2]) { m_WeaponModel = Resident_Evil_2_MD1(Str.hWnd, m_File, Pointer[2]).GetTMD(); }
 		if (Pointer[3]) { m_WeaponTexture->OpenTIM(m_File, Pointer[3]); }
-		Animation(WEAPON)->Skeleton = Animation(NORMAL)->Skeleton;
 	}
 	else if (GameType() & BIO3)
 	{
@@ -408,25 +448,23 @@ bool Resident_Evil_Model::OpenWeapon(std::filesystem::path Path, std::uintmax_t 
 			return false;
 		}
 		if (Pointer[0]) { Animation(WEAPON)->OpenEDD(m_File, Pointer[0]); }
-		if (Pointer[1]) { Animation(WEAPON)->OpenEMR(m_File, Pointer[1]); }
+		if (Pointer[1]) { if (Animation(WEAPON)->IsEDDOpen()) Animation(WEAPON)->OpenEMR(m_File, Pointer[1]); }
 		if (Pointer[2]) { Animation(WEAPON_EX0)->OpenEDD(m_File, Pointer[2]); }
-		if (Pointer[3]) { Animation(WEAPON_EX0)->OpenEMR(m_File, Pointer[3]); }
+		if (Pointer[3]) { if (Animation(WEAPON_EX0)->IsEDDOpen()) Animation(WEAPON_EX0)->OpenEMR(m_File, Pointer[3]); }
 		if (Pointer[4])
 		{
 			m_WeaponBinary.resize((std::size_t)(Pointer[5] - Pointer[4]));
 			m_File.Read(Pointer[4], m_WeaponBinary.data(), m_WeaponBinary.size());
 		}
 		if (Pointer[5]) { Animation(WEAPON_EX1)->OpenEDD(m_File, Pointer[5]); }
-		if (Pointer[6]) { Animation(WEAPON_EX1)->OpenEMR(m_File, Pointer[6]); }
-		if (Pointer[7])
-		{
-			std::unique_ptr<Resident_Evil_3_MD2> Model = std::make_unique<Resident_Evil_3_MD2>(Str.hWnd, m_File, Pointer[7]);
-			m_WeaponModel = Model->GetTMD();
-		}
+		if (Pointer[6]) { if (Animation(WEAPON_EX1)->IsEDDOpen()) Animation(WEAPON_EX1)->OpenEMR(m_File, Pointer[6]); }
+		if (Pointer[7]) { m_WeaponModel = Resident_Evil_3_MD2(Str.hWnd, m_File, Pointer[7]).GetTMD(); }
 		if (Pointer[8]) { m_WeaponTexture->OpenTIM(m_File, Pointer[8]); }
-		if (Animation(WEAPON_EX0)->IsOpen()) { Animation(WEAPON_EX0)->CreateSkeleton(); }
-		if (Animation(WEAPON_EX1)->IsOpen()) { Animation(WEAPON_EX1)->CreateSkeleton(); }
 	}
+
+	if (Animation(NORMAL)->IsOpen()) { Animation(WEAPON)->Skeleton = Animation(NORMAL)->Skeleton->Clone(); }
+	if (Animation(WEAPON_EX0)->IsOpen()) { Animation(WEAPON_EX0)->CreateSkeleton(); }
+	if (Animation(WEAPON_EX1)->IsOpen()) { Animation(WEAPON_EX1)->CreateSkeleton(); }
 
 #if MSTD_DX9
 	if (GameType() & (AUG95 | OCT95 | BIO1))
@@ -444,41 +482,105 @@ bool Resident_Evil_Model::OpenWeapon(std::filesystem::path Path, std::uintmax_t 
 	return true;
 }
 
-void Resident_Evil_Model::Close(void)
+bool Resident_Evil_Model::OpenTexture(std::filesystem::path Path, std::uintmax_t _Ptr)
 {
-	if (m_Texture) m_Texture->Close();
-	if (m_WeaponTexture) m_WeaponTexture->Close();
-	if (m_Model) m_Model->Close();
-	if (m_WeaponModel) m_WeaponModel->Close();
+	if (m_Texture) { m_Texture->Close(); }
+
+	bool b_Open = false;
+
+	String Extension = Path.extension().string();
+
+	if (Standard_String().ToUpper(Extension) == ".TM2" && !m_Texture->OpenTIM2(Path, _Ptr)) { return false; }
+	if (Standard_String().ToUpper(Extension) == ".TIM" && !m_Texture->OpenTIM(Path, _Ptr)) { return false; }
+	if (Standard_String().ToUpper(Extension) == ".BMP" && !m_Texture->OpenBMP(Path, _Ptr)) { return false; }
+#ifdef LIB_PNG
+	if (Standard_String().ToUpper(Extension) == ".PNG" && !m_Texture->OpenPNG(Path, _Ptr)) { return false; }
+#endif
+#ifdef LIB_JPEG
+	if ((Standard_String().ToUpper(Extension) == ".JPG" || Standard_String().ToUpper(Extension) == ".JPEG") && !m_Texture->OpenJPEG(Path, _Ptr)) { return false; }
+#endif
+
+#if MSTD_DX9
+	if (m_Model->IsOpen())
+	{
+		CloseModelDX9();
+
+		std::unique_ptr<FIXED_MODEL> Temp = m_Model->Export(m_Texture->GetWidth(), m_Texture->GetHeight());
+		m_DX9Model = ExportDX9(Temp, m_Texture);
+	}
+#endif
+	
+	return b_Open;
+}
+
+bool Resident_Evil_Model::OpenWeaponTexture(std::filesystem::path Path, std::uintmax_t _Ptr)
+{
+	if (m_WeaponTexture) { m_WeaponTexture->Close(); }
+
+	bool b_Open = false;
+
+	String Extension = Path.extension().string();
+
+	if (Standard_String().ToUpper(Extension) == ".TM2" && !m_WeaponTexture->OpenTIM2(Path, _Ptr)) { return false; }
+	if (Standard_String().ToUpper(Extension) == ".TIM" && !m_WeaponTexture->OpenTIM(Path, _Ptr)) { return false; }
+	if (Standard_String().ToUpper(Extension) == ".BMP" && !m_WeaponTexture->OpenBMP(Path, _Ptr)) { return false; }
+#ifdef LIB_PNG
+	if (Standard_String().ToUpper(Extension) == ".PNG" && !m_WeaponTexture->OpenPNG(Path, _Ptr)) { return false; }
+#endif
+#ifdef LIB_JPEG
+	if ((Standard_String().ToUpper(Extension) == ".JPG" || Standard_String().ToUpper(Extension) == ".JPEG") && !m_WeaponTexture->OpenJPEG(Path, _Ptr)) { return false; }
+#endif
+
+#if MSTD_DX9
+	if (m_WeaponModel->IsOpen() && m_WeaponTexture->IsOpen())
+	{
+		CloseWeaponDX9();
+
+		std::unique_ptr<FIXED_MODEL> Temp = m_WeaponModel->Export(m_WeaponTexture->GetWidth(), m_WeaponTexture->GetHeight());
+		m_DX9WeaponModel = ExportDX9(Temp, m_WeaponTexture);
+	}
+#endif
+
+	return b_Open;
+}
+
+void Resident_Evil_Model::CloseModel(void)
+{
+	if (m_Texture) { m_Texture->Close(); }
+	if (m_Model) { m_Model->Close(); }
+
 	m_Binary00.clear();
 	m_Binary01.clear();
 	m_WeaponBinary.clear();
-	for (auto& a : m_Animations) { a->Close(); }
+
+	for (auto& Animation : m_Animations) { Animation->Close(); }
+
+	m_Model->IgnoreMagic(true);
 
 #if MSTD_DX9
-	m_DX9Model->Object.clear();
-	m_DX9Model->Texture.clear();
-	m_DX9WeaponModel->Object.clear();
-	m_DX9WeaponModel->Texture.clear();
+	CloseModelDX9();
 #endif
 }
 
 void Resident_Evil_Model::CloseWeapon(void)
 {
-	m_WeaponTexture->Close();
-	m_WeaponModel->Close();
+	if (m_WeaponTexture) { m_WeaponTexture->Close(); }
+	if (m_WeaponModel) { m_WeaponModel->Close(); }
+
 	m_WeaponBinary.clear();
+
 	Animation(WEAPON)->Close();
 	Animation(WEAPON_EX0)->Close();
 	Animation(WEAPON_EX1)->Close();
 
+	m_WeaponModel->IgnoreMagic(true);
+
 #if MSTD_DX9
-	m_DX9WeaponModel->Object.clear();
-	m_DX9WeaponModel->Texture.clear();
+	CloseWeaponDX9();
 #endif
 }
 
-void Resident_Evil_Model::DrawFrame(std::shared_ptr<Resident_Evil_Animation> Animation, size_t iClip, size_t iFrame)
+void Resident_Evil_Model::DrawFrame(std::shared_ptr<Resident_Evil_Animation> Animation, size_t iClip, size_t iFrame, bool b_DrawRoot)
 {
 	if (!Animation || !Animation->IsOpen() || Animation->Clip.empty()) { return; }
 
@@ -502,7 +604,7 @@ void Resident_Evil_Model::DrawFrame(std::shared_ptr<Resident_Evil_Animation> Ani
 		{
 			Standard_Matrix Local;
 
-			if (b_DrawRootOnly)
+			if (b_DrawRoot)
 			{
 				Local = Matrix * Skeleton->World;
 			}
@@ -558,13 +660,14 @@ void Resident_Evil_Model::DrawFrame(std::shared_ptr<Resident_Evil_Animation> Ani
 				for (size_t x = 0; x < ModelDX9()->Object[i].size(); x++)
 				{
 					size_t Texture = std::clamp(ModelDX9()->Object[i][x].iTexture, (size_t)0, ModelDX9()->Texture.empty() ? 0 : ModelDX9()->Texture.size() - 1);
+
 					Render->DrawVec3cnt(
 						ModelDX9()->Object[i][x].Data.get(),
 						nullptr,
-						ModelDX9()->Texture.empty() ? nullptr : ModelDX9()->Texture[Texture].get(),
-						Render->PS1DitherPixelShader.get(),
+						b_DrawTextured ? ModelDX9()->Texture.empty() ? nullptr : ModelDX9()->Texture[Texture].get() : nullptr,
+						b_Dither ? Render->PS1DitherPixelShader.get() : Render->PassthroughPixelShader.get(),
 						ModelDX9()->TextureWidth, ModelDX9()->TextureHeight,
-						D3DFILL_SOLID, D3DPT_TRIANGLELIST
+						b_DrawWireframe ? D3DFILL_WIREFRAME : D3DFILL_SOLID, D3DPT_TRIANGLELIST
 					);
 				}
 			}
@@ -573,81 +676,95 @@ void Resident_Evil_Model::DrawFrame(std::shared_ptr<Resident_Evil_Animation> Ani
 			for (const auto& Children : Skeleton->Children) { DrawKeyframe(Children, Local); }
 		};
 
-	SetWorld({ Position().x, Position().y, Position().z, Rotation().x, Rotation().y, Rotation().z });
+	if (b_EditorMode)
+	{
+		SetWorld({
+			EditorPosition().x, EditorPosition().y, EditorPosition().z,
+			EditorRotation().x, EditorRotation().y, EditorRotation().z,
+			EditorScale().x, EditorScale().y, EditorScale().z });
+	}
+	else
+	{
+		SetWorld({
+			Position().x, Position().y, Position().z,
+			Rotation().x, Rotation().y, Rotation().z,
+			Scale().x, Scale().y, Scale().z });
+	}
 
 #if MSTD_DX9
-	if (!Render || !Render->NormalState()) { return; }
-
 	if (!ModelDX9() || ModelDX9()->Object.empty()) { return; }
-
-	DWORD CullMode = 0;
-	DWORD Clipping = 0;
 
 	Render->SetWorld(World);
 
-	Render->Device()->GetRenderState(D3DRS_CULLMODE, &CullMode);
-	Render->Device()->GetRenderState(D3DRS_CLIPPING, &Clipping);
-
 	Render->Device()->SetRenderState(D3DRS_CULLMODE, D3DCULL_CW);
 	Render->Device()->SetRenderState(D3DRS_CLIPPING, TRUE);
+
+	Render->TextureFiltering(m_TextureFilter);
 #endif
 
 	DrawKeyframe(Animation->Skeleton, *World);
 
 #if MSTD_DX9
-	Render->Device()->SetRenderState(D3DRS_CULLMODE, CullMode);
-	Render->Device()->SetRenderState(D3DRS_CLIPPING, Clipping);
+	Render->TextureFiltering(D3DTEXF_NONE);
 
 	Render->ResetWorld();
 #endif
 }
 
-void Resident_Evil_Model::DrawObject(std::size_t iObject, bool b_DrawAll)
+void Resident_Evil_Model::DrawObject(std::size_t iObject, bool b_DrawAll, bool DrawWeapon)
 {
 #if MSTD_DX9
-	if (!Render || !Render->NormalState()) { return; }
+	auto& Model = DrawWeapon ? WeaponModelDX9() : ModelDX9();
 
-	if (!ModelDX9() || ModelDX9()->Object.empty()) { return; }
+	if (!Model || Model->Object.empty()) { return; }
 
-	SetWorld({ Position().x, Position().y, Position().z, Rotation().x, Rotation().y, Rotation().z });
+	if (b_EditorMode)
+	{
+		SetWorld({
+			EditorPosition().x, EditorPosition().y, EditorPosition().z,
+			EditorRotation().x, EditorRotation().y, EditorRotation().z,
+			EditorScale().x, EditorScale().y, EditorScale().z });
+	}
+	else
+	{
+		SetWorld({
+			Position().x, Position().y, Position().z,
+			Rotation().x, Rotation().y, Rotation().z,
+			Scale().x, Scale().y, Scale().z });
+	}
 
 	std::size_t nObjects = iObject + 1;
 
 	if (b_DrawAll)
 	{
 		iObject = 0;
-		nObjects = ModelDX9()->Object.size();
+		nObjects = Model->Object.size();
 	}
 
-	DWORD CullMode = 0;
-	DWORD Clipping = 0;
-
-	Render->Device()->GetRenderState(D3DRS_CULLMODE, &CullMode);
-	Render->Device()->GetRenderState(D3DRS_CLIPPING, &Clipping);
+	Render->SetWorld(World);
 
 	Render->Device()->SetRenderState(D3DRS_CULLMODE, D3DCULL_CW);
 	Render->Device()->SetRenderState(D3DRS_CLIPPING, TRUE);
 
-	Render->SetWorld(World);
+	Render->TextureFiltering(m_TextureFilter);
 
 	for (size_t i = iObject; i < nObjects; i++)
 	{
-		for (size_t x = 0; x < ModelDX9()->Object[i].size(); x++)
+		for (size_t x = 0; x < Model->Object[i].size(); x++)
 		{
-			size_t Texture = std::clamp(ModelDX9()->Object[i][x].iTexture, (size_t)0, ModelDX9()->Texture.empty() ? 0 : ModelDX9()->Texture.size() - 1);
+			size_t Texture = std::clamp(Model->Object[i][x].iTexture, (size_t)0, Model->Texture.empty() ? 0 : Model->Texture.size() - 1);
 			Render->DrawVec3cnt(
-				ModelDX9()->Object[i][x].Data.get(),
+				Model->Object[i][x].Data.get(),
 				nullptr,
-				ModelDX9()->Texture.empty() ? nullptr : ModelDX9()->Texture[Texture].get(),
-				Render->PS1DitherPixelShader.get(),
-				ModelDX9()->TextureWidth, ModelDX9()->TextureHeight,
-				D3DFILL_SOLID, D3DPT_TRIANGLELIST
+				b_DrawTextured ? Model->Texture.empty() ? nullptr : Model->Texture[Texture].get() : nullptr,
+				b_Dither ? Render->PS1DitherPixelShader.get() : Render->PassthroughPixelShader.get(),
+				Model->TextureWidth, Model->TextureHeight,
+				b_DrawWireframe ? D3DFILL_WIREFRAME : D3DFILL_SOLID, D3DPT_TRIANGLELIST
 			);
 		}
 	}
 
-	Render->Device()->SetRenderState(D3DRS_CULLMODE, CullMode);
-	Render->Device()->SetRenderState(D3DRS_CLIPPING, Clipping);
+	Render->TextureFiltering(D3DTEXF_NONE);
 
 	Render->ResetWorld();
 #endif
@@ -655,25 +772,33 @@ void Resident_Evil_Model::DrawObject(std::size_t iObject, bool b_DrawAll)
 
 void Resident_Evil_Model::Draw(void)
 {
-	if (!Animation(NORMAL)->IsOpen())
+	AnimationIndex Index = m_AnimationIndex;
+	bool b_DrawRoot = b_DrawRootOnly;
+
+	if (!Animation(Index)->IsOpen() || !Animation(Index)->Skeleton->IsOpen())
 	{
-		DrawObject(0, true);
+		if (Animation(NORMAL)->IsOpen() && Animation(NORMAL)->Skeleton->IsOpen())
+		{
+			Index = NORMAL;
+			b_DrawRoot = true;
+		}
+		else
+		{
+			return;
+		}
 	}
-	else
-	{
-		static std::size_t frameCounter = 0;
 
-		if (iClip >= Animation(NORMAL)->GetClipCount()) { iClip = 0; }
-		if (iFrame >= Animation(NORMAL)->GetFrameCount(iClip)) { iFrame = 0; }
-		DrawFrame(Animation(NORMAL), iClip, iFrame);
+	if (iClip >= Animation(Index)->GetClipCount()) { iClip = 0; }
+	if (iFrame >= Animation(Index)->GetFrameCount(iClip)) { iFrame = 0; }
 
-		const auto& Frame = Animation(NORMAL)->Clip[iClip][iFrame];
+	DrawFrame(Animation(Index), iClip, iFrame, b_DrawRoot);
 
-		static std::size_t Skip = Frame.Attr.Speed;
-		Skip << 1;
+	//const auto& Frame = Animation(Index)->Clip[iClip][iFrame];
+	//static std::size_t Skip = Frame.Attr.Speed;
+	//Skip << 1;
 
-		if (frameCounter % 2 == 0) { iFrame++; }
-		frameCounter++;
-		if (frameCounter >= Animation(NORMAL)->GetFrameCount(iClip)) { frameCounter = 0; }
-	}
+	static std::size_t frameCounter = 0;
+	if (frameCounter % 2 == 0) { iFrame++; }
+	frameCounter++;
+	if (frameCounter >= Animation(Index)->GetFrameCount(iClip)) { frameCounter = 0; }
 }

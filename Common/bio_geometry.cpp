@@ -1,7 +1,7 @@
 /*
 *
 *	Megan Grass
-*	March 07, 2024
+*	June 28, 2025
 *
 */
 
@@ -56,33 +56,30 @@ void Resident_Evil_Geometry::Init(void)
 void Resident_Evil_Geometry::DrawShape(const DRAWSHAPE& Shape) const
 {
 #if MSTD_DX9
-	if (Render && Render->NormalState())
+	DWORD CullMode = 0;
+
+	if (Shape.Solid)
 	{
-		DWORD CullMode = 0;
+		Render->Device()->GetRenderState(D3DRS_CULLMODE, &CullMode);
+		Render->Device()->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+		Render->AlphaBlending(TRUE, D3DBLEND_INVDESTCOLOR, D3DBLEND_INVSRCALPHA);
+	}
 
-		if (Shape.Solid)
-		{
-			Render->Device()->GetRenderState(D3DRS_CULLMODE, &CullMode);
-			Render->Device()->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
-			Render->AlphaBlending(TRUE, D3DBLEND_INVDESTCOLOR, D3DBLEND_INVSRCALPHA);
-		}
+	std::unique_ptr<IDirect3DVertexBuffer9, IDirect3DDelete9<IDirect3DVertexBuffer9>> Vertices;
+	Vertices.reset(Render->CreateVec3c(Shape.Vertice, Shape.Solid ? (0x40 << 24) | (Shape.Color & 0xFFFFFF) : Shape.Color));
 
-		std::unique_ptr<IDirect3DVertexBuffer9, IDirect3DDelete9<IDirect3DVertexBuffer9>> Vertices;
-		Vertices.reset(Render->CreateVec3c(Shape.Vertice, Shape.Solid ? (0x40 << 24) | (Shape.Color & 0xFFFFFF) : Shape.Color));
+	Render->SetWorld(Shape.World);
 
-		Render->SetWorld(Shape.World);
+	if (Shape.IndiceWire) { Render->DrawVec3c(Vertices.get(), (IDirect3DIndexBuffer9*)Shape.IndiceWire, nullptr, D3DFILL_WIREFRAME, D3DPT_LINELIST); }
 
-		if (Shape.IndiceWire) { Render->DrawVec3c(Vertices.get(), (IDirect3DIndexBuffer9*)Shape.IndiceWire, nullptr, D3DFILL_WIREFRAME, D3DPT_LINELIST); }
+	if (Shape.Indice && Shape.Solid) { Render->DrawVec3c(Vertices.get(), (IDirect3DIndexBuffer9*)Shape.Indice, nullptr, D3DFILL_SOLID, D3DPT_TRIANGLELIST, FALSE); }
 
-		if (Shape.Indice && Shape.Solid) { Render->DrawVec3c(Vertices.get(), (IDirect3DIndexBuffer9*)Shape.Indice, nullptr, D3DFILL_SOLID, D3DPT_TRIANGLELIST, FALSE); }
+	if (Shape.ResetWorld) { Render->ResetWorld(*Shape.World.get()); }
 
-		if (Shape.ResetWorld) { Render->ResetWorld(*Shape.World.get()); }
-
-		if (Shape.Solid)
-		{
-			Render->Device()->SetRenderState(D3DRS_CULLMODE, CullMode);
-			Render->AlphaBlending(FALSE, D3DBLEND_ZERO, D3DBLEND_ZERO);
-		}
+	if (Shape.Solid)
+	{
+		Render->Device()->SetRenderState(D3DRS_CULLMODE, CullMode);
+		Render->AlphaBlending(FALSE, D3DBLEND_ZERO, D3DBLEND_ZERO);
 	}
 #endif
 }

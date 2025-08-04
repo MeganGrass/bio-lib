@@ -1,7 +1,7 @@
 /*
 *
 *	Megan Grass
-*	March 07, 2024
+*	June 28, 2025
 *
 */
 
@@ -79,6 +79,12 @@ public:
 	// Draw Collision Polygons On/Off
 	bool b_DrawCollision;
 
+	// Draw Navigational Polygons On/Off
+	bool b_DrawBlock;
+
+	// Draw Floor Sound Polygons On/Off
+	bool b_DrawFloor;
+
 #if MSTD_DX9
 
 	// Direct-X 9 Render Context
@@ -88,7 +94,9 @@ public:
 		GTE(gte),
 		Render(render),
 		World(std::make_shared<Standard_Matrix>()),
-		b_DrawCollision(true)
+		b_DrawCollision(true),
+		b_DrawBlock(true),
+		b_DrawFloor(true)
 	{
 	}
 #else

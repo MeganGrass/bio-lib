@@ -40,100 +40,55 @@ private:
 
 public:
 
-	/*
-		Construction
-	*/
-	explicit Resident_Evil_2_RID(void)
-	{
-	}
+	explicit Resident_Evil_2_RID(void) {}
 
-	/*
-		Destruction
-	*/
-	~Resident_Evil_2_RID(void)
-	{
-		Close();
-	}
+	~Resident_Evil_2_RID(void) = default;
 
-	/*
-		Copy
-	*/
+	// Copy
 	Resident_Evil_2_RID(const Resident_Evil_2_RID& v) noexcept : Data(v.Data) {}
 	Resident_Evil_2_RID& operator = (const Resident_Evil_2_RID& v) noexcept { return *this = Resident_Evil_2_RID(v); }
 
-	/*
-		Move
-	*/
+	// Move
 	Resident_Evil_2_RID(Resident_Evil_2_RID&& v) noexcept : Data(std::exchange(v.Data, {})) {}
-	Resident_Evil_2_RID& operator = (Resident_Evil_2_RID&& v) noexcept
-	{
-		std::swap(Data, v.Data);
-		return *this;
-	}
+	Resident_Evil_2_RID& operator = (Resident_Evil_2_RID&& v) noexcept { std::swap(Data, v.Data); return *this; }
 
-	/*
-		Get data count
-	*/
+	// Get data count
 	std::size_t Count(void) const { return Data.size(); }
 
-	/*
-		Get data element
-	*/
+	// Get data element
 	Resident_Evil_2_RID_Data* Get(const std::size_t& iElement) { return &Data[iElement]; }
 
-	/*
-		Push back empty element
-	*/
+	// Push back empty element
 	void New(void) { Data.push_back(Resident_Evil_2_RID_Data()); }
 
-	/*
-		Push back element from buffer
-	*/
+	// Push back element from buffer
 	void Add(Resident_Evil_2_RID_Data& Input) { Data.push_back(Input); }
 
-	/*
-		Copy element to buffer
-	*/
+	// Copy element to buffer
 	void Copy(std::size_t iEntry, Resident_Evil_2_RID_Data& Output) { Output = Data[iEntry]; }
 
-	/*
-		Paste element from buffer
-	*/
+	// Paste element from buffer
 	void Paste(std::size_t iEntry, Resident_Evil_2_RID_Data& Input) { Data[iEntry] = Input; }
 
-	/*
-		Insert element
-	*/
+	// Insert element
 	void Insert(std::size_t iEntry, Resident_Evil_2_RID_Data& Input) { Data.insert(Data.begin() + iEntry, Input); }
 
-	/*
-		Delete element
-	*/
+	// Delete Delete
 	void Delete(std::size_t iEntry) { Data.erase(Data.begin() + iEntry); }
 
-	/*
-		Open
-	*/
+	// Open
 	std::uintmax_t Open(StdFile& File, std::size_t nCut, std::uintmax_t _Ptr);
 
-	/*
-		Open
-	*/
+	// Open
 	bool Open(std::filesystem::path Path, std::uintmax_t _Ptr = 0);
 
-	/*
-		Save
-	*/
+	// Save
 	std::uintmax_t Save(StdFile& File, std::uintmax_t _Ptr);
 
-	/*
-		Save
-	*/
+	// Save
 	bool Save(std::filesystem::path Path, std::uintmax_t _Ptr);
 
-	/*
-		Close
-	*/
+	// Close
 	void Close(void);
 
 };

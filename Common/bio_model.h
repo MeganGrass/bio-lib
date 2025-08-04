@@ -1,7 +1,7 @@
 /*
 *
 *	Megan Grass
-*	March 07, 2024
+*	July 13, 2025
 *
 */
 
@@ -56,7 +56,7 @@ private:
 	static constexpr AnimationIndex ROOM = AnimationIndex::Room;
 
 	// Transformation
-	VECTOR2 m_Position, m_Rotation;
+	VECTOR2 m_Position, m_Rotation, m_Scale, m_EditorPosition, m_EditorRotation, m_EditorScale;
 
 	// Matrix
 	std::shared_ptr<Standard_Matrix> World;
@@ -73,6 +73,9 @@ private:
 	// Animation Data
 	std::array<std::shared_ptr<Resident_Evil_Animation>, std::to_underlying(AnimationIndex::Count)> m_Animations;
 
+	// Animation Index ID
+	AnimationIndex m_AnimationIndex;
+
 	// Get data pointers from file archive (EMD/EMW/PLD/PLW)
 	std::vector<std::uint32_t> GetDataPtr(StdFile& File, std::uintmax_t _FileBeginPtr);
 
@@ -82,24 +85,58 @@ private:
 #if MSTD_DX9
 	// Direct-X 9 Model
 	std::unique_ptr<DX9_MODEL> m_DX9Model, m_DX9WeaponModel;
+
+	// Clear DX9 model data
+	void CloseModelDX9(void)
+	{
+		if (m_DX9Model)
+		{
+			m_DX9Model->Object.clear();
+			m_DX9Model->Texture.clear();
+			m_DX9Model.reset(nullptr);
+		}
+	}
+
+	// Clear DX9 weapon data
+	void CloseWeaponDX9(void)
+	{
+		if (m_DX9WeaponModel)
+		{
+			m_DX9WeaponModel->Object.clear();
+			m_DX9WeaponModel->Texture.clear();
+			m_DX9WeaponModel.reset(nullptr);
+		}
+	}
 #endif
 
 public:
 
 	explicit Resident_Evil_Model(void) :
-		iClip(0),
-		iFrame(0),
-		iObject(0),
-		m_Position({ 0, 0, 0}),
-		m_Rotation({ 0, 0, 0 }),
-		b_DrawRootOnly(false),
+		m_Position{ 0, 0, 0 },
+		m_Rotation{ 0, 0, 0 },
+		m_Scale{ ONE, ONE, ONE },
+		m_EditorPosition{ 0, 0, 0 },
+		m_EditorRotation{ 0, 0, 0 },
+		m_EditorScale{ ONE, ONE, ONE },
 		World(std::make_shared<Standard_Matrix>()),
 		m_Texture(std::make_unique<Sony_PlayStation_Texture>()),
 		m_WeaponTexture(std::make_unique<Sony_PlayStation_Texture>()),
 		m_Model(std::make_unique<Sony_PlayStation_Model>()),
-		m_WeaponModel(std::make_unique<Sony_PlayStation_Model>())
+		m_WeaponModel(std::make_unique<Sony_PlayStation_Model>()),
+		m_AnimationIndex(NORMAL),
+		b_EditorMode(false),
+		b_Dither(true),
+		b_DrawWireframe(false),
+		b_DrawTextured(true),
+		b_DrawSolidColor(false),
+		b_DrawSkeleton(false),
+		b_DrawRootOnly(false),
+		iObject(0),
+		iClip(0),
+		iFrame(0)
 #if MSTD_DX9
-		,m_DX9Model(nullptr),
+		,m_TextureFilter(D3DTEXF_NONE),
+		m_DX9Model(nullptr),
 		m_DX9WeaponModel(nullptr)
 #endif
 	{
@@ -114,10 +151,48 @@ public:
 
 	~Resident_Evil_Model(void) = default;
 
+	using Resident_Evil_Common::GameType;
+
+	/*
+		Editor Mode
+		 - editor position, rotation and scale will be used
+	*/
+	bool b_EditorMode;
+
+	/*
+		Sony PlayStation (1994) Dithering Pixel Shader
+		 - simple passthrough pixel shader will be used if false
+	*/
+	bool b_Dither;
+
+	/*
+		Draw Wireframe
+		 - polygons will be drawn as wireframe
+	*/
+	bool b_DrawWireframe;
+
+	/*
+		Draw Solid Color
+		 - polygons will be drawn as solid color
+	*/
+	bool b_DrawSolidColor;
+
+	/*
+		Draw Textured
+		 - polygons will be drawn as textured
+	*/
+	bool b_DrawTextured;
+
+	/*
+		Draw Skeleton
+		 - skeleton mesh will be drawn
+	*/
+	bool b_DrawSkeleton;
+
 	/*
 		Ignore keyframes in DrawFrame
 		 - origin, speed and rotation are ignored
-		 - root skeleton position is used
+		 - root skeleton position is used instead
 	*/
 	bool b_DrawRootOnly;
 
@@ -133,7 +208,11 @@ public:
 	// set window handle for message/debugging
 	void SetWindow(HWND hWnd)
 	{
-		Str.hWnd = m_Texture->Str.hWnd = m_WeaponTexture->Str.hWnd = m_Model->Str.hWnd = m_WeaponModel->Str.hWnd = hWnd;
+		Str.hWnd = hWnd;
+		m_Texture->Str.hWnd = hWnd;
+		m_WeaponTexture->Str.hWnd = hWnd;
+		m_Model->Str.hWnd = hWnd;
+		m_WeaponModel->Str.hWnd = hWnd;
 		for (size_t i = 0; i < m_Animations.size(); ++i) { m_Animations[i]->Str.hWnd = hWnd; }
 	}
 
@@ -158,6 +237,9 @@ public:
 	// Direct-X 9 Render Context
 	std::shared_ptr<Standard_DirectX_9> Render;
 
+	// Texture Filter
+	D3DTEXTUREFILTERTYPE m_TextureFilter;
+
 #endif
 
 	// Sony PlayStation (1994) Geometry Transformation Engine
@@ -168,6 +250,18 @@ public:
 
 	// Rotation
 	VECTOR2& Rotation(void) noexcept { return m_Rotation; }
+
+	// Scale
+	VECTOR2& Scale(void) noexcept { return m_Scale; }
+
+	// Editor Position
+	VECTOR2& EditorPosition(void) noexcept { return m_EditorPosition; }
+
+	// Editor Rotation
+	VECTOR2& EditorRotation(void) noexcept { return m_EditorRotation; }
+
+	// Editor Scale
+	VECTOR2& EditorScale(void) noexcept { return m_EditorScale; }
 
 	// Model
 	std::unique_ptr<Sony_PlayStation_Model>& Model(void) noexcept { return m_Model; }
@@ -184,18 +278,28 @@ public:
 	// Animation Data
 	std::shared_ptr<Resident_Evil_Animation>& Animation(AnimationIndex Type) noexcept { return m_Animations[std::to_underlying(Type)]; }
 
+	// Set Animation Index
+	AnimationIndex& AnimIndex(void) noexcept { return m_AnimationIndex; }
+
 	/*
 		Set world matrix
-		 - position and rotation of entire model
+		 - position, rotation and scale of model
 	*/
 	void SetWorld(const MATVECTOR& Vec) const;
 
 	/*
-		Open model file -- TMD (Bio1), MD1 (Bio2) or MD2 (Bio3)
+		Open
+		 - TMD, MD1, MD2, PLD, PLW, EMD, EMW
 		 - call SetGame before this function
-		 - ExportDX9 must be called after this function
+		 - automatically calls ExportDX9 when texture is open
 	*/
-	bool OpenObject(std::filesystem::path Path, std::uintmax_t _Ptr = 0, bool b_ReplaceModel = false);
+	bool Open(std::filesystem::path Path, std::uintmax_t _Ptr = 0, bool b_Bio1Enemy = false);
+
+	/*
+		Open model file -- TMD (Bio1), MD1 (Bio2) or MD2 (Bio3)
+		 - automatically calls ExportDX9 when texture is open
+	*/
+	bool OpenObject(std::filesystem::path Path, std::uintmax_t _Ptr = 0);
 
 	/*
 		Open player file - EMD (Bio1) or PLD (Bio2/Bio3)
@@ -207,6 +311,7 @@ public:
 	/*
 		Open enemy file - EMD (Bio1/Bio2/Bio3)
 		 - call SetGame before this function
+		 - automatically opens texture when Bio2/Bio3 EMD
 		 - automatically calls ExportDX9
 	*/
 	bool OpenEnemy(std::filesystem::path Path, std::uintmax_t _Ptr = 0);
@@ -218,23 +323,32 @@ public:
 	*/
 	bool OpenWeapon(std::filesystem::path Path, std::uintmax_t _Ptr = 0);
 
-	// Open model texture
-	bool OpenTexture(std::filesystem::path Path, std::uintmax_t _Ptr = 0) { if (m_Texture->IsOpen()) { m_Texture->Close(); } return m_Texture->OpenTIM(Path, _Ptr); }
+	/*
+		Open model texture
+		 - automatically calls ExportDX9 when model is open
+	*/
+	bool OpenTexture(std::filesystem::path Path, std::uintmax_t _Ptr = 0);
 
-	// Open weapon texture
-	bool OpenWeaponTexture(std::filesystem::path Path, std::uintmax_t _Ptr = 0) { if (m_WeaponTexture->IsOpen()) { m_WeaponTexture->Close(); } return m_WeaponTexture->OpenTIM(Path, _Ptr); }
+	/*
+		Open weapon texture
+		 - automatically calls ExportDX9 when weapon model is open
+	*/
+	bool OpenWeaponTexture(std::filesystem::path Path, std::uintmax_t _Ptr = 0);
 
 	// Clear all data
-	void Close(void);
+	void Close(void) { CloseModel(); CloseWeapon(); }
+
+	// Clear model data
+	void CloseModel(void);
 
 	// Clear weapon data
 	void CloseWeapon(void);
 
 	// Draw model at animation keyframe
-	void DrawFrame(std::shared_ptr<Resident_Evil_Animation> Animation, size_t iClip, size_t iFrame);
+	void DrawFrame(std::shared_ptr<Resident_Evil_Animation> Animation, size_t iClip, size_t iFrame, bool b_DrawRoot = false);
 
 	// Draw object of model
-	void DrawObject(std::size_t iObject, bool b_DrawAll = true);
+	void DrawObject(std::size_t iObject, bool b_DrawAll = true, bool DrawWeapon = false);
 
 	// Draw model
 	void Draw(void);

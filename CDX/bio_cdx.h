@@ -75,15 +75,8 @@ private:
 
 public:
 
-	/*
-		Construction
-	*/
-	explicit CDX_File_Container(void)
-	{
-	}
-	virtual ~CDX_File_Container(void)
-	{
-	}
+	explicit CDX_File_Container(void) {}
+	~CDX_File_Container(void) = default;
 
 	/*
 		Command Line Interface

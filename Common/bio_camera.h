@@ -1,7 +1,7 @@
 /*
 *
 *	Megan Grass
-*	March 07, 2024
+*	April 16, 2024
 *
 */
 
@@ -57,7 +57,7 @@ private:
 			ScaleZ(Far / (Near - Far)),
 			OffsetX((Left + Right) / (Left - Right)),
 			OffsetY((Top + Bottom) / (Top - Bottom)),
-			OffsetZ(Near* Far / (Near - Far)) {}
+			OffsetZ(Near * Far / (Near - Far)) {}
 		explicit PROJECTION(std::uint32_t FOV) :
 			FovY(2.0f * std::atan(120.0f / FOV)),
 			FovX(2.0f * std::atan(160.0f / FOV)),
@@ -72,6 +72,9 @@ private:
 public:
 
 	Standard_String Str;
+
+	// Sony PlayStation (1994) Native Screen Resolution
+	constexpr static float m_NativeWidth = 320.0f, m_NativeHeight = 240.0f;
 
 	// Sony PlayStation (1994) Geometry Transformation Engine
 	std::shared_ptr<Sony_PlayStation_GTE> GTE;
@@ -88,8 +91,20 @@ public:
 	// Target
 	VECTOR2 m_At;
 
+	// Model Editor Field of View
+	std::uint32_t m_ModelFOV;
+
+	// Model Editor Position
+	VECTOR2 m_ModelEye;
+
+	// Model Editor Target
+	VECTOR2 m_ModelAt;
+
 	// Viewport Size
 	float m_OrthoWidth, m_OrthoHeight;
+
+	// Viewport Scale
+	float m_OrthoScaleX, m_OrthoScaleY;
 
 	// Prerendered Background Texture Flip
 	bool b_HorzFlipTex, b_VertFlipTex;
@@ -98,7 +113,8 @@ public:
 	std::filesystem::path m_Path;
 
 	// Prerendered Background ID
-	std::uint8_t m_Cut, m_CutMax;
+	using Resident_Evil_Common::Cut;
+	using Resident_Evil_Common::CutMax;
 
 	// Prerendered Background View On/Off
 	bool b_ViewBackground;
@@ -106,11 +122,20 @@ public:
 	// Prerendered Background Texture Size
 	float m_TexWidth, m_TexHeight;
 
+	// Sprite View On/Off
+	bool b_ViewSprite;
+
+	// Sprite Texture Size
+	float m_TexSprWidth, m_TexSprHeight;
+
 	// Top-Down Perspective On/Off
 	bool b_ViewTopDown;
 
 	// Top-Down Perspective Camera Position
 	float m_Cx, m_Cy, m_Cz;
+
+	// Draw Line (Eye, At)
+	bool b_DrawLine;
 
 	// Draw Switch Vectors On/Off
 	bool b_DrawSwitch;
@@ -126,6 +151,9 @@ public:
 	// Prerendered Background Texture
 	std::unique_ptr<IDirect3DTexture9, IDirect3DDelete9<IDirect3DTexture9>> m_Background;
 
+	// Sprite Texture
+	std::unique_ptr<IDirect3DTexture9, IDirect3DDelete9<IDirect3DTexture9>> m_Sprite;
+
 	// Prerendered Background Texture Vertex Buffer (vec4t)
 	std::unique_ptr<IDirect3DVertexBuffer9, IDirect3DDelete9<IDirect3DVertexBuffer9>> m_BackgroundVert;
 
@@ -134,6 +162,7 @@ public:
 		Render(render),
 		m_Background(nullptr),
 		m_BackgroundVert(nullptr),
+		m_Sprite(nullptr),
 		Orthogonal(std::make_shared<Standard_Matrix>()),
 		View(std::make_shared<Standard_Matrix>()),
 		Projection(std::make_shared<Standard_Matrix>()),
@@ -141,20 +170,27 @@ public:
 		m_FOV(0x6DD4 >> 7),
 		m_Eye{ -16000, -7200, -16000 },
 		m_At{ 0, 7200, 0 },
-		m_OrthoWidth(320.0f),
-		m_OrthoHeight(240.0f),
+		m_ModelFOV(0x6DD4 >> 7),
+		m_ModelEye{ 5400, -1800, 0 },
+		m_ModelAt{ 0, -1800 , 0 },
+		m_OrthoWidth(m_NativeWidth),
+		m_OrthoHeight(m_NativeHeight),
+		m_OrthoScaleX(m_OrthoWidth / m_NativeWidth),
+		m_OrthoScaleY(m_OrthoHeight / m_NativeHeight),
 		b_HorzFlipTex(false),
 		b_VertFlipTex(false),
 		m_Path(),
-		m_Cut(0),
-		m_CutMax(0),
-		b_ViewBackground(false),
+		b_ViewBackground(true),
 		m_TexWidth(0.0f),
 		m_TexHeight(0.0f),
+		b_ViewSprite(true),
+		m_TexSprWidth(0.0f),
+		m_TexSprHeight(0.0f),
 		b_ViewTopDown(false),
 		m_Cx(0.0f),
 		m_Cy(50.0f),
 		m_Cz(0.0f),
+		b_DrawLine(true),
 		b_DrawSwitch(true),
 		b_ViewModelEdit(false) {}
 #else
@@ -173,7 +209,7 @@ public:
 	void Reset(void);
 
 	// Set Meta Data
-	void SetMeta(std::filesystem::path _Path, std::uint8_t _Stage, std::uint8_t _Room, std::uint8_t CutMax) noexcept;
+	void SetMeta(std::filesystem::path _Path, std::uint8_t _Stage, std::uint8_t _Room, std::uint8_t _CutMax) noexcept;
 
 	// Set Orthographic Projection Matrix
 	void SetOrtho(float Width, float Height);

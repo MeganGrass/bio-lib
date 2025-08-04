@@ -1,7 +1,7 @@
 /*
 *
 *	Megan Grass
-*	March 07, 2024
+*	March 30, 2024
 *
 */
 
@@ -66,7 +66,9 @@ public:
 		Game(Video_Game::Resident_Evil),
 		Stage(0),
 		Room(0),
-		Disk(0)
+		Disk(0),
+		Cut(0),
+		CutMax(0)
 	{}
 
 	virtual ~Resident_Evil_Common(void) = default;
@@ -91,6 +93,12 @@ public:
 
 	// RDT File Disk ID
 	uint8_t Disk;
+
+	// RDT Camera ID
+	uint8_t Cut;
+
+	// RDT Camera Max Count
+	uint8_t CutMax;
 
 	// Resident Evil Video Game
 	std::uint32_t GameType(void) const { return std::to_underlying(Game); }

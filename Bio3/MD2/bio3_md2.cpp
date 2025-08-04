@@ -25,6 +25,8 @@ std::uintmax_t Resident_Evil_3_MD2::Open(StdFile& File, std::uintmax_t _Ptr)
 	Resident_Evil_3_Model_Header Header{};
 	File.Read(_Ptr, &Header, sizeof(Resident_Evil_3_Model_Header));
 
+	if (!Header.Size || !Header.nObject) { return _Ptr; }
+
 	std::vector<Resident_Evil_3_Model_Index> Index(Header.nObject);
 	File.Read(_Ptr + sizeof(Resident_Evil_3_Model_Header), Index.data(), Index.size() * sizeof(Resident_Evil_3_Model_Index));
 
@@ -192,6 +194,8 @@ bool Resident_Evil_3_MD2::SaveAllObjects(std::filesystem::path Directory, std::f
 std::unique_ptr<Sony_PlayStation_Model> Resident_Evil_3_MD2::GetTMD(void)
 {
 	std::unique_ptr<Sony_PlayStation_Model> Tmd = std::make_unique<Sony_PlayStation_Model>();
+
+	if (Object.empty()) { return Tmd; }
 
 	TMD_P_TG3 PolyGT3{};
 	TMD_P_TG4 PolyGT4{};

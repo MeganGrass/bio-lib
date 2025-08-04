@@ -11,6 +11,11 @@
 
 #include <bio_disk.h>
 
+#ifndef _DEBUG
+extern int dumpsxiso(char* commandline);
+extern int mkpsxiso(char* commandline);
+#endif
+
 
 void Capcom_Disk::PrintHelp(void)
 {

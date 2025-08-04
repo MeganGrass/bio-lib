@@ -7,8 +7,6 @@
 *	TODO: 
 *	
 *	support for effect sprites
-* 
-*	support for model animations
 *
 */
 
@@ -343,6 +341,12 @@ bool Resident_Evil_2_RDT::Open(std::filesystem::path Path, std::uintmax_t _Ptr)
 		if (Header.pEdt) { Edt0->Open(File, 48, Header.pEdt); }
 		if (Header.pVh) { Vab0->OpenVH(File, Header.pVh); }
 		if (Header.pVb) { Vab0->OpenVB(File, Header.pVb); }
+	}
+
+	// Animation
+	if (Header.pRbj && Header.pRbj != 0xFFFFFFFF)
+	{
+		Rbj->OpenRBJ(File, Header.pRbj);
 	}
 
 	// Flag

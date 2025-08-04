@@ -3,9 +3,6 @@
 *	Megan Grass
 *	April 20, 2024
 *
-*
-*	TODO:
-*
 */
 
 
@@ -31,19 +28,19 @@ struct Resident_Evil_2_PRI_Layer
 struct Resident_Evil_2_PRI_Square
 {
 	std::uint8_t u, v;			// Texture UV
-	std::int8_t x, y;			// Screen XY
+	std::uint8_t x, y;			// Screen XY
 	std::uint16_t otz;			// Z-Depth
-	std::int16_t size;			// Texture Width and Height
+	std::uint16_t size;			// Texture Width and Height
 };
 
 
 struct Resident_Evil_2_PRI_Rect
 {
 	std::uint8_t u, v;			// Texture UV
-	std::int8_t x, y;			// Screen XY
+	std::uint8_t x, y;			// Screen XY
 	std::uint16_t otz;			// Z-Depth
-	std::uint16_t tPage;		// Texture Page (Always zero, unless Bio2 Nov96)
-	std::int16_t w, h;			// Texture Width and Height
+	std::uint16_t tpage;		// Texture Page (always zero, unless Bio2 Nov96)
+	std::uint16_t w, h;			// Texture Width and Height
 };
 
 
@@ -65,114 +62,83 @@ private:
 
 public:
 
-	/*
-		Construction
-	*/
-	explicit Resident_Evil_2_PRI(void)
-	{
-	}
+	explicit Resident_Evil_2_PRI(void) {}
 
-	/*
-		Deconstruction
-	*/
-	~Resident_Evil_2_PRI(void)
-	{
-		Close();
-	}
+	~Resident_Evil_2_PRI(void) = default;
 
-	/*
-		Get data count
-	*/
+	// Get data count
 	std::size_t Count(void) const { return Data.size(); }
 
-	/*
-		Get data element
-	*/
+	// Get data element
 	Resident_Evil_2_PRI_Data* Get(const std::size_t& iElement) { return &Data[iElement]; }
 
-	/*
-		Push back empty element
-	*/
+	// Push back empty element
 	void New(void) { Data.push_back(Resident_Evil_2_PRI_Data()); }
 
-	/*
-		Push back element from buffer
-	*/
+	// Push back element from buffer
 	void Add(Resident_Evil_2_PRI_Data& Input) { Data.push_back(Input); }
 
-	/*
-		Copy element to buffer
-	*/
+	// Copy element to buffer
 	void Copy(std::size_t iEntry, Resident_Evil_2_PRI_Data& Output) { Output = Data[iEntry]; }
 
-	/*
-		Paste element from buffer
-	*/
+	// Paste element from buffer
 	void Paste(std::size_t iEntry, Resident_Evil_2_PRI_Data& Input) { Data[iEntry] = Input; }
 
-	/*
-		Insert element
-	*/
+	// Insert element
 	void Insert(std::size_t iEntry, Resident_Evil_2_PRI_Data& Input) { Data.insert(Data.begin() + iEntry, Input); }
 
-	/*
-		Delete element
-	*/
+	// Delete element
 	void Delete(std::size_t iEntry) { Data.erase(Data.begin() + iEntry); }
 
-	/*
-		Push back empty element
-	*/
+	// Push back empty element
 	void NewSprite(std::size_t iEntry) { Data[iEntry].Sprite.push_back(Resident_Evil_2_PRI_Rect()); }
 
-	/*
-		Push back element from buffer
-	*/
+	// Push back element from buffer
 	void AddSprite(std::size_t iEntry, Resident_Evil_2_PRI_Rect& Input) { Data[iEntry].Sprite.push_back(Input); }
 
-	/*
-		Copy element to buffer
-	*/
+	// Copy element to buffer
 	void CopySprite(std::size_t iEntry, std::size_t iSprite, Resident_Evil_2_PRI_Rect& Output) { Output = Data[iEntry].Sprite[iSprite]; }
 
-	/*
-		Paste element from buffer
-	*/
+	// Paste element from buffer
 	void PasteSprite(std::size_t iEntry, std::size_t iSprite, Resident_Evil_2_PRI_Rect& Input) { Data[iEntry].Sprite[iSprite] = Input; }
 
-	/*
-		Insert element
-	*/
+	// Insert element
 	void InsertSprite(std::size_t iEntry, std::size_t iSprite, Resident_Evil_2_PRI_Rect& Input) { Data[iEntry].Sprite.insert(Data[iEntry].Sprite.begin() + iSprite, Input); }
 
-	/*
-		Delete element
-	*/
+	// Delete element
 	void DeleteSprite(std::size_t iEntry, std::size_t iSprite) { Data[iEntry].Sprite.erase(Data[iEntry].Sprite.begin() + iSprite); }
 
-	/*
-		Open
-	*/
+	// Open
 	std::uintmax_t Open(StdFile& File, std::uintmax_t _Ptr);
 
-	/*
-		Open
-	*/
-	bool Open(std::filesystem::path Path, std::uintmax_t _Ptr = 0);
+	// Open
+	bool Open(std::filesystem::path Path, std::uintmax_t _Ptr = 0)
+	{
+		StdFile m_File;
 
-	/*
-		Save
-	*/
+		m_File.SetPath(Path);
+
+		std::uintmax_t OldPtr = _Ptr;
+
+		_Ptr = Open(m_File, _Ptr);
+
+		return OldPtr != _Ptr;
+	}
+
+	// Save
 	std::uintmax_t Save(StdFile& File, std::uintmax_t _Ptr);
 
-	/*
-		Save
-	*/
+	// Save
 	bool Save(std::filesystem::path Path, std::uintmax_t _Ptr);
 
-	/*
-		Close
-	*/
-	void Close(void);
+	// Close
+	void Close(void)
+	{
+		for (auto& Element : Data)
+		{
+			Element.Sprite.clear();
+		}
+		Data.clear();
+	}
 
 };
