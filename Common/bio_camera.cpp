@@ -8,6 +8,7 @@
 
 #include <bio_camera.h>
 
+
 void Resident_Evil_Camera::Shutdown(void) noexcept
 {
 	b_ViewBackground = false;
@@ -120,11 +121,17 @@ std::vector<vec4t> Resident_Evil_Camera::GetImageVert(void) const
 {
 	std::vector<vec4t> Vert(4);
 
-	// adjust for direct-x 9 half texel
+#if MSTD_DX9
 	float l = -0.5f;
 	float r = (m_OrthoWidth - 0.5f);
 	float t = 0.5f;
 	float b = (m_OrthoHeight + 0.5f);
+#else
+	float l = 0.0f;
+	float r = m_OrthoWidth;
+	float t = 0.0f;
+	float b = m_OrthoHeight;
+#endif
 	
 	if (b_HorzFlipTex) std::swap(l, r);
 	if (b_VertFlipTex) std::swap(t, b);

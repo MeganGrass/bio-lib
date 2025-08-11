@@ -19,6 +19,14 @@
 
 class Resident_Evil_Camera final :
 	private Resident_Evil_Common {
+public:
+
+	// Sony PlayStation (1994) Native Screen Resolution
+	constexpr static float m_NativeWidth = 320.0f, m_NativeHeight = 240.0f;
+
+	// Sony PlayStation (1994) Geometry Transformation Engine
+	std::shared_ptr<Sony_PlayStation_GTE> GTE;
+
 private:
 
 	// Set View and Projection Matrix (GTE)
@@ -35,10 +43,10 @@ private:
 	Standard_FileSystem FS;
 
 	struct PROJECTION {
-		constexpr static float Left = -160.0f;
-		constexpr static float Right = 160.0f;
-		constexpr static float Top = 120.0f;
-		constexpr static float Bottom = -120.0f;
+		constexpr static float Left = -(m_NativeWidth * 0.5f);
+		constexpr static float Right = (m_NativeWidth * 0.5f);
+		constexpr static float Top = (m_NativeHeight * 0.5f);
+		constexpr static float Bottom = -(m_NativeHeight * 0.5f);
 		constexpr static float Near = 1.0f;
 		constexpr static float Far = 4096.0f;
 		float FovY;
@@ -50,8 +58,8 @@ private:
 		float OffsetY;
 		float OffsetZ;
 		explicit PROJECTION(void) :
-			FovY(2.0f * std::atan(120.0f / 0xDB)),
-			FovX(2.0f * std::atan(160.0f / 0xDB)),
+			FovY(2.0f * std::atan((m_NativeHeight * 0.5f) / 0xDB)),
+			FovX(2.0f * std::atan((m_NativeWidth * 0.5f) / 0xDB)),
 			ScaleX(1.0f / std::tan(FovX / 2.0f)),
 			ScaleY(1.0f / std::tan(FovY / 2.0f)),
 			ScaleZ(Far / (Near - Far)),
@@ -59,8 +67,8 @@ private:
 			OffsetY((Top + Bottom) / (Top - Bottom)),
 			OffsetZ(Near * Far / (Near - Far)) {}
 		explicit PROJECTION(std::uint32_t FOV) :
-			FovY(2.0f * std::atan(120.0f / FOV)),
-			FovX(2.0f * std::atan(160.0f / FOV)),
+			FovY(2.0f * std::atan((m_NativeHeight * 0.5f) / FOV)),
+			FovX(2.0f * std::atan((m_NativeWidth * 0.5f) / FOV)),
 			ScaleX(1.0f / std::tan(FovX / 2.0f)),
 			ScaleY(1.0f / std::tan(FovY / 2.0f)),
 			ScaleZ(Far / (Near - Far)),
@@ -69,15 +77,23 @@ private:
 			OffsetZ(Near * Far / (Near - Far)) {}
 	};
 
+	struct PRISM {
+
+		vec3 Shape[8];
+
+		explicit PRISM(std::shared_ptr<Sony_PlayStation_GTE> GTE, std::int16_t Xz[4][2], std::int32_t Low, std::int32_t High)
+		{
+			for (std::int32_t i = 0; i < 4; ++i)
+			{
+				Shape[i + 0] = vec3(GTE->ToFloat(Xz[i][0]), GTE->ToFloat(Low), GTE->ToFloat(Xz[i][1]));
+				Shape[i + 4] = vec3(GTE->ToFloat(Xz[i][0]), GTE->ToFloat(High), GTE->ToFloat(Xz[i][1]));
+			}
+		}
+	};
+
 public:
 
 	Standard_String Str;
-
-	// Sony PlayStation (1994) Native Screen Resolution
-	constexpr static float m_NativeWidth = 320.0f, m_NativeHeight = 240.0f;
-
-	// Sony PlayStation (1994) Geometry Transformation Engine
-	std::shared_ptr<Sony_PlayStation_GTE> GTE;
 
 	// Matrix
 	std::shared_ptr<Standard_Matrix> Orthogonal, View, Projection, World;

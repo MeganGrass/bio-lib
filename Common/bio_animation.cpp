@@ -661,17 +661,18 @@ bool Resident_Evil_Animation::OpenRBJ(StdFile& File, std::uintmax_t _Ptr)
 
 	for (size_t i = 0, x = 0; i < Data.size(); i++, x += 2)
 	{
-		Data[i].Str.hWnd = Str.hWnd;
-		Data[i].Game = Game;
-		Data[i].m_Type = m_Type;
+		Data[i] = std::make_shared<Resident_Evil_Animation>();
+		Data[i]->Str.hWnd = Str.hWnd;
+		Data[i]->Game = Game;
+		Data[i]->m_Type = m_Type;
 
 		if (!Pointer[x + 0] || Pointer[x + 0] == 0xFFFFFFFF) { continue; }
 		if (!Pointer[x + 1] || Pointer[x + 1] == 0xFFFFFFFF) { continue; }
 
-		File.Read(_Ptr + Pointer[x], &Data[i].EntityList, sizeof(Entity));
+		File.Read(_Ptr + Pointer[x], &Data[i]->EntityList, sizeof(Entity));
 
-		Data[i].OpenEDD(File, _Ptr + Pointer[x + 1]);
-		Data[i].OpenEMR(File, _Ptr + Pointer[x + 0] + sizeof(Entity));
+		Data[i]->OpenEDD(File, _Ptr + Pointer[x + 1]);
+		Data[i]->OpenEMR(File, _Ptr + Pointer[x + 0] + sizeof(Entity));
 	}
 
 	return true;

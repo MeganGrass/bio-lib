@@ -43,6 +43,20 @@ std::vector<std::uint32_t> Resident_Evil_Model::GetDataPtr(StdFile& File, std::u
 	return Pointer;
 }
 
+SHAPEVECTOR Resident_Evil_Model::HitboxShape(void) noexcept
+{
+	if (b_EditorMode)
+	{
+		int32_t Height = -(std::abs(EditorPosition().y) + std::abs(Hitbox().h));
+		return { EditorPosition().x - Hitbox().w, EditorPosition().y, EditorPosition().z - Hitbox().d, Hitbox().w * 2, Height, Hitbox().d * 2 };
+	}
+	else
+	{
+		int32_t Height = -(std::abs(Position().y) + std::abs(Hitbox().h));
+		return { Position().x - Hitbox().w, Position().y, Position().z - Hitbox().d, Hitbox().w * 2, Height, Hitbox().d * 2 };
+	}
+}
+
 void Resident_Evil_Model::SetWorld(const MATVECTOR& Vec) const
 {
 	float XX = GTE->ToFloat(Vec.x);
@@ -171,23 +185,26 @@ bool Resident_Evil_Model::OpenObject(std::filesystem::path Path, std::uintmax_t 
 {
 	if (m_Model) { m_Model->Close(); }
 
+	m_Filename = Path;
+
 	String Extension = Path.extension().string();
 
 	if (Standard_String().ToUpper(Extension) == ".TMD") { m_Model->Open(Path, _Ptr); }
 	if (Standard_String().ToUpper(Extension) == ".MD1") { m_Model = Resident_Evil_2_MD1(Str.hWnd, Path, _Ptr).GetTMD(); }
 	if (Standard_String().ToUpper(Extension) == ".MD2") { m_Model = Resident_Evil_3_MD2(Str.hWnd, Path, _Ptr).GetTMD(); }
 
-#if MSTD_DX9
 	if (!m_Texture->IsOpen())
 	{
 		Standard_FileSystem().SetFileExtension(Path, L".tim");
 		if (Standard_FileSystem().Exists(Path)) { m_Texture->OpenTIM(Path); }
 	}
+
+#if MSTD_DX9
 	if (m_Texture->IsOpen())
 	{
 		CloseModelDX9();
 
-		std::unique_ptr<FIXED_MODEL> Temp = m_Model->Export(m_Texture->GetWidth(), m_Texture->GetHeight());
+		std::unique_ptr<FIXED_MODEL> Temp = m_Model->Export(m_Texture->GetWidth(), m_Texture->GetHeight(), true);
 		m_DX9Model = ExportDX9(Temp, m_Texture);
 	}
 	else
@@ -200,6 +217,8 @@ bool Resident_Evil_Model::OpenObject(std::filesystem::path Path, std::uintmax_t 
 		m_DX9Model = ExportDX9(Temp, DummyTexture);
 	}
 #endif
+
+	iObjectMax = m_Model->ObjectCount() ? m_Model->ObjectCount() - 1 : 0;
 
 	return m_Model->IsOpen();
 }
@@ -214,6 +233,8 @@ bool Resident_Evil_Model::OpenPlayer(std::filesystem::path Path, std::uintmax_t 
 	}
 
 	Close();
+
+	m_Filename = Path;
 
 	std::vector<std::uint32_t> Pointer = GetDataPtr(m_File, _Ptr);
 
@@ -266,9 +287,11 @@ bool Resident_Evil_Model::OpenPlayer(std::filesystem::path Path, std::uintmax_t 
 	if (Animation(NORMAL)->IsOpen()) { Animation(NORMAL)->CreateSkeleton(); }
 
 #if MSTD_DX9
-	std::unique_ptr<FIXED_MODEL> Temp = m_Model->Export(m_Texture->GetWidth(), m_Texture->GetHeight());
+	std::unique_ptr<FIXED_MODEL> Temp = m_Model->Export(m_Texture->GetWidth(), m_Texture->GetHeight(), true);
 	m_DX9Model = ExportDX9(Temp, m_Texture);
 #endif
+
+	iObjectMax = m_Model->ObjectCount() ? m_Model->ObjectCount() - 1 : 0;
 
 	return true;
 }
@@ -283,6 +306,8 @@ bool Resident_Evil_Model::OpenEnemy(std::filesystem::path Path, std::uintmax_t _
 	}
 
 	Close();
+
+	m_Filename = Path;
 
 	std::vector<std::uint32_t> Pointer = GetDataPtr(m_File, _Ptr);
 
@@ -394,21 +419,29 @@ bool Resident_Evil_Model::OpenEnemy(std::filesystem::path Path, std::uintmax_t _
 	}
 
 #if MSTD_DX9
-	std::unique_ptr<FIXED_MODEL> Temp = m_Model->Export(m_Texture->GetWidth(), m_Texture->GetHeight());
+	std::unique_ptr<FIXED_MODEL> Temp = m_Model->Export(m_Texture->GetWidth(), m_Texture->GetHeight(), true);
 	m_DX9Model = ExportDX9(Temp, m_Texture);
 
 	if (GameType() & BIO3)
 	{
-		std::unique_ptr<FIXED_MODEL> Temp = m_WeaponModel->Export(m_Texture->GetWidth(), m_Texture->GetHeight());
+		std::unique_ptr<FIXED_MODEL> Temp = m_WeaponModel->Export(m_Texture->GetWidth(), m_Texture->GetHeight(), true);
 		m_DX9WeaponModel = ExportDX9(Temp, m_Texture);
 	}
 #endif
+
+	iObjectMax = m_Model->ObjectCount() ? m_Model->ObjectCount() - 1 : 0;
 
 	return true;
 }
 
 bool Resident_Evil_Model::OpenWeapon(std::filesystem::path Path, std::uintmax_t _Ptr)
 {
+	if (!m_Model->ObjectCount())
+	{
+		Str.Message(L"Resident Evil Model Error: cannot open weapon without player model");
+		return false;
+	}
+
 	StdFile m_File{ Path, FileAccessMode::Read, true, false };
 	if (!m_File.IsOpen())
 	{
@@ -417,6 +450,8 @@ bool Resident_Evil_Model::OpenWeapon(std::filesystem::path Path, std::uintmax_t 
 	}
 
 	CloseWeapon();
+
+	m_WeaponFilename = Path;
 
 	std::vector<std::uint32_t> Pointer = GetDataPtr(m_File, _Ptr);
 
@@ -467,17 +502,46 @@ bool Resident_Evil_Model::OpenWeapon(std::filesystem::path Path, std::uintmax_t 
 	if (Animation(WEAPON_EX1)->IsOpen()) { Animation(WEAPON_EX1)->CreateSkeleton(); }
 
 #if MSTD_DX9
+	if (GameType() & (BIO2NOV96 | BIO2TRIAL | BIO2 | BIO3))
+	{
+		bool b_TerminateDraw = b_Active;
+
+		b_Active = false;
+
+		while (b_Drawing) { std::this_thread::sleep_for(std::chrono::milliseconds(100)); }
+
+		IDirect3DTexture9* Temp = Render->BlitTexture(
+			Render->CreateTexture(m_WeaponTexture, 0, Sony_Texture_Transparency::Superblack, 0xFF00FF, true),
+			Render->CreateTexture(m_Texture, 1, Sony_Texture_Transparency::Superblack, 0xFF00FF, true),
+			m_WeaponTexture->GetWidth(), m_WeaponTexture->GetHeight(), 200, 224, false);
+
+		m_DX9Model->Texture[1].reset(Temp);
+
+		b_Active = b_TerminateDraw;
+	}
+
+	std::unique_ptr<FIXED_MODEL> Temp = m_WeaponModel->Export(m_Texture->GetWidth(), m_Texture->GetHeight(), true);
+	m_DX9WeaponModel = ExportDX9(Temp, m_Texture);
+#endif
+
 	if (GameType() & (AUG95 | OCT95 | BIO1))
 	{
-		std::unique_ptr<FIXED_MODEL> Temp = m_WeaponModel->Export(m_Texture->GetWidth(), m_Texture->GetHeight());
-		m_DX9WeaponModel = ExportDX9(Temp, m_Texture);
+		iWeaponObject = 14;
 	}
-	else
+	else if (GameType() & (BIO2NOV96 | BIO2TRIAL | BIO2))
 	{
-		std::unique_ptr<FIXED_MODEL> Temp = m_WeaponModel->Export(m_WeaponTexture->GetWidth(), m_WeaponTexture->GetHeight());
-		m_DX9WeaponModel = ExportDX9(Temp, m_WeaponTexture);
+		iWeaponObject = 11;
 	}
-#endif
+	else if (GameType() & BIO3)
+	{
+		iWeaponObject = 4;
+	}
+
+	iWeaponObjectMax = m_Model->ObjectCount() ? m_Model->ObjectCount() - 1 : 0;
+
+	iWeaponObject = std::clamp(iWeaponObject, (size_t)0, iObjectMax);
+
+	b_DrawWeapon = true;
 
 	return true;
 }
@@ -505,7 +569,7 @@ bool Resident_Evil_Model::OpenTexture(std::filesystem::path Path, std::uintmax_t
 	{
 		CloseModelDX9();
 
-		std::unique_ptr<FIXED_MODEL> Temp = m_Model->Export(m_Texture->GetWidth(), m_Texture->GetHeight());
+		std::unique_ptr<FIXED_MODEL> Temp = m_Model->Export(m_Texture->GetWidth(), m_Texture->GetHeight(), true);
 		m_DX9Model = ExportDX9(Temp, m_Texture);
 	}
 #endif
@@ -536,7 +600,7 @@ bool Resident_Evil_Model::OpenWeaponTexture(std::filesystem::path Path, std::uin
 	{
 		CloseWeaponDX9();
 
-		std::unique_ptr<FIXED_MODEL> Temp = m_WeaponModel->Export(m_WeaponTexture->GetWidth(), m_WeaponTexture->GetHeight());
+		std::unique_ptr<FIXED_MODEL> Temp = m_WeaponModel->Export(m_WeaponTexture->GetWidth(), m_WeaponTexture->GetHeight(), true);
 		m_DX9WeaponModel = ExportDX9(Temp, m_WeaponTexture);
 	}
 #endif
@@ -544,8 +608,38 @@ bool Resident_Evil_Model::OpenWeaponTexture(std::filesystem::path Path, std::uin
 	return b_Open;
 }
 
+void Resident_Evil_Model::SetRoomAnimations(std::shared_ptr<Resident_Evil_Animation>& Rbj)
+{
+	if (Rbj && !Rbj->Data.empty())
+	{
+		iRoom = 0;
+		iRoomMax = Rbj->Data.size() - 1;
+		for (size_t i = 0; i < Rbj->Data.size(); i++)
+		{
+			Rbj->Data[i]->Skeleton = Animation(NORMAL)->Skeleton->Clone();
+		}
+		Animation(ROOM) = Rbj->Data[0];
+	}
+	else
+	{
+		CloseRoom();
+	}
+}
+
 void Resident_Evil_Model::CloseModel(void)
 {
+	m_Filename.clear();
+
+	b_DrawWeapon = false;
+
+	iObject = 0;
+	iObjectMin = 0;
+	iObjectMax = 0;
+
+	iRoom = 0;
+	iRoomMin = 0;
+	iRoomMax = 0;
+
 	if (m_Texture) { m_Texture->Close(); }
 	if (m_Model) { m_Model->Close(); }
 
@@ -553,7 +647,10 @@ void Resident_Evil_Model::CloseModel(void)
 	m_Binary01.clear();
 	m_WeaponBinary.clear();
 
-	for (auto& Animation : m_Animations) { Animation->Close(); }
+	for (auto& Animation : m_Animations)
+	{
+		if (Animation->GetType() == AnimationIndex::Room) { continue; }
+		Animation->Close(); }
 
 	m_Model->IgnoreMagic(true);
 
@@ -564,6 +661,12 @@ void Resident_Evil_Model::CloseModel(void)
 
 void Resident_Evil_Model::CloseWeapon(void)
 {
+	m_WeaponFilename.clear();
+
+	b_DrawWeapon = false;
+
+	iWeaponObjectMax = 0;
+
 	if (m_WeaponTexture) { m_WeaponTexture->Close(); }
 	if (m_WeaponModel) { m_WeaponModel->Close(); }
 
@@ -578,6 +681,14 @@ void Resident_Evil_Model::CloseWeapon(void)
 #if MSTD_DX9
 	CloseWeaponDX9();
 #endif
+}
+
+void Resident_Evil_Model::CloseRoom(void)
+{
+	iRoom = 0;
+	iRoomMin = 0;
+	iRoomMax = 0;
+	Animation(ROOM)->Close();
 }
 
 void Resident_Evil_Model::DrawFrame(std::shared_ptr<Resident_Evil_Animation> Animation, size_t iClip, size_t iFrame, bool b_DrawRoot)
@@ -637,15 +748,23 @@ void Resident_Evil_Model::DrawFrame(std::shared_ptr<Resident_Evil_Animation> Ani
 					const auto& Speed = Frame.Speed;
 					const auto& NextOrigin = NextFrame.Origin;
 					const auto& NextSpeed = NextFrame.Speed;
-					vec3 Position =
-					{
-						std::lerp(GTE->ToFloat(Origin.x) + GTE->ToFloat(Speed.x), GTE->ToFloat(NextOrigin.x) + GTE->ToFloat(NextSpeed.x), t),
-						std::lerp(GTE->ToFloat(Origin.y) + GTE->ToFloat(Speed.y), GTE->ToFloat(NextOrigin.y) + GTE->ToFloat(NextSpeed.y), t),
-						std::lerp(GTE->ToFloat(Origin.z) + GTE->ToFloat(Speed.z), GTE->ToFloat(NextOrigin.z) + GTE->ToFloat(NextSpeed.z), t)
-					};
-					Standard_Matrix T = Standard_Matrix().Translate(Position);
 
-					Skeleton->Local = T * Transform;
+					vec3 Position;
+					if (b_LockPosition)
+					{
+						Position = { 0.0f, GTE->ToFloat(Origin.y), 0.0f };
+					}
+					else
+					{
+						Position =
+						{
+							std::lerp(GTE->ToFloat(Origin.x) + GTE->ToFloat(Speed.x), GTE->ToFloat(NextOrigin.x) + GTE->ToFloat(NextSpeed.x), t),
+							std::lerp(GTE->ToFloat(Origin.y) + GTE->ToFloat(Speed.y), GTE->ToFloat(NextOrigin.y) + GTE->ToFloat(NextSpeed.y), t),
+							std::lerp(GTE->ToFloat(Origin.z) + GTE->ToFloat(Speed.z), GTE->ToFloat(NextOrigin.z) + GTE->ToFloat(NextSpeed.z), t)
+						};
+					}
+
+					Skeleton->Local = Standard_Matrix().Translate(Position) * Transform;
 				}
 
 				Local = Matrix * Skeleton->Local;
@@ -657,18 +776,38 @@ void Resident_Evil_Model::DrawFrame(std::shared_ptr<Resident_Evil_Animation> Ani
 			if (Skeleton->ID < ModelDX9()->Object.size())
 			{
 				size_t i = Skeleton->ID;
-				for (size_t x = 0; x < ModelDX9()->Object[i].size(); x++)
-				{
-					size_t Texture = std::clamp(ModelDX9()->Object[i][x].iTexture, (size_t)0, ModelDX9()->Texture.empty() ? 0 : ModelDX9()->Texture.size() - 1);
 
-					Render->DrawVec3cnt(
-						ModelDX9()->Object[i][x].Data.get(),
-						nullptr,
-						b_DrawTextured ? ModelDX9()->Texture.empty() ? nullptr : ModelDX9()->Texture[Texture].get() : nullptr,
-						b_Dither ? Render->PS1DitherPixelShader.get() : Render->PassthroughPixelShader.get(),
-						ModelDX9()->TextureWidth, ModelDX9()->TextureHeight,
-						b_DrawWireframe ? D3DFILL_WIREFRAME : D3DFILL_SOLID, D3DPT_TRIANGLELIST
-					);
+				if (b_DrawWeapon && iWeaponObject == i && WeaponModelDX9() && !WeaponModelDX9()->Object.empty())
+				{
+					for (size_t x = 0; x < WeaponModelDX9()->Object[0].size(); x++)
+					{
+						size_t iTexture = std::clamp(WeaponModelDX9()->Object[0][x].iTexture, (size_t)0, WeaponModelDX9()->Texture.empty() ? 0 : WeaponModelDX9()->Texture.size() - 1);
+
+						Render->DrawVec3cnt(
+							WeaponModelDX9()->Object[0][x].Data.get(),
+							nullptr,
+							b_DrawTextured ? ModelDX9()->Texture.empty() ? nullptr : ModelDX9()->Texture[iTexture].get() : nullptr,
+							b_Dither ? Render->PS1DitherPixelShader.get() : Render->PassthroughPixelShader.get(),
+							ModelDX9()->TextureWidth, ModelDX9()->TextureHeight,
+							b_DrawWireframe ? D3DFILL_WIREFRAME : D3DFILL_SOLID, D3DPT_TRIANGLELIST
+						);
+					}
+				}
+				else
+				{
+					for (size_t x = 0; x < ModelDX9()->Object[i].size(); x++)
+					{
+						size_t iTexture = std::clamp(ModelDX9()->Object[i][x].iTexture, (size_t)0, ModelDX9()->Texture.empty() ? 0 : ModelDX9()->Texture.size() - 1);
+
+						Render->DrawVec3cnt(
+							ModelDX9()->Object[i][x].Data.get(),
+							nullptr,
+							b_DrawTextured ? ModelDX9()->Texture.empty() ? nullptr : ModelDX9()->Texture[iTexture].get() : nullptr,
+							b_Dither ? Render->PS1DitherPixelShader.get() : Render->PassthroughPixelShader.get(),
+							ModelDX9()->TextureWidth, ModelDX9()->TextureHeight,
+							b_DrawWireframe ? D3DFILL_WIREFRAME : D3DFILL_SOLID, D3DPT_TRIANGLELIST
+						);
+					}
 				}
 			}
 #endif
@@ -702,7 +841,9 @@ void Resident_Evil_Model::DrawFrame(std::shared_ptr<Resident_Evil_Animation> Ani
 	Render->TextureFiltering(m_TextureFilter);
 #endif
 
+	b_Drawing = true;
 	DrawKeyframe(Animation->Skeleton, *World);
+	b_Drawing = false;
 
 #if MSTD_DX9
 	Render->TextureFiltering(D3DTEXF_NONE);
@@ -713,6 +854,8 @@ void Resident_Evil_Model::DrawFrame(std::shared_ptr<Resident_Evil_Animation> Ani
 
 void Resident_Evil_Model::DrawObject(std::size_t iObject, bool b_DrawAll, bool DrawWeapon)
 {
+	b_Drawing = true;
+
 #if MSTD_DX9
 	auto& Model = DrawWeapon ? WeaponModelDX9() : ModelDX9();
 
@@ -735,6 +878,12 @@ void Resident_Evil_Model::DrawObject(std::size_t iObject, bool b_DrawAll, bool D
 
 	std::size_t nObjects = iObject + 1;
 
+	if (nObjects > Model->Object.size())
+	{
+		nObjects = Model->Object.size();
+		iObject = 0;
+	}
+
 	if (b_DrawAll)
 	{
 		iObject = 0;
@@ -752,11 +901,14 @@ void Resident_Evil_Model::DrawObject(std::size_t iObject, bool b_DrawAll, bool D
 	{
 		for (size_t x = 0; x < Model->Object[i].size(); x++)
 		{
-			size_t Texture = std::clamp(Model->Object[i][x].iTexture, (size_t)0, Model->Texture.empty() ? 0 : Model->Texture.size() - 1);
+			size_t iTexture = std::clamp(Model->Object[i][x].iTexture, (size_t)0, Model->Texture.empty() ? 0 : Model->Texture.size() - 1);
+			IDirect3DTexture9* Texture = DrawWeapon ? 
+				(b_DrawTextured ? ModelDX9()->Texture.empty() ? nullptr : ModelDX9()->Texture[iTexture].get() : nullptr) :
+				(b_DrawTextured ? Model->Texture.empty() ? nullptr : Model->Texture[iTexture].get() : nullptr);
 			Render->DrawVec3cnt(
 				Model->Object[i][x].Data.get(),
 				nullptr,
-				b_DrawTextured ? Model->Texture.empty() ? nullptr : Model->Texture[Texture].get() : nullptr,
+				Texture,
 				b_Dither ? Render->PS1DitherPixelShader.get() : Render->PassthroughPixelShader.get(),
 				Model->TextureWidth, Model->TextureHeight,
 				b_DrawWireframe ? D3DFILL_WIREFRAME : D3DFILL_SOLID, D3DPT_TRIANGLELIST
@@ -768,12 +920,22 @@ void Resident_Evil_Model::DrawObject(std::size_t iObject, bool b_DrawAll, bool D
 
 	Render->ResetWorld();
 #endif
+
+	b_Drawing = false;
 }
 
 void Resident_Evil_Model::Draw(void)
 {
+	if (!b_Active) { return; }
+
+	if (b_DrawAllObjects || b_DrawSingleObject)
+	{
+		DrawObject(iObject, b_DrawAllObjects, b_DrawWeapon);
+		return;
+	}
+
 	AnimationIndex Index = m_AnimationIndex;
-	bool b_DrawRoot = b_DrawRootOnly;
+	bool b_DrawRoot = b_DrawReference;
 
 	if (!Animation(Index)->IsOpen() || !Animation(Index)->Skeleton->IsOpen())
 	{

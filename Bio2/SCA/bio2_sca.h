@@ -16,10 +16,10 @@
 enum class Resident_Evil_2_Collision_Shape : std::uint16_t
 {
 	Box,									// Square/Rectangle
-	Naname_a,								// Right-Angled Triangle	// \| SouthEast
-	Naname_b,								// Right-Angled Triangle	// |/ SouthWest
-	Naname_c,								// Right-Angled Triangle	// /| NorthWest
-	Naname_d,								// Right-Angled Triangle	// |\ NorthEast
+	Naname_a,								// Right-Angled Triangle	/*  \|  */
+	Naname_b,								// Right-Angled Triangle	/*  |/  */
+	Naname_c,								// Right-Angled Triangle	/*  /|  */
+	Naname_d,								// Right-Angled Triangle	/*  |\  */
 	Hishi,									// Rhombus
 	Circle,									// Cylinder
 	Koban_x,								// Oblong Cylinder			// X-Axis
@@ -34,10 +34,10 @@ enum class Resident_Evil_2_Collision_Shape : std::uint16_t
 
 enum class Resident_Evil_2_Slope_Hypotenuse : std::uint16_t
 {
-	Type_A,									// Adjacent = EAST, Opposite = WEST
-	Type_B,									// Adjacent = WEST, Opposite = EAST
-	Type_C,									// Adjacent = NORTH, Opposite = SOUTH
-	Type_D,									// Adjacent = SOUTH, Opposite = NORTH
+	Type_A,									// Adjacent = WEST, Opposite = EAST
+	Type_B,									// Adjacent = EAST, Opposite = WEST
+	Type_C,									// Adjacent = SOUTH, Opposite = NORTH
+	Type_D,									// Adjacent = NORTH, Opposite = SOUTH
 };
 
 
@@ -132,16 +132,16 @@ struct Resident_Evil_2_SCA_Data
 											// Ignored when shape type is neither "Stair" or "Slope"
 											// 
 											// if "Axis" is 0 and "Hypotenuse" is 0:
-											//	Adjacent = EAST, Opposite = WEST
-											// 
-											// if "Axis" is 0 and "Hypotenuse" is 1:
 											//	Adjacent = WEST, Opposite = EAST
 											// 
+											// if "Axis" is 0 and "Hypotenuse" is 1:
+											//	Adjacent = EAST, Opposite = WEST
+											// 
 											// if "Axis" is 1 and "Hypotenuse" is 0:
-											//	Adjacent = NORTH, Opposite = SOUTH
+											//	Adjacent = SOUTH, Opposite = NORTH
 											// 
 											// if "Axis" is 1 and "Hypotenuse" is 1:
-											//	Adjacent = SOUTH, Opposite = NORTH
+											//	Adjacent = NORTH, Opposite = SOUTH
 
 			std::uint16_t Axis : 1;			// Stair & Slope Axis
 											// Determines if "Stair" and "Slope" shape types are accessible from either the X or Z axis
@@ -307,6 +307,11 @@ public:
 	void CalcCxCz(void);
 
 	/*
+		Get Shape Type
+	*/
+	Resident_Evil_2_Collision_Shape GetShapeType(std::size_t iCollision) { return Resident_Evil_2_Collision_Shape(Data[iCollision].Id.Bits.Shape); }
+
+	/*
 		Get Area
 	*/
 	std::uint32_t GetArea(std::int32_t X, std::int32_t Z, std::int32_t Sx, std::int32_t Sz);
@@ -340,5 +345,10 @@ public:
 		Set Floor
 	*/
 	std::uint32_t SetFloor(std::size_t iCollision, std::int32_t Bit);
+
+	/*
+		Get shape vector
+	*/
+	SHAPEVECTOR GetShapeVector(std::size_t iCollision);
 
 };

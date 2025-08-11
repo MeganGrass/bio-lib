@@ -123,12 +123,6 @@ bool Resident_Evil_2_RDT::Open(std::filesystem::path Path, std::uintmax_t _Ptr)
 
 	// Fail-Safe
 	{
-		if (Header.nCut > BIO2_CAMERA_MAX)
-		{
-			Str.Message("Resident Evil 2: Aborting RDT, abnormal number of cameras detected in %s", File.GetPath().filename().string().c_str());
-			return false;
-		}
-
 		std::uint32_t FileSize = static_cast<std::uint32_t>(File.Size());
 
 		if ((Header.pEdt > FileSize) ||

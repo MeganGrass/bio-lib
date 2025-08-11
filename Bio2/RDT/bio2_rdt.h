@@ -77,7 +77,7 @@ public:
 		Edt1(std::make_unique<Resident_Evil_2_EDT>()),
 		Vab0(std::make_unique<Sony_PlayStation_Soundbank>()),
 		Vab1(std::make_unique<Sony_PlayStation_Soundbank>()),
-		Rbj(std::make_unique<Resident_Evil_Animation>())
+		Rbj(std::make_shared<Resident_Evil_Animation>())
 	{
 		SetGame(Video_Game::Resident_Evil_2);
 		Rbj->SetGame(Video_Game::Resident_Evil_2);
@@ -138,7 +138,7 @@ public:
 	std::unique_ptr<Sony_PlayStation_Soundbank> Vab1;
 
 	// RBJ - Model Animation
-	std::unique_ptr<Resident_Evil_Animation> Rbj;
+	std::shared_ptr<Resident_Evil_Animation> Rbj;
 
 	// set window handle for message/debugging
 	void SetWindow(HWND hWnd)

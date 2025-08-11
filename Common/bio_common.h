@@ -14,26 +14,6 @@
 #include <std_text.h>
 
 
-#define BIO1_CAMERA_MAX		8
-#define BIO2_CAMERA_MAX		16
-#define BIO3_CAMERA_MAX		32
-
-
-#define BIO1_OMODEL_MAX		16
-#define BIO2_OMODEL_MAX		32
-#define BIO3_OMODEL_MAX		32
-
-
-#define BIO1_IMODEL_MAX		16
-#define BIO2_IMODEL_MAX		0
-#define BIO3_IMODEL_MAX		0
-
-
-#define BIO1_BLK_MAX		16
-#define BIO2_BLK_MAX		16
-#define BIO3_BLK_MAX		32
-
-
 enum class Video_Game : std::uint32_t
 {
 	Resident_Evil_Aug_4_1995 = (1 << 0),

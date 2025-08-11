@@ -2,11 +2,16 @@
 *
 *	Megan Grass
 *	June 28, 2025
+* 
+*	CREDIT:
+*
+*		Collision: https://github.com/XProger/OpenResident/blob/main/src/collision.h
 *
 */
 
 
 #include <bio_geometry.h>
+
 
 void Resident_Evil_Geometry::Init(void)
 {
@@ -63,6 +68,7 @@ void Resident_Evil_Geometry::DrawShape(const DRAWSHAPE& Shape) const
 		Render->Device()->GetRenderState(D3DRS_CULLMODE, &CullMode);
 		Render->Device()->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
 		Render->AlphaBlending(TRUE, D3DBLEND_INVDESTCOLOR, D3DBLEND_INVSRCALPHA);
+		Render->AlphaTesting(TRUE, 0xFF, D3DCMP_GREATEREQUAL);
 	}
 
 	std::unique_ptr<IDirect3DVertexBuffer9, IDirect3DDelete9<IDirect3DVertexBuffer9>> Vertices;
@@ -80,15 +86,16 @@ void Resident_Evil_Geometry::DrawShape(const DRAWSHAPE& Shape) const
 	{
 		Render->Device()->SetRenderState(D3DRS_CULLMODE, CullMode);
 		Render->AlphaBlending(FALSE, D3DBLEND_ZERO, D3DBLEND_ZERO);
+		Render->AlphaTesting(FALSE, 0x00, D3DCMP_NEVER);
 	}
 #endif
 }
 
-std::shared_ptr<Standard_Matrix> Resident_Evil_Geometry::SetWorldMatrix(const SHAPEVECTOR& Vec, const SVECTOR2& Rotation, const vec3& Centroid) const
+std::shared_ptr<Standard_Matrix> Resident_Evil_Geometry::SetWorldMatrix(const SHAPEVECTOR& Vec, const VECTOR2& Rotation, const vec3& Centroid) const
 {
-	float RX = GTE->ToFloat(std::clamp(Rotation.x, (std::int16_t)-ONE, (std::int16_t)ONE)) * 360.0f;
-	float RY = GTE->ToFloat(std::clamp(Rotation.y, (std::int16_t)-ONE, (std::int16_t)ONE)) * 360.0f;
-	float RZ = GTE->ToFloat(std::clamp(Rotation.z, (std::int16_t)-ONE, (std::int16_t)ONE)) * 360.0f;
+	float RX = GTE->ToFloat(std::clamp(Rotation.x, -ONE, ONE)) * 360.0f;
+	float RY = GTE->ToFloat(std::clamp(Rotation.y, -ONE, ONE)) * 360.0f;
+	float RZ = GTE->ToFloat(std::clamp(Rotation.z, -ONE, ONE)) * 360.0f;
 
 	Standard_Matrix Neg = Standard_Matrix().Translate(-Centroid);
 	Standard_Matrix Pos = Standard_Matrix().Translate(Centroid);
@@ -119,135 +126,127 @@ void Resident_Evil_Geometry::Draw4p(const std::int16_t Xz[4][2], std::int32_t Y,
 	DrawShape({ World, false, Shape, Color, false, Indices4p.get(), nullptr});
 }
 
-void Resident_Evil_Geometry::DrawBox(SHAPEVECTOR Vec, SVECTOR2 Rotation, DWORD Color, bool Solid) const
+void Resident_Evil_Geometry::DrawBox(SHAPEVECTOR Vec, VECTOR2 Rotation, DWORD Color, bool Solid) const
 {
 	float WW = GTE->ToFloat(Vec.w);
 	float DD = GTE->ToFloat(Vec.d);
-	float Low = GTE->ToFloat(Vec.y);
-	float High = Low + GTE->ToFloat(Vec.h);
+	float Height = -GTE->ToFloat(std::abs(Vec.h) - std::abs(Vec.y));
 
 	std::vector<vec3> Shape = {
-		vec3{ 0.0f, Low, 0.0f },
-		vec3{ WW, Low, 0.0f },
-		vec3{ WW, High, 0.0f },
-		vec3{ 0.0f, High, 0.0f },
-		vec3{ 0.0f, Low, DD },
-		vec3{ WW, Low, DD },
-		vec3{ WW, High, DD },
-		vec3{ 0.0f, High, DD } };
+		vec3{ 0.0f, 0.0f, 0.0f },
+		vec3{ WW, 0.0f, 0.0f },
+		vec3{ WW, Height, 0.0f },
+		vec3{ 0.0f, Height, 0.0f },
+		vec3{ 0.0f, 0.0f, DD },
+		vec3{ WW, 0.0f, DD },
+		vec3{ WW, Height, DD },
+		vec3{ 0.0f, Height, DD } };
 
 	DrawShape({ SetWorldMatrix(Vec, Rotation, World->Centroid(Shape)), true, Shape, Color, Solid, IndicesBoxWire.get(), IndicesBox.get() });
 }
 
-void Resident_Evil_Geometry::DrawTriangle(SHAPEVECTOR Vec, SVECTOR2 Rotation, DWORD Color, bool Solid, Resident_Evil_Triangle_Type Type) const
+void Resident_Evil_Geometry::DrawTriangle(SHAPEVECTOR Vec, VECTOR2 Rotation, DWORD Color, bool Solid, Shape_Type Type) const
 {
 	float WW = GTE->ToFloat(Vec.w);
 	float DD = GTE->ToFloat(Vec.d);
-	float Low = GTE->ToFloat(Vec.y);
-	float High = Low + GTE->ToFloat(Vec.h);
-	float SlopeHigh = Low + GTE->ToFloat(-1800);
-
-	if (std::to_underlying(Type) & std::to_underlying(Resident_Evil_Triangle_Type::Stairs)) { SlopeHigh = High; }
-
-	Type = static_cast<Resident_Evil_Triangle_Type>(std::to_underlying(Type) & ~std::to_underlying(Resident_Evil_Triangle_Type::Stairs));
+	float Height = -GTE->ToFloat(std::abs(Vec.h) - std::abs(Vec.y));
 
 	std::vector<vec3> Shape;
 
 	switch (Type)
 	{
-		case Resident_Evil_Triangle_Type::Naname_A:
+		case Shape_Type::Triangle_A:
 			Shape = {
-				vec3{ 0.0f, Low, DD },
-				vec3{ WW, Low, DD },
-				vec3{ WW, Low, 0.0f },
-				vec3{ 0.0f, High, DD },
-				vec3{ WW, High, DD },
-				vec3{ WW, High, 0.0f } };
+				vec3{ 0.0f, 0.0f, DD },
+				vec3{ WW, 0.0f, DD },
+				vec3{ WW, 0.0f, 0.0f },
+				vec3{ 0.0f, Height, DD },
+				vec3{ WW, Height, DD },
+				vec3{ WW, Height, 0.0f } };
 			break;
-		case Resident_Evil_Triangle_Type::Naname_B:
+		case Shape_Type::Triangle_B:
 			Shape = {
-				vec3{ 0.0f, Low, 0.0f },
-				vec3{ 0.0f, Low, DD },
-				vec3{ WW, Low, DD },
-				vec3{ 0.0f, High, 0.0f },
-				vec3{ 0.0f, High, DD },
-				vec3{ WW, High, DD } };
+				vec3{ 0.0f, 0.0f, 0.0f },
+				vec3{ 0.0f, 0.0f, DD },
+				vec3{ WW, 0.0f, DD },
+				vec3{ 0.0f, Height, 0.0f },
+				vec3{ 0.0f, Height, DD },
+				vec3{ WW, Height, DD } };
 			break;
-		case Resident_Evil_Triangle_Type::Naname_C:
+		case Shape_Type::Triangle_C:
 			Shape = {
-				vec3{ WW, Low, DD },
-				vec3{ WW, Low, 0.0f },
-				vec3{ 0.0f, Low, 0.0f },
-				vec3{ WW, High, DD },
-				vec3{ WW, High, 0.0f },
-				vec3{ 0.0f, High, 0.0f } };
+				vec3{ WW, 0.0f, DD },
+				vec3{ WW, 0.0f, 0.0f },
+				vec3{ 0.0f, 0.0f, 0.0f },
+				vec3{ WW, Height, DD },
+				vec3{ WW, Height, 0.0f },
+				vec3{ 0.0f, Height, 0.0f } };
 			break;
-		case Resident_Evil_Triangle_Type::Naname_D:
+		case Shape_Type::Triangle_D:
 			Shape = {
-				vec3{ WW, Low, 0.0f },
-				vec3{ 0.0f, Low, 0.0f },
-				vec3{ 0.0f, Low, DD },
-				vec3{ WW, High, 0.0f },
-				vec3{ 0.0f, High, 0.0f },
-				vec3{ 0.0f, High, DD } };
+				vec3{ WW, 0.0f, 0.0f },
+				vec3{ 0.0f, 0.0f, 0.0f },
+				vec3{ 0.0f, 0.0f, DD },
+				vec3{ WW, Height, 0.0f },
+				vec3{ 0.0f, Height, 0.0f },
+				vec3{ 0.0f, Height, DD } };
 			break;
-		case Resident_Evil_Triangle_Type::Slope_A:
+		case Shape_Type::Slope_A:
 			Shape = {
-				vec3{ 0.0f, Low, 0.0f },
-				vec3{ WW, Low, 0.0f },
-				vec3{ WW, SlopeHigh, 0.0f },
-				vec3{ 0.0f, Low, DD },
-				vec3{ WW, Low, DD },
-				vec3{ WW, SlopeHigh, DD } };
+				vec3{ 0.0f, 0.0f, 0.0f },
+				vec3{ WW, 0.0f, 0.0f },
+				vec3{ WW, Height, 0.0f },
+				vec3{ 0.0f, 0.0f, DD },
+				vec3{ WW, 0.0f, DD },
+				vec3{ WW, Height, DD } };
 			break;
-		case Resident_Evil_Triangle_Type::Slope_B:
+		case Shape_Type::Slope_B:
 			Shape = {
-				vec3{ WW, Low, 0.0f },
-				vec3{ 0.0f, SlopeHigh, 0.0f },
-				vec3{ 0.0f, Low, 0.0f },
-				vec3{ WW, Low, DD },
-				vec3{ 0.0f, SlopeHigh, DD },
-				vec3{ 0.0f, Low, DD } };
+				vec3{ WW, 0.0f, 0.0f },
+				vec3{ 0.0f, Height, 0.0f },
+				vec3{ 0.0f, 0.0f, 0.0f },
+				vec3{ WW, 0.0f, DD },
+				vec3{ 0.0f, Height, DD },
+				vec3{ 0.0f, 0.0f, DD } };
 			break;
-		case Resident_Evil_Triangle_Type::Slope_C:
+		case Shape_Type::Slope_C:
 			Shape = {
-				vec3{ 0.0f, Low, 0.0f },
-				vec3{ 0.0f, SlopeHigh, DD },
-				vec3{ 0.0f, Low, DD },
-				vec3{ WW, Low, 0.0f },
-				vec3{ WW, SlopeHigh, DD },
-				vec3{ WW, Low, DD } };
+				vec3{ 0.0f, 0.0f, 0.0f },
+				vec3{ 0.0f, Height, DD },
+				vec3{ 0.0f, 0.0f, DD },
+				vec3{ WW, 0.0f, 0.0f },
+				vec3{ WW, Height, DD },
+				vec3{ WW, 0.0f, DD } };
 			break;
-		case Resident_Evil_Triangle_Type::Slope_D:
+		case Shape_Type::Slope_D:
 			Shape = {
-				vec3{ 0.0f, Low, DD },
-				vec3{ 0.0f, SlopeHigh, 0.0f },
-				vec3{ 0.0f, Low, 0.0f },
-				vec3{ WW, Low, DD },
-				vec3{ WW, SlopeHigh, 0.0f },
-				vec3{ WW, Low, 0.0f } };
+				vec3{ 0.0f, 0.0f, DD },
+				vec3{ 0.0f, Height, 0.0f },
+				vec3{ 0.0f, 0.0f, 0.0f },
+				vec3{ WW, 0.0f, DD },
+				vec3{ WW, Height, 0.0f },
+				vec3{ WW, 0.0f, 0.0f } };
 			break;
 	}
 
 	DrawShape({ SetWorldMatrix(Vec, Rotation, World->Centroid(Shape)), true, Shape, Color, Solid, IndicesTriWire.get(), IndicesTri.get() });
 }
 
-void Resident_Evil_Geometry::DrawRhombus(SHAPEVECTOR Vec, SVECTOR2 Rotation, DWORD Color, bool Solid) const
+void Resident_Evil_Geometry::DrawRhombus(SHAPEVECTOR Vec, VECTOR2 Rotation, DWORD Color, bool Solid) const
 {
 	float WW = GTE->ToFloat(Vec.w) * 0.5f;
 	float DD = GTE->ToFloat(Vec.d) * 0.5f;
-	float Low = GTE->ToFloat(Vec.y);
-	float High = Low + GTE->ToFloat(Vec.h);
+	float Height = -GTE->ToFloat(std::abs(Vec.h) - std::abs(Vec.y));
 
 	std::vector<vec3> Shape = {
-		vec3{ 0.0f, Low, -DD },
-		vec3{ -WW, Low, 0.0f },
-		vec3{ 0.0f, Low, DD },
-		vec3{ WW, Low, 0.0f },
-		vec3{ 0.0f, High, -DD },
-		vec3{ -WW, High, 0.0f },
-		vec3{ 0.0f, High, DD },
-		vec3{ WW, High, 0.0f } };
+		vec3{ 0.0f, 0.0f, -DD },
+		vec3{ -WW, 0.0f, 0.0f },
+		vec3{ 0.0f, 0.0f, DD },
+		vec3{ WW, 0.0f, 0.0f },
+		vec3{ 0.0f, Height, -DD },
+		vec3{ -WW, Height, 0.0f },
+		vec3{ 0.0f, Height, DD },
+		vec3{ WW, Height, 0.0f } };
 
 	Vec.x += (Vec.w * 2) / 3;
 	Vec.z += (Vec.d / 2);
@@ -255,7 +254,7 @@ void Resident_Evil_Geometry::DrawRhombus(SHAPEVECTOR Vec, SVECTOR2 Rotation, DWO
 	DrawShape({ SetWorldMatrix(Vec, Rotation, World->Centroid(Shape)), true, Shape, Color, Solid, IndicesRhombusWire.get(), IndicesRhombus.get() });
 }
 
-void Resident_Evil_Geometry::DrawCylinder(SHAPEVECTOR Vec, SVECTOR2 Rotation, DWORD Color, bool Solid) const
+void Resident_Evil_Geometry::DrawCylinder(SHAPEVECTOR Vec, VECTOR2 Rotation, DWORD Color, bool Solid) const
 {
 	float Radius = min(GTE->ToFloat(Vec.w), GTE->ToFloat(Vec.d)) * 0.5f;
 	float Offset = Radius * 0.75f;
@@ -263,36 +262,226 @@ void Resident_Evil_Geometry::DrawCylinder(SHAPEVECTOR Vec, SVECTOR2 Rotation, DW
 	float DD = GTE->ToFloat(Vec.d) * 0.5f;
 	float XX = WW - Radius;
 	float ZZ = DD - Radius;
-	float Low = GTE->ToFloat(Vec.y);
-	float High = Low + GTE->ToFloat(Vec.h);
+	float Height = -GTE->ToFloat(std::abs(Vec.h) - std::abs(Vec.y));
 
 	std::vector<vec3> Shape = {
-		vec3{ WW - XX,			Low,	DD - ZZ - Radius },
-		vec3{ WW + XX,			Low,	DD - ZZ - Radius },
-		vec3{ WW + XX + Offset, Low,	DD - ZZ - Offset },
-		vec3{ WW + XX + Radius, Low,	DD - ZZ			 },
-		vec3{ WW + XX + Radius, Low,	DD + ZZ			 },
-		vec3{ WW + XX + Offset, Low,	DD + ZZ + Offset },
-		vec3{ WW + XX,			Low,	DD + ZZ + Radius },
-		vec3{ WW - XX,			Low,	DD + ZZ + Radius },
-		vec3{ WW - XX - Offset, Low,	DD + ZZ + Offset },
-		vec3{ WW - XX - Radius, Low,	DD + ZZ			 },
-		vec3{ WW - XX - Radius, Low,	DD - ZZ			 },
-		vec3{ WW - XX - Offset, Low,	DD - ZZ - Offset },
-		vec3{ WW - XX,			High,	DD - ZZ - Radius },
-		vec3{ WW + XX,			High,	DD - ZZ - Radius },
-		vec3{ WW + XX + Offset, High,	DD - ZZ - Offset },
-		vec3{ WW + XX + Radius, High,	DD - ZZ			 },
-		vec3{ WW + XX + Radius, High,	DD + ZZ			 },
-		vec3{ WW + XX + Offset, High,	DD + ZZ + Offset },
-		vec3{ WW + XX,			High,	DD + ZZ + Radius },
-		vec3{ WW - XX,			High,	DD + ZZ + Radius },
-		vec3{ WW - XX - Offset, High,	DD + ZZ + Offset },
-		vec3{ WW - XX - Radius, High,	DD + ZZ			 },
-		vec3{ WW - XX - Radius, High,	DD - ZZ			 },
-		vec3{ WW - XX - Offset, High,	DD - ZZ - Offset },
-		vec3{ WW,				Low,	DD				 },
-		vec3{ WW,				High,	DD				 } };
+		vec3{ WW - XX,			0.0f,	DD - ZZ - Radius },
+		vec3{ WW + XX,			0.0f,	DD - ZZ - Radius },
+		vec3{ WW + XX + Offset, 0.0f,	DD - ZZ - Offset },
+		vec3{ WW + XX + Radius, 0.0f,	DD - ZZ			 },
+		vec3{ WW + XX + Radius, 0.0f,	DD + ZZ			 },
+		vec3{ WW + XX + Offset, 0.0f,	DD + ZZ + Offset },
+		vec3{ WW + XX,			0.0f,	DD + ZZ + Radius },
+		vec3{ WW - XX,			0.0f,	DD + ZZ + Radius },
+		vec3{ WW - XX - Offset, 0.0f,	DD + ZZ + Offset },
+		vec3{ WW - XX - Radius, 0.0f,	DD + ZZ			 },
+		vec3{ WW - XX - Radius, 0.0f,	DD - ZZ			 },
+		vec3{ WW - XX - Offset, 0.0f,	DD - ZZ - Offset },
+		vec3{ WW - XX,			Height,	DD - ZZ - Radius },
+		vec3{ WW + XX,			Height,	DD - ZZ - Radius },
+		vec3{ WW + XX + Offset, Height,	DD - ZZ - Offset },
+		vec3{ WW + XX + Radius, Height,	DD - ZZ			 },
+		vec3{ WW + XX + Radius, Height,	DD + ZZ			 },
+		vec3{ WW + XX + Offset, Height,	DD + ZZ + Offset },
+		vec3{ WW + XX,			Height,	DD + ZZ + Radius },
+		vec3{ WW - XX,			Height,	DD + ZZ + Radius },
+		vec3{ WW - XX - Offset, Height,	DD + ZZ + Offset },
+		vec3{ WW - XX - Radius, Height,	DD + ZZ			 },
+		vec3{ WW - XX - Radius, Height,	DD - ZZ			 },
+		vec3{ WW - XX - Offset, Height,	DD - ZZ - Offset },
+		vec3{ WW,				0.0f,	DD				 },
+		vec3{ WW,				Height,	DD				 } };
 
 	DrawShape({ SetWorldMatrix(Vec, Rotation, World->Centroid(Shape)), true, Shape, Color, Solid, IndicesCylinderWire.get(), IndicesCylinder.get() });
+}
+
+bool Resident_Evil_Geometry::Collision(VECTOR2& Position, const SIZEVECTOR Hitbox, const SHAPEVECTOR Shape, const Shape_Type Type)
+{
+	int32_t minX = Shape.x;
+	int32_t maxX = Shape.x + Shape.w;
+	int32_t minY = Shape.y;
+	int32_t maxY = Shape.h;
+	int32_t minZ = Shape.z;
+	int32_t maxZ = Shape.z + Shape.d;
+
+	int32_t& px = Position.x;
+	int32_t& py = Position.y;
+	int32_t& pz = Position.z;
+
+	int32_t pw = Hitbox.w;
+	int32_t ph = Hitbox.h;
+	int32_t pd = Hitbox.d * 2;
+
+	auto line = [](int32_t ax, int32_t az, int32_t bx, int32_t bz, int32_t r, int32_t& px, int32_t& pz) -> bool {
+		int32_t dx = bx - ax;
+		int32_t dz = bz - az;
+
+		int32_t c = static_cast<int32_t>(sqrt(static_cast<uint32_t>(dx * dx + dz * dz)));
+
+		if (c <= 0) { return false; }
+
+		int32_t dist = (dx * (az - pz) - dz * (ax - px)) / c + r;
+
+		if (dist <= 0) { return false; }
+
+		px += (-dz + 8) * dist / c;
+		pz += (dx + 8) * dist / c;
+
+		return true;
+		};
+
+	auto circle = [](int32_t cr, int32_t cx, int32_t cz, int32_t r, int32_t& px, int32_t& pz) -> bool {
+		int32_t dx = px - cx;
+		int32_t dz = pz - cz;
+		int32_t minR = r + cr;
+		int32_t dist = dx * dx + dz * dz;
+
+		if (dist > minR * minR) { return false; }
+
+		dist = static_cast<int32_t>(sqrt(static_cast<uint32_t>(dist)));
+
+		if (dist <= 0) { return false; }
+
+		int32_t delta = minR - dist;
+
+		px += (dx + 8) * delta / dist;
+		pz += (dz + 8) * delta / dist;
+
+		return true;
+		};
+
+	auto rect = [circle](int32_t minX, int32_t minZ, int32_t maxX, int32_t maxZ, int32_t r, int32_t& px, int32_t& pz) -> bool {
+		auto x_clamp = [](int32_t x, int32_t a, int32_t b) { return (x < a) ? a : ((x > b) ? b : x); };
+		int32_t closestX = x_clamp(px, minX, maxX);
+		int32_t closestZ = x_clamp(pz, minZ, maxZ);
+		return circle(0, closestX, closestZ, r, px, pz);
+		};
+
+	auto rhombus = [line](int32_t minX, int32_t minZ, int32_t maxX, int32_t maxZ, int32_t r, int32_t& px, int32_t& pz) -> bool {
+		int32_t cx = (minX + maxX) >> 1;
+		int32_t cz = (minZ + maxZ) >> 1;
+
+		if (px < cx)
+		{
+			if (pz < cz) { return line(cx, minZ, minX, cz, r, px, pz); }
+			else { return line(minX, cz, cx, maxZ, r, px, pz); }
+		}
+		else
+		{
+			if (pz < cz) { return line(maxX, cz, cx, minZ, r, px, pz); }
+			else { return line(cx, maxZ, maxX, cz, r, px, pz); }
+		}
+		};
+
+	if (!(std::to_underlying(Type) & (SLOPE_A | SLOPE_B | SLOPE_C | SLOPE_D)))
+	{
+		if (py <= maxY && py < minY) { return false; }
+	}
+
+	if (b_HitSlopeX)
+	{
+		if (px - pw < minX - pw || px - pw > maxX - pw) { return true; }
+		if (px - pw < m_Slope.minX - pw)
+		{
+			py = m_Slope.maxY;
+			b_HitSlopeX = false;
+		}
+		if (px - pw > m_Slope.maxX - pw)
+		{
+			py = m_Slope.minY;
+			b_HitSlopeX = false;
+		}
+	}
+
+	else if (b_HitSlopeZ)
+	{
+		if (pz + pd < minZ + pd || pz - pd > maxZ + pd) { return true; }
+		if (pz + pd < m_Slope.minZ + pd)
+		{
+			py = m_Slope.minY;
+			b_HitSlopeZ = false;
+		}
+		if (pz - pd > m_Slope.maxZ + pd)
+		{
+			py = m_Slope.maxY;
+			b_HitSlopeZ = false;
+		}
+	}
+
+	else if (px + pw < minX || px - pw > maxX || pz + pd < minZ || pz - pd > maxZ) { return false; }
+
+	switch (Type)
+	{
+		case Shape_Type::Rectangle: return rect(minX, minZ, maxX, maxZ, pw, px, pz);
+		case Shape_Type::Triangle_A:
+			if (px > maxX || pz > maxZ) { return rect(minX, minZ, maxX, maxZ, pw, px, pz); }
+			return line(maxX, minZ, minX, maxZ, pw, px, pz);
+		case Shape_Type::Triangle_B:
+			if (px < minX || pz > maxZ) { return rect(minX, minZ, maxX, maxZ, pw, px, pz); }
+			return line(maxX, maxZ, minX, minZ, pw, px, pz);
+		case Shape_Type::Triangle_C:
+			if (px > maxX || pz < minZ) { return rect(minX, minZ, maxX, maxZ, pw, px, pz); }
+			return line(minX, minZ, maxX, maxZ, pw, px, pz);
+		case Shape_Type::Triangle_D:
+			if (px < minX || pz < minZ) { return rect(minX, minZ, maxX, maxZ, pw, px, pz); }
+			return line(minX, maxZ, maxX, minZ, pw, px, pz);
+		case Shape_Type::Rhombus: return rhombus(minX, minZ, maxX, maxZ, pw, px, pz);
+		case Shape_Type::Circle:
+		{
+			int32_t cr = (maxX - minX) >> 1;
+			return circle(cr, minX + cr, minZ + cr, pw, px, pz);
+		}
+		case Shape_Type::OblongX:
+		{
+			int32_t cr = (maxZ - minZ) >> 1;
+			if (px < minX + cr) { return circle(cr, minX + cr, minZ + cr, pw, px, pz); }
+			if (px > maxX - cr) { return circle(cr, maxX - cr, minZ + cr, pw, px, pz); }
+			return rect(minX + cr, minZ, maxX - cr, maxZ, pw, px, pz);
+		}
+		case Shape_Type::OblongZ:
+		{
+			int32_t cr = (maxX - minX) >> 1;
+			if (pz < minZ + cr) { return circle(cr, minX + cr, minZ + cr, pw, px, pz); }
+			if (pz > maxZ - cr) { return circle(cr, minX + cr, maxZ - cr, pw, px, pz); }
+			return rect(minX, minZ + cr, maxX, maxZ - cr, pw, px, pz);
+		}
+		case Shape_Type::Slope_A:
+		{
+			m_Slope = { minX, maxX, minY, maxY, minZ, maxZ };
+			int32_t denom = maxX - minX;
+			int32_t clamped_px = (px < minX) ? minX : (px > maxX ? maxX : px);
+			int32_t num = (denom != 0) ? (clamped_px - minX) : 0;
+			py = minY + ((num * (maxY - minY)) / (denom != 0 ? denom : 1));
+			return b_HitSlopeX = true;
+		}
+		case Shape_Type::Slope_B:
+		{
+			m_Slope = { minX, maxX, minY, maxY, minZ, maxZ };
+			int32_t denom = maxX - minX;
+			int32_t clamped_px = (px < minX) ? minX : (px > maxX ? maxX : px);
+			int32_t num = (denom != 0) ? (maxX - clamped_px) : 0;
+			py = minY + ((num * (maxY - minY)) / (denom != 0 ? denom : 1));
+			return b_HitSlopeX = true;
+		}
+		case Shape_Type::Slope_C:
+		{
+			m_Slope = { minX, maxX, minY, maxY, minZ, maxZ };
+			int32_t denom = maxZ - minZ;
+			int32_t clamped_pz = (pz < minZ) ? minZ : (pz > maxZ ? maxZ : pz);
+			int32_t num = (denom != 0) ? (clamped_pz - minZ) : 0;
+			py = minY + ((num * (maxY - minY)) / (denom != 0 ? denom : 1));
+			return b_HitSlopeZ = true;
+		}
+		case Shape_Type::Slope_D:
+		{
+			m_Slope = { minX, maxX, minY, maxY, minZ, maxZ };
+			int32_t denom = maxZ - minZ;
+			int32_t clamped_pz = (pz < minZ) ? minZ : (pz > maxZ ? maxZ : pz);
+			int32_t num = (denom != 0) ? (maxZ - clamped_pz) : 0;
+			py = minY + ((num * (maxY - minY)) / (denom != 0 ? denom : 1));
+			return b_HitSlopeZ = true;
+		}
+	}
+
+	return false;
 }

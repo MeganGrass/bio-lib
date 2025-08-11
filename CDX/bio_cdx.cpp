@@ -385,6 +385,10 @@ bool CDX_File_Container::CreateBSS(std::filesystem::path Directory, std::filesys
 
 	std::vector<Capcom_Disk_Version_Custom> floc(iRoomMax);
 
+	static constexpr uint16_t BIO1_CAMERA_MAX = 8;
+	static constexpr uint16_t BIO2_CAMERA_MAX = 16;
+	static constexpr uint16_t BIO3_CAMERA_MAX = 32;
+
 	switch (Game)
 	{
 	case Video_Game::Resident_Evil:

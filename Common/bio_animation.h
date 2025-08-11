@@ -264,7 +264,7 @@ private:
 	static constexpr std::uint32_t ROOM = std::to_underlying(Resident_Evil_Animation_Type::Room);
 
 	// Get Animation Type
-	std::uint32_t AnimType(void) const { return std::to_underlying(m_Type); }
+	const std::uint32_t AnimType(void) const { return std::to_underlying(m_Type); }
 
 	// Animation Type
 	Resident_Evil_Animation_Type m_Type;
@@ -451,7 +451,7 @@ public:
 		Multi Container
 		 - typical usage is for RBJ files
 	*/
-	std::vector<Resident_Evil_Animation> Data;
+	std::vector<std::shared_ptr<Resident_Evil_Animation>> Data;
 
 	// Set video game type
 	using Resident_Evil_Common::SetGame;
@@ -464,6 +464,23 @@ public:
 
 	// Set Animation Type
 	void SetType(Resident_Evil_Animation_Type Type) { m_Type = Type; }
+
+	// Get Animation Type
+	const AnimationIndex GetType(void) const
+	{
+		switch (m_Type)
+		{
+		case Resident_Evil_Animation_Type::Normal: return AnimationIndex::Normal;
+		case Resident_Evil_Animation_Type::NormalEx0: return AnimationIndex::NormalEx0;
+		case Resident_Evil_Animation_Type::NormalEx1: return AnimationIndex::NormalEx1;
+		case Resident_Evil_Animation_Type::Damage: return AnimationIndex::Damage;
+		case Resident_Evil_Animation_Type::Weapon: return AnimationIndex::Weapon;
+		case Resident_Evil_Animation_Type::WeaponEx0: return AnimationIndex::WeaponEx0;
+		case Resident_Evil_Animation_Type::WeaponEx1: return AnimationIndex::WeaponEx1;
+		case Resident_Evil_Animation_Type::Room: return AnimationIndex::Room;
+		default: return AnimationIndex::Count; // Invalid type
+		}
+	}
 
 	/*
 		Open EDD file data

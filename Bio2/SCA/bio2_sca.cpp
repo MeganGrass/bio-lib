@@ -167,8 +167,8 @@ std::int32_t Resident_Evil_2_SCA::GetLow(std::size_t iCollision)
 
 	while ((Floor & 1) == 0)
 	{
-		Floor = Floor >> 1;
-		nFloor = nFloor + -1800;
+		Floor = (Floor >> 1);
+		nFloor = (nFloor + -1800);
 	}
 
 	return nFloor;
@@ -225,4 +225,15 @@ std::uint32_t Resident_Evil_2_SCA::SetFloor(std::size_t iCollision, std::int32_t
 	Floor |= Mask << Bit;
 
 	return Floor;
+}
+
+SHAPEVECTOR Resident_Evil_2_SCA::GetShapeVector(std::size_t iCollision)
+{
+	int32_t Low = GetLow(iCollision);
+	int32_t High = GetHigh(iCollision);
+
+	GetShapeType(iCollision) == Resident_Evil_2_Collision_Shape::Box_3 ? High = -std::abs(Data[iCollision].Type.Bits.nFloor * 1800) : 0;
+	GetShapeType(iCollision) == Resident_Evil_2_Collision_Shape::Slope ? High = -std::abs(std::abs(Low) + 1800) : 0;
+
+	return SHAPEVECTOR{ Data[iCollision].X, Low, Data[iCollision].Z, Data[iCollision].W, High, Data[iCollision].D };
 }

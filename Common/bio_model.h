@@ -41,9 +41,25 @@ struct DX9_MODEL
 #endif
 
 
+enum class ModelType : std::int32_t
+{
+	None = (0 << 0),
+	Object = (1 << 1),
+	Player = (1 << 2),
+	SubPlayer = (1 << 3),
+	Enemy = (1 << 4)
+};
+
+
 class Resident_Evil_Model :
 	private Resident_Evil_Common {
 private:
+
+	// Standard String for messages/debugging
+	Standard_String Str;
+
+	// Filename
+	std::filesystem::path m_Filename, m_WeaponFilename;
 
 	// Animation Type Constants
 	static constexpr AnimationIndex NORMAL = AnimationIndex::Normal;
@@ -55,11 +71,14 @@ private:
 	static constexpr AnimationIndex WEAPON_EX1 = AnimationIndex::WeaponEx1;
 	static constexpr AnimationIndex ROOM = AnimationIndex::Room;
 
-	// Transformation
-	VECTOR2 m_Position, m_Rotation, m_Scale, m_EditorPosition, m_EditorRotation, m_EditorScale;
-
 	// Matrix
 	std::shared_ptr<Standard_Matrix> World;
+
+	// Interactive/Collision Size Vector
+	SIZEVECTOR m_Hitbox;
+
+	// Transformation
+	VECTOR2 m_Position, m_Rotation, m_Scale, m_EditorPosition, m_EditorRotation, m_EditorScale;
 
 	// Texture
 	std::unique_ptr<Sony_PlayStation_Texture> m_Texture, m_WeaponTexture;
@@ -78,9 +97,6 @@ private:
 
 	// Get data pointers from file archive (EMD/EMW/PLD/PLW)
 	std::vector<std::uint32_t> GetDataPtr(StdFile& File, std::uintmax_t _FileBeginPtr);
-
-	// Standard String for messages/debugging
-	Standard_String Str;
 
 #if MSTD_DX9
 	// Direct-X 9 Model
@@ -112,6 +128,7 @@ private:
 public:
 
 	explicit Resident_Evil_Model(void) :
+		m_Filename{},
 		m_Position{ 0, 0, 0 },
 		m_Rotation{ 0, 0, 0 },
 		m_Scale{ ONE, ONE, ONE },
@@ -124,16 +141,34 @@ public:
 		m_Model(std::make_unique<Sony_PlayStation_Model>()),
 		m_WeaponModel(std::make_unique<Sony_PlayStation_Model>()),
 		m_AnimationIndex(NORMAL),
+		m_Hitbox{},
+		b_Active(true),
+		b_Drawing(false),
+		b_Loop(true),
+		b_Play(true),
 		b_EditorMode(false),
 		b_Dither(true),
+		b_LockPosition(false),
 		b_DrawWireframe(false),
 		b_DrawTextured(true),
 		b_DrawSolidColor(false),
-		b_DrawSkeleton(false),
-		b_DrawRootOnly(false),
+		b_DrawSkeletonMesh(false),
+		b_DrawReference(false),
+		b_DrawHitbox(false),
+		b_DrawAllObjects(false),
+		b_DrawSingleObject(false),
+		b_DrawWeapon(false),
 		iObject(0),
+		iObjectMin(0),
+		iObjectMax(0),
+		iWeaponObject(0),
+		iWeaponObjectMin(0),
+		iWeaponObjectMax(0),
 		iClip(0),
-		iFrame(0)
+		iFrame(0),
+		iRoom(0),
+		iRoomMin(0),
+		iRoomMax(0)
 #if MSTD_DX9
 		,m_TextureFilter(D3DTEXF_NONE),
 		m_DX9Model(nullptr),
@@ -153,6 +188,40 @@ public:
 
 	using Resident_Evil_Common::GameType;
 
+	// Sony PlayStation (1994) Geometry Transformation Engine
+	std::shared_ptr<Sony_PlayStation_GTE> GTE;
+
+#if MSTD_DX9
+
+	// Direct-X 9 Render Context
+	std::shared_ptr<Standard_DirectX_9> Render;
+
+	// Texture Filter
+	D3DTEXTUREFILTERTYPE m_TextureFilter;
+
+	// Export texture and standardized model to Direct-X 9 buffer
+	std::unique_ptr<DX9_MODEL> ExportDX9(std::unique_ptr<FIXED_MODEL>& Model, std::unique_ptr<Sony_PlayStation_Texture>& Texture) const;
+
+	// Direct-X 9 Model
+	std::unique_ptr<DX9_MODEL>& ModelDX9(void) noexcept { return m_DX9Model; }
+
+	// Direct-X 9 Weapon Model
+	std::unique_ptr<DX9_MODEL>& WeaponModelDX9(void) noexcept { return m_DX9WeaponModel; }
+
+#endif
+
+	// Will the model be drawn?
+	bool b_Active;
+
+	// Any model objects currently being drawn?
+	bool b_Drawing;
+
+	// Is keyframe processing active?
+	bool b_Play;
+
+	// Will keyframe processing loop?
+	bool b_Loop;
+
 	/*
 		Editor Mode
 		 - editor position, rotation and scale will be used
@@ -161,9 +230,15 @@ public:
 
 	/*
 		Sony PlayStation (1994) Dithering Pixel Shader
-		 - simple passthrough pixel shader will be used if false
+		 - simple passthrough pixel shader will be used otherwise
 	*/
 	bool b_Dither;
+
+	/*
+		Lock model in position
+		 - when processing keyframes, model will not move backward, forward, etc.
+	*/
+	bool b_LockPosition;
 
 	/*
 		Draw Wireframe
@@ -187,23 +262,53 @@ public:
 		Draw Skeleton
 		 - skeleton mesh will be drawn
 	*/
-	bool b_DrawSkeleton;
+	bool b_DrawSkeletonMesh;
 
 	/*
 		Ignore keyframes in DrawFrame
 		 - origin, speed and rotation are ignored
-		 - root skeleton position is used instead
+		 - reference skeleton is used instead
 	*/
-	bool b_DrawRootOnly;
+	bool b_DrawReference;
+
+	/*
+		Draw hitbox
+		 - draw model's interactive/collision hitbox
+	*/
+	bool b_DrawHitbox;
+
+	/*
+		Draw all objects
+		 - keyframes and skeleton are ignored
+	*/
+	bool b_DrawAllObjects;
+
+	/*
+		Draw iObject only
+		 - keyframes and skeleton are ignored
+	*/
+	bool b_DrawSingleObject;
+
+	/*
+		Draw weapon model
+		 - iWeaponObject ID of model object is replaced with weapon model
+	*/
+	bool b_DrawWeapon;
 
 	// Model object index
-	std::size_t iObject;
+	std::size_t iObject, iObjectMin, iObjectMax;
+
+	// ID of model object to replace with weapon object
+	std::size_t iWeaponObject, iWeaponObjectMin, iWeaponObjectMax;
 
 	// Animation clip index
 	std::size_t iClip;
 
 	// Animation keyframe index
 	std::size_t iFrame;
+
+	// Room animation index
+	std::size_t iRoom, iRoomMin, iRoomMax;
 
 	// set window handle for message/debugging
 	void SetWindow(HWND hWnd)
@@ -223,27 +328,11 @@ public:
 		for (size_t i = 0; i < m_Animations.size(); ++i) { m_Animations[i]->SetGame(Game); }
 	}
 
-#if MSTD_DX9
+	// Filename
+	const std::filesystem::path Filename(void) noexcept { return m_Filename; }
 
-	// Export texture and standardized model to Direct-X 9 buffer
-	std::unique_ptr<DX9_MODEL> ExportDX9(std::unique_ptr<FIXED_MODEL>& Model, std::unique_ptr<Sony_PlayStation_Texture>& Texture) const;
-
-	// Direct-X 9 Model
-	std::unique_ptr<DX9_MODEL>& ModelDX9(void) noexcept { return m_DX9Model; }
-
-	// Direct-X 9 Weapon Model
-	std::unique_ptr<DX9_MODEL>& WeaponModelDX9(void) noexcept { return m_DX9WeaponModel; }
-
-	// Direct-X 9 Render Context
-	std::shared_ptr<Standard_DirectX_9> Render;
-
-	// Texture Filter
-	D3DTEXTUREFILTERTYPE m_TextureFilter;
-
-#endif
-
-	// Sony PlayStation (1994) Geometry Transformation Engine
-	std::shared_ptr<Sony_PlayStation_GTE> GTE;
+	// Weapon Filename
+	const std::filesystem::path WeaponFilename(void) noexcept { return m_WeaponFilename; }
 
 	// Position
 	VECTOR2& Position(void) noexcept { return m_Position; }
@@ -262,6 +351,12 @@ public:
 
 	// Editor Scale
 	VECTOR2& EditorScale(void) noexcept { return m_EditorScale; }
+
+	// Interactive/Collision Size Vector
+	SIZEVECTOR& Hitbox(void) noexcept { return m_Hitbox; }
+
+	// Interactive/Collision Shape Vector
+	SHAPEVECTOR HitboxShape(void) noexcept;
 
 	// Model
 	std::unique_ptr<Sony_PlayStation_Model>& Model(void) noexcept { return m_Model; }
@@ -335,14 +430,23 @@ public:
 	*/
 	bool OpenWeaponTexture(std::filesystem::path Path, std::uintmax_t _Ptr = 0);
 
+	// Reset clip
+	void ResetClip(void) { iClip = 0; iFrame = 0; }
+
+	// Setup room data
+	void SetRoomAnimations(std::shared_ptr<Resident_Evil_Animation>& Rbj);
+
 	// Clear all data
-	void Close(void) { CloseModel(); CloseWeapon(); }
+	void Close(void) { ResetClip(); CloseModel(); CloseWeapon(); }
 
 	// Clear model data
 	void CloseModel(void);
 
 	// Clear weapon data
 	void CloseWeapon(void);
+
+	// Clear room data
+	void CloseRoom(void);
 
 	// Draw model at animation keyframe
 	void DrawFrame(std::shared_ptr<Resident_Evil_Animation> Animation, size_t iClip, size_t iFrame, bool b_DrawRoot = false);
