@@ -29,7 +29,7 @@ public:
 
 private:
 
-	// Set View and Projection Matrix (GTE)
+	// Set View Matrix (GTE)
 	MATRIX2 Set_view(VECTOR2 Eye, VECTOR2 At) const;
 
 	// Move
@@ -39,8 +39,6 @@ private:
 	// Copy
 	Resident_Evil_Camera(const Resident_Evil_Camera&) = delete;
 	Resident_Evil_Camera& operator = (const Resident_Evil_Camera&) = delete;
-
-	Standard_FileSystem FS;
 
 	struct PROJECTION {
 		constexpr static float Left = -(m_NativeWidth * 0.5f);
@@ -99,22 +97,13 @@ public:
 	std::shared_ptr<Standard_Matrix> Orthogonal, View, Projection, World;
 
 	// Field of View
-	std::uint32_t m_FOV;
+	std::uint32_t m_FOV, m_ModelFOV;
 
 	// Position
-	VECTOR2 m_Eye;
+	VECTOR2 m_Eye, m_ModelEye;
 
 	// Target
-	VECTOR2 m_At;
-
-	// Model Editor Field of View
-	std::uint32_t m_ModelFOV;
-
-	// Model Editor Position
-	VECTOR2 m_ModelEye;
-
-	// Model Editor Target
-	VECTOR2 m_ModelAt;
+	VECTOR2 m_At, m_ModelAt;
 
 	// Viewport Size
 	float m_OrthoWidth, m_OrthoHeight;
@@ -122,8 +111,8 @@ public:
 	// Viewport Scale
 	float m_OrthoScaleX, m_OrthoScaleY;
 
-	// Prerendered Background Texture Flip
-	bool b_HorzFlipTex, b_VertFlipTex;
+	// Perspective Flip
+	bool b_HorzFlip, b_VertFlip;
 
 	// Prerendered Background File Directory
 	std::filesystem::path m_Path;
@@ -193,8 +182,8 @@ public:
 		m_OrthoHeight(m_NativeHeight),
 		m_OrthoScaleX(m_OrthoWidth / m_NativeWidth),
 		m_OrthoScaleY(m_OrthoHeight / m_NativeHeight),
-		b_HorzFlipTex(false),
-		b_VertFlipTex(false),
+		b_HorzFlip(false),
+		b_VertFlip(false),
 		m_Path(),
 		b_ViewBackground(true),
 		m_TexWidth(0.0f),

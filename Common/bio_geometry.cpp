@@ -5,7 +5,7 @@
 * 
 *	CREDIT:
 *
-*		Collision: https://github.com/XProger/OpenResident/blob/main/src/collision.h
+*		"Collision" function (original): https://github.com/XProger/OpenResident/blob/main/src/collision.h
 *
 */
 
@@ -19,7 +19,11 @@ void Resident_Evil_Geometry::Init(void)
 
 	std::vector<uint32_t> IndexBoxWire = { 0, 1, 1, 2, 2, 3, 3, 0, 4, 5, 5, 6, 6, 7, 7, 4, 0, 4, 1, 5, 2, 6, 3, 7 };
 
-	std::vector<uint32_t> IndexBox = { 4, 5, 6, 4, 6, 7, 1, 0, 3, 1, 3, 2, 0, 4, 7, 0, 7, 3, 5, 1, 2, 5, 2, 6, 3, 7, 6, 3, 6, 2, 0, 1, 5, 0, 5, 4 };
+	std::vector<uint32_t> IndexBox = { 0, 1, 5, 0, 5, 4, 3, 2, 6, 3, 6, 7, 0, 3, 7, 0, 7, 4, 1, 2, 6, 1, 6, 5, 0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7 };
+
+	std::vector<uint32_t> IndexPlaneWire = { 0, 1, 1, 3, 3, 5, 5, 7, 7, 0 };
+
+	std::vector<uint32_t> IndexPlane = { 0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7, 0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7 };
 
 	std::vector<uint32_t> IndexTriWire = { 0, 1, 1, 2, 2, 0, 3, 4, 4, 5, 5, 3, 0, 3, 1, 4, 2, 5 };
 
@@ -44,6 +48,10 @@ void Resident_Evil_Geometry::Init(void)
 
 	IndicesBox.reset(Render->CreateIndexBuffer(D3DFMT_INDEX32, IndexBox.data(), IndexBox.size() * sizeof(uint32_t)));
 
+	IndicesPlaneWire.reset(Render->CreateIndexBuffer(D3DFMT_INDEX32, IndexPlaneWire.data(), IndexPlaneWire.size() * sizeof(uint32_t)));
+
+	IndicesPlane.reset(Render->CreateIndexBuffer(D3DFMT_INDEX32, IndexPlane.data(), IndexPlane.size() * sizeof(uint32_t)));
+
 	IndicesTriWire.reset(Render->CreateIndexBuffer(D3DFMT_INDEX32, IndexTriWire.data(), IndexTriWire.size() * sizeof(uint32_t)));
 
 	IndicesTri.reset(Render->CreateIndexBuffer(D3DFMT_INDEX32, IndexTri.data(), IndexTri.size() * sizeof(uint32_t)));
@@ -56,6 +64,25 @@ void Resident_Evil_Geometry::Init(void)
 
 	IndicesCylinder.reset(Render->CreateIndexBuffer(D3DFMT_INDEX32, IndexCylinder.data(), IndexCylinder.size() * sizeof(uint32_t)));
 #endif
+}
+
+void Resident_Evil_Geometry::Shutdown(void) noexcept
+{
+	iObject = 0;
+	iObjectMin = 0;
+	iObjectMax = 0;
+	b_CollisionDetection = false;
+	b_DrawCollision = false;
+	b_SolidCollision = false;
+	b_SolidCollisionAll = false;
+	b_ShapeCollision = false;
+	b_ShapeCollisionAll = false;
+	b_HighlightCollision = false;
+	b_DrawBlock = false;
+	b_DrawFloor = false;
+	b_HitSlopeX = false;
+	b_HitSlopeZ = false;
+	m_Slope = {};
 }
 
 void Resident_Evil_Geometry::DrawShape(const DRAWSHAPE& Shape) const
@@ -145,6 +172,47 @@ void Resident_Evil_Geometry::DrawBox(SHAPEVECTOR Vec, VECTOR2 Rotation, DWORD Co
 	DrawShape({ SetWorldMatrix(Vec, Rotation, World->Centroid(Shape)), true, Shape, Color, Solid, IndicesBoxWire.get(), IndicesBox.get() });
 }
 
+void Resident_Evil_Geometry::DrawDiagonal(SHAPEVECTOR Vec, VECTOR2 Rotation, DWORD Color, bool Solid, Shape_Type Type) const
+{
+	float WW = GTE->ToFloat(Vec.w);
+	float DD = GTE->ToFloat(Vec.d);
+	float Height = -GTE->ToFloat(std::abs(Vec.h) - std::abs(Vec.y));
+
+	std::vector<vec3> Shape;
+
+	switch (Type)
+	{
+	case Shape_Type::Diagonal_B:
+	case Shape_Type::Diagonal_C:
+		Shape = {
+			vec3{ 0.0f, 0.0f, 0.0f },
+			vec3{ WW, 0.0f, DD },
+			vec3{ WW, 0.0f, DD },
+			vec3{ WW, Height, DD },
+			vec3{ WW, Height, DD },
+			vec3{ 0.0f, Height, 0.0f },
+			vec3{ 0.0f, Height, 0.0f },
+			vec3{ 0.0f, 0.0f, 0.0f }
+		};
+		break;
+	case Shape_Type::Diagonal_A:
+	case Shape_Type::Diagonal_D:
+		Shape = {
+			vec3{ 0.0f, 0.0f, DD },
+			vec3{ WW, 0.0f, 0.0f },
+			vec3{ WW, 0.0f, 0.0f },
+			vec3{ WW, Height, 0.0f },
+			vec3{ WW, Height, 0.0f },
+			vec3{ 0.0f, Height, DD },
+			vec3{ 0.0f, Height, DD },
+			vec3{ 0.0f, 0.0f, DD }
+		};
+		break;
+	}
+
+	DrawShape({ SetWorldMatrix(Vec, Rotation, World->Centroid(Shape)), true, Shape, Color, Solid, IndicesPlaneWire.get(), IndicesPlane.get() });
+}
+
 void Resident_Evil_Geometry::DrawTriangle(SHAPEVECTOR Vec, VECTOR2 Rotation, DWORD Color, bool Solid, Shape_Type Type) const
 {
 	float WW = GTE->ToFloat(Vec.w);
@@ -155,42 +223,6 @@ void Resident_Evil_Geometry::DrawTriangle(SHAPEVECTOR Vec, VECTOR2 Rotation, DWO
 
 	switch (Type)
 	{
-		case Shape_Type::Triangle_A:
-			Shape = {
-				vec3{ 0.0f, 0.0f, DD },
-				vec3{ WW, 0.0f, DD },
-				vec3{ WW, 0.0f, 0.0f },
-				vec3{ 0.0f, Height, DD },
-				vec3{ WW, Height, DD },
-				vec3{ WW, Height, 0.0f } };
-			break;
-		case Shape_Type::Triangle_B:
-			Shape = {
-				vec3{ 0.0f, 0.0f, 0.0f },
-				vec3{ 0.0f, 0.0f, DD },
-				vec3{ WW, 0.0f, DD },
-				vec3{ 0.0f, Height, 0.0f },
-				vec3{ 0.0f, Height, DD },
-				vec3{ WW, Height, DD } };
-			break;
-		case Shape_Type::Triangle_C:
-			Shape = {
-				vec3{ WW, 0.0f, DD },
-				vec3{ WW, 0.0f, 0.0f },
-				vec3{ 0.0f, 0.0f, 0.0f },
-				vec3{ WW, Height, DD },
-				vec3{ WW, Height, 0.0f },
-				vec3{ 0.0f, Height, 0.0f } };
-			break;
-		case Shape_Type::Triangle_D:
-			Shape = {
-				vec3{ WW, 0.0f, 0.0f },
-				vec3{ 0.0f, 0.0f, 0.0f },
-				vec3{ 0.0f, 0.0f, DD },
-				vec3{ WW, Height, 0.0f },
-				vec3{ 0.0f, Height, 0.0f },
-				vec3{ 0.0f, Height, DD } };
-			break;
 		case Shape_Type::Slope_A:
 			Shape = {
 				vec3{ 0.0f, 0.0f, 0.0f },
@@ -248,7 +280,7 @@ void Resident_Evil_Geometry::DrawRhombus(SHAPEVECTOR Vec, VECTOR2 Rotation, DWOR
 		vec3{ 0.0f, Height, DD },
 		vec3{ WW, Height, 0.0f } };
 
-	Vec.x += (Vec.w * 2) / 3;
+	Vec.x += (Vec.w / 2);
 	Vec.z += (Vec.d / 2);
 
 	DrawShape({ SetWorldMatrix(Vec, Rotation, World->Centroid(Shape)), true, Shape, Color, Solid, IndicesRhombusWire.get(), IndicesRhombus.get() });
@@ -295,7 +327,7 @@ void Resident_Evil_Geometry::DrawCylinder(SHAPEVECTOR Vec, VECTOR2 Rotation, DWO
 	DrawShape({ SetWorldMatrix(Vec, Rotation, World->Centroid(Shape)), true, Shape, Color, Solid, IndicesCylinderWire.get(), IndicesCylinder.get() });
 }
 
-bool Resident_Evil_Geometry::Collision(VECTOR2& Position, const SIZEVECTOR Hitbox, const SHAPEVECTOR Shape, const Shape_Type Type)
+bool Resident_Evil_Geometry::Collision(VECTOR2& Position, const SIZEVECTOR Hitbox, const SHAPEVECTOR Shape, const Shape_Type ShapeType)
 {
 	int32_t minX = Shape.x;
 	int32_t maxX = Shape.x + Shape.w;
@@ -315,17 +347,27 @@ bool Resident_Evil_Geometry::Collision(VECTOR2& Position, const SIZEVECTOR Hitbo
 	auto line = [](int32_t ax, int32_t az, int32_t bx, int32_t bz, int32_t r, int32_t& px, int32_t& pz) -> bool {
 		int32_t dx = bx - ax;
 		int32_t dz = bz - az;
+		int32_t segLen2 = dx * dx + dz * dz;
+		if (segLen2 == 0) return false;
 
-		int32_t c = static_cast<int32_t>(sqrt(static_cast<uint32_t>(dx * dx + dz * dz)));
+		float t = ((px - ax) * dx + (pz - az) * dz) / static_cast<float>(segLen2);
+		t = std::clamp(t, 0.0f, 1.0f);
 
-		if (c <= 0) { return false; }
+		float closestX = ax + t * dx;
+		float closestZ = az + t * dz;
 
-		int32_t dist = (dx * (az - pz) - dz * (ax - px)) / c + r;
+		float distX = px - closestX;
+		float distZ = pz - closestZ;
+		float dist2 = distX * distX + distZ * distZ;
 
-		if (dist <= 0) { return false; }
+		if (dist2 > r * r) return false;
 
-		px += (-dz + 8) * dist / c;
-		pz += (dx + 8) * dist / c;
+		float dist = std::sqrt(dist2);
+		if (dist == 0.0f) return false;
+
+		float push = (r - dist) / dist;
+		px += static_cast<int32_t>(distX * push);
+		pz += static_cast<int32_t>(distZ * push);
 
 		return true;
 		};
@@ -373,7 +415,7 @@ bool Resident_Evil_Geometry::Collision(VECTOR2& Position, const SIZEVECTOR Hitbo
 		}
 		};
 
-	if (!(std::to_underlying(Type) & (SLOPE_A | SLOPE_B | SLOPE_C | SLOPE_D)))
+	if (!(std::to_underlying(ShapeType) & (SLOPE_A | SLOPE_B | SLOPE_C | SLOPE_D)))
 	{
 		if (py <= maxY && py < minY) { return false; }
 	}
@@ -408,23 +450,18 @@ bool Resident_Evil_Geometry::Collision(VECTOR2& Position, const SIZEVECTOR Hitbo
 		}
 	}
 
-	else if (px + pw < minX || px - pw > maxX || pz + pd < minZ || pz - pd > maxZ) { return false; }
+	else if (!(std::to_underlying(ShapeType) & (DIAGONAL_A | DIAGONAL_B | DIAGONAL_C | DIAGONAL_D)))
+	{
+		if (px + pw < minX || px - pw > maxX || pz + pd < minZ || pz - pd > maxZ) { return false; }
+	}
 
-	switch (Type)
+	switch (ShapeType)
 	{
 		case Shape_Type::Rectangle: return rect(minX, minZ, maxX, maxZ, pw, px, pz);
-		case Shape_Type::Triangle_A:
-			if (px > maxX || pz > maxZ) { return rect(minX, minZ, maxX, maxZ, pw, px, pz); }
-			return line(maxX, minZ, minX, maxZ, pw, px, pz);
-		case Shape_Type::Triangle_B:
-			if (px < minX || pz > maxZ) { return rect(minX, minZ, maxX, maxZ, pw, px, pz); }
-			return line(maxX, maxZ, minX, minZ, pw, px, pz);
-		case Shape_Type::Triangle_C:
-			if (px > maxX || pz < minZ) { return rect(minX, minZ, maxX, maxZ, pw, px, pz); }
-			return line(minX, minZ, maxX, maxZ, pw, px, pz);
-		case Shape_Type::Triangle_D:
-			if (px < minX || pz < minZ) { return rect(minX, minZ, maxX, maxZ, pw, px, pz); }
-			return line(minX, maxZ, maxX, minZ, pw, px, pz);
+		case Shape_Type::Diagonal_A: return line(maxX, minZ, minX, maxZ, pw, px, pz);
+		case Shape_Type::Diagonal_B: return line(minX, minZ, maxX, maxZ, pw, px, pz);
+		case Shape_Type::Diagonal_C: return line(minX, minZ, maxX, maxZ, pw, px, pz);
+		case Shape_Type::Diagonal_D: return line(minX, maxZ, maxX, minZ, pw, px, pz);
 		case Shape_Type::Rhombus: return rhombus(minX, minZ, maxX, maxZ, pw, px, pz);
 		case Shape_Type::Circle:
 		{
@@ -484,4 +521,22 @@ bool Resident_Evil_Geometry::Collision(VECTOR2& Position, const SIZEVECTOR Hitbo
 	}
 
 	return false;
+}
+
+bool Resident_Evil_Geometry::CameraSwitch(VECTOR2& Position, const SIZEVECTOR Hitbox, const std::int16_t Xz[4][2])
+{
+	int32_t minX = min(min(Xz[0][0], Xz[1][0]), min(Xz[2][0], Xz[3][0]));
+	int32_t maxX = max(max(Xz[0][0], Xz[1][0]), max(Xz[2][0], Xz[3][0]));
+	int32_t minZ = min(min(Xz[0][1], Xz[1][1]), min(Xz[2][1], Xz[3][1]));
+	int32_t maxZ = max(max(Xz[0][1], Xz[1][1]), max(Xz[2][1], Xz[3][1]));
+
+	int32_t w = Hitbox.w + ((Hitbox.w * 3) / 2);
+	int32_t d = Hitbox.d + ((Hitbox.d * 3) / 2);
+
+	int32_t pxmin = Position.x - w;
+	int32_t pxmax = Position.x + w;
+	int32_t pminz = Position.z - d;
+	int32_t pmaxz = Position.z + d;
+
+	return (pxmin >= minX && pxmax <= maxX && pminz >= minZ && pmaxz <= maxZ);
 }

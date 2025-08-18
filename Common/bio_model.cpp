@@ -63,21 +63,18 @@ void Resident_Evil_Model::SetWorld(const MATVECTOR& Vec) const
 	float YY = GTE->ToFloat(Vec.y);
 	float ZZ = GTE->ToFloat(Vec.z);
 
-	float RX = GTE->ToFloat(std::clamp((std::int16_t)Vec.rx, (std::int16_t)-ONE, (std::int16_t)ONE)) * 360.0f;
-	float RY = GTE->ToFloat(std::clamp((std::int16_t)Vec.ry, (std::int16_t)-ONE, (std::int16_t)ONE)) * 360.0f;
-	float RZ = GTE->ToFloat(std::clamp((std::int16_t)Vec.rz, (std::int16_t)-ONE, (std::int16_t)ONE)) * 360.0f;
+	float RX = GTE->ToFloat(std::clamp(Vec.rx, -ONE, ONE)) * 360.0f;
+	float RY = GTE->ToFloat(std::clamp(Vec.ry, -ONE, ONE)) * 360.0f;
+	float RZ = GTE->ToFloat(std::clamp(Vec.rz, -ONE, ONE)) * 360.0f;
 
 	float SX = GTE->ToFloat(Vec.sx);
 	float SY = GTE->ToFloat(Vec.sy);
 	float SZ = GTE->ToFloat(Vec.sz);
 
-	//Standard_Matrix Neg = Standard_Matrix().Translate(-vec3{ XX, YY, ZZ });
-	//Standard_Matrix Pos = Standard_Matrix().Translate(vec3{ XX, YY, ZZ });
 	Standard_Matrix S = Standard_Matrix().Scale(vec3{ SX, SY, SZ });
 	Standard_Matrix R = Standard_Matrix().YawPitchRoll(vec3{ World->Radian(RX), World->Radian(RY), World->Radian(RZ) });
 	Standard_Matrix T = Standard_Matrix().Translate(vec3{ XX, YY, ZZ });
 
-	//*World = T * (Pos * R * S * Neg);
 	*World = T * R * S;
 }
 
@@ -220,6 +217,8 @@ bool Resident_Evil_Model::OpenObject(std::filesystem::path Path, std::uintmax_t 
 
 	iObjectMax = m_Model->ObjectCount() ? m_Model->ObjectCount() - 1 : 0;
 
+	if (m_ModelType == ModelType::None) { m_ModelType = ModelType::Object; }
+
 	return m_Model->IsOpen();
 }
 
@@ -292,6 +291,8 @@ bool Resident_Evil_Model::OpenPlayer(std::filesystem::path Path, std::uintmax_t 
 #endif
 
 	iObjectMax = m_Model->ObjectCount() ? m_Model->ObjectCount() - 1 : 0;
+
+	m_ModelType = ModelType::Player;
 
 	return true;
 }
@@ -430,6 +431,8 @@ bool Resident_Evil_Model::OpenEnemy(std::filesystem::path Path, std::uintmax_t _
 #endif
 
 	iObjectMax = m_Model->ObjectCount() ? m_Model->ObjectCount() - 1 : 0;
+
+	m_ModelType = ModelType::Enemy;
 
 	return true;
 }
@@ -691,24 +694,70 @@ void Resident_Evil_Model::CloseRoom(void)
 	Animation(ROOM)->Close();
 }
 
+void Resident_Evil_Model::Shutdown(void)
+{
+	b_Active.store(false);
+
+	b_StopDrawing.store(true);
+
+	while (b_Drawing.load())
+	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(10));
+	}
+
+	Close();
+}
+
 void Resident_Evil_Model::DrawFrame(std::shared_ptr<Resident_Evil_Animation> Animation, size_t iClip, size_t iFrame, bool b_DrawRoot)
 {
-	if (!Animation || !Animation->IsOpen() || Animation->Clip.empty()) { return; }
+	const auto& Origin = Animation->Clip[iClip][iFrame].Origin;
+	const auto& Speed = Animation->Clip[iClip][iFrame].Speed;
+	const auto& Rotations = Animation->Clip[iClip][iFrame].Rotation;
 
-	iClip = std::clamp(iClip, (size_t)0, Animation->Clip.size() - 1);
+	size_t iNextFrame = min(iFrame + 1, Animation->GetFrameCount(iClip) - 1);
 
-	if (Animation->Clip[iClip].empty()) { return; }
+	bool b_Lerp = true;
+	if (!b_LerpKeyframes || iNextFrame == iFrame) { b_Lerp = false; }
 
-	iFrame = std::clamp(iFrame, (size_t)0, Animation->Clip[iClip].size() - 1);
+	vec3 Vector;
+	if (b_LockPosition)
+	{
+		Vector = { 0.0f, GTE->ToFloat(Origin.y), 0.0f };
+	}
+	else
+	{
+		if (b_Lerp)
+		{
+			const auto& NextOrigin = Animation->Clip[iClip][iFrame].Origin;
+			const auto& NextSpeed = Animation->Clip[iClip][iFrame].Speed;
+			const auto& NextRotations = Animation->Clip[iClip][iFrame].Rotation;
 
-	const auto& Frame = Animation->Clip[iClip][iFrame];
+			Vector =
+			{
+				std::lerp(GTE->ToFloat(Origin.x) + GTE->ToFloat(Speed.x), GTE->ToFloat(NextOrigin.x) + GTE->ToFloat(NextSpeed.x), m_LerpValue),
+				std::lerp(GTE->ToFloat(Origin.y) + GTE->ToFloat(Speed.y), GTE->ToFloat(NextOrigin.y) + GTE->ToFloat(NextSpeed.y), m_LerpValue),
+				std::lerp(GTE->ToFloat(Origin.z) + GTE->ToFloat(Speed.z), GTE->ToFloat(NextOrigin.z) + GTE->ToFloat(NextSpeed.z), m_LerpValue)
+			};
+		}
+		else
+		{
+			Vector =
+			{
+				GTE->ToFloat(Origin.x) + GTE->ToFloat(Speed.x),
+				GTE->ToFloat(Origin.y) + GTE->ToFloat(Speed.y),
+				GTE->ToFloat(Origin.z) + GTE->ToFloat(Speed.z)
+			};
+		}
+	}
 
-	size_t iNextFrame = std::clamp(iFrame + 1, (size_t)0, Animation->Clip[iClip].size() - 1);
-	if (iFrame >= Animation->GetFrameCount(iClip)) { iNextFrame = 0; }
-
-	const auto& NextFrame = Animation->Clip[iClip][min(iFrame + 1, Animation->Clip[iClip].size() - 1)];
-
-	float t = 0.5f;
+	std::vector<Standard_Matrix> Transform(Rotations.size());
+	for (size_t i = 0; i < Rotations.size(); i++)
+	{
+		Transform[i] =
+			Standard_Matrix().RotateX(World->Radian(GTE->ToFloat(Rotations[i].x) * 360.0f)) *
+			Standard_Matrix().RotateY(World->Radian(GTE->ToFloat(Rotations[i].y) * 360.0f)) *
+			Standard_Matrix().RotateZ(World->Radian(GTE->ToFloat(Rotations[i].z) * 360.0f));
+	}
 
 	std::function<void(const std::shared_ptr<Resident_Evil_Animation::Bone>&, const Standard_Matrix&)> DrawKeyframe =
 		[&](const std::shared_ptr<Resident_Evil_Animation::Bone>& Skeleton, const Standard_Matrix& Matrix)
@@ -721,50 +770,13 @@ void Resident_Evil_Model::DrawFrame(std::shared_ptr<Resident_Evil_Animation> Ani
 			}
 			else
 			{
-				Standard_Matrix Transform;
-				if (Skeleton->ID < Frame.Rotation.size())
-				{
-					const auto& Rotation = Frame.Rotation[Skeleton->ID];
-					Standard_Matrix RotX = Standard_Matrix().RotateX(World->Radian(GTE->ToFloat(Rotation.x) * 360.0f));
-					Standard_Matrix RotY = Standard_Matrix().RotateY(World->Radian(GTE->ToFloat(Rotation.y) * 360.0f));
-					Standard_Matrix RotZ = Standard_Matrix().RotateZ(World->Radian(GTE->ToFloat(Rotation.z) * 360.0f));
-					Transform = RotX * RotY * RotZ;
-				}
-
 				if (Skeleton->Parent.lock())
 				{
-					Skeleton->Local = Skeleton->World * Transform;
+					Skeleton->Local = Skeleton->World * Transform[Skeleton->ID];
 				}
 				else
 				{
-					//const auto& Origin = Frame.Origin;
-					//const auto& Speed = Frame.Speed;
-					//float OX = GTE->ToFloat(Origin.x) + GTE->ToFloat(Speed.x);
-					//float OY = GTE->ToFloat(Origin.y) + GTE->ToFloat(Speed.y);
-					//float OZ = GTE->ToFloat(Origin.z) + GTE->ToFloat(Speed.z);
-					//Standard_Matrix T = Standard_Matrix().Translate(vec3{ OX, OY, OZ });
-
-					const auto& Origin = Frame.Origin;
-					const auto& Speed = Frame.Speed;
-					const auto& NextOrigin = NextFrame.Origin;
-					const auto& NextSpeed = NextFrame.Speed;
-
-					vec3 Position;
-					if (b_LockPosition)
-					{
-						Position = { 0.0f, GTE->ToFloat(Origin.y), 0.0f };
-					}
-					else
-					{
-						Position =
-						{
-							std::lerp(GTE->ToFloat(Origin.x) + GTE->ToFloat(Speed.x), GTE->ToFloat(NextOrigin.x) + GTE->ToFloat(NextSpeed.x), t),
-							std::lerp(GTE->ToFloat(Origin.y) + GTE->ToFloat(Speed.y), GTE->ToFloat(NextOrigin.y) + GTE->ToFloat(NextSpeed.y), t),
-							std::lerp(GTE->ToFloat(Origin.z) + GTE->ToFloat(Speed.z), GTE->ToFloat(NextOrigin.z) + GTE->ToFloat(NextSpeed.z), t)
-						};
-					}
-
-					Skeleton->Local = Standard_Matrix().Translate(Position) * Transform;
+					Skeleton->Local = Standard_Matrix().Translate(Vector) * Transform[Skeleton->ID];
 				}
 
 				Local = Matrix * Skeleton->Local;
@@ -781,6 +793,8 @@ void Resident_Evil_Model::DrawFrame(std::shared_ptr<Resident_Evil_Animation> Ani
 				{
 					for (size_t x = 0; x < WeaponModelDX9()->Object[0].size(); x++)
 					{
+						if (b_StopDrawing.load()) { break; }
+
 						size_t iTexture = std::clamp(WeaponModelDX9()->Object[0][x].iTexture, (size_t)0, WeaponModelDX9()->Texture.empty() ? 0 : WeaponModelDX9()->Texture.size() - 1);
 
 						Render->DrawVec3cnt(
@@ -797,6 +811,8 @@ void Resident_Evil_Model::DrawFrame(std::shared_ptr<Resident_Evil_Animation> Ani
 				{
 					for (size_t x = 0; x < ModelDX9()->Object[i].size(); x++)
 					{
+						if (b_StopDrawing.load()) { break; }
+
 						size_t iTexture = std::clamp(ModelDX9()->Object[i][x].iTexture, (size_t)0, ModelDX9()->Texture.empty() ? 0 : ModelDX9()->Texture.size() - 1);
 
 						Render->DrawVec3cnt(
@@ -812,38 +828,33 @@ void Resident_Evil_Model::DrawFrame(std::shared_ptr<Resident_Evil_Animation> Ani
 			}
 #endif
 
+			if (b_StopDrawing) { return; }
+
 			for (const auto& Children : Skeleton->Children) { DrawKeyframe(Children, Local); }
 		};
 
 	if (b_EditorMode)
 	{
-		SetWorld({
-			EditorPosition().x, EditorPosition().y, EditorPosition().z,
-			EditorRotation().x, EditorRotation().y, EditorRotation().z,
-			EditorScale().x, EditorScale().y, EditorScale().z });
+		SetWorld({ EditorPosition().x, EditorPosition().y, EditorPosition().z, EditorRotation().x, EditorRotation().y, EditorRotation().z, EditorScale().x, EditorScale().y, EditorScale().z });
 	}
 	else
 	{
-		SetWorld({
-			Position().x, Position().y, Position().z,
-			Rotation().x, Rotation().y, Rotation().z,
-			Scale().x, Scale().y, Scale().z });
+		SetWorld({ Position().x, Position().y, Position().z, Rotation().x, Rotation().y, Rotation().z, Scale().x, Scale().y, Scale().z });
 	}
 
 #if MSTD_DX9
-	if (!ModelDX9() || ModelDX9()->Object.empty()) { return; }
-
 	Render->SetWorld(World);
 
-	Render->Device()->SetRenderState(D3DRS_CULLMODE, D3DCULL_CW);
+	Render->Device()->SetRenderState(D3DRS_CULLMODE, b_HorzFlip && b_HorzFlip ? D3DCULL_CW : b_HorzFlip ? D3DCULL_CCW : b_VertFlip ? D3DCULL_CCW : D3DCULL_CW);
 	Render->Device()->SetRenderState(D3DRS_CLIPPING, TRUE);
 
 	Render->TextureFiltering(m_TextureFilter);
 #endif
 
-	b_Drawing = true;
+	b_Drawing.store(true);
 	DrawKeyframe(Animation->Skeleton, *World);
-	b_Drawing = false;
+	b_Drawing.store(false);
+	b_StopDrawing.store(false);
 
 #if MSTD_DX9
 	Render->TextureFiltering(D3DTEXF_NONE);
@@ -892,7 +903,7 @@ void Resident_Evil_Model::DrawObject(std::size_t iObject, bool b_DrawAll, bool D
 
 	Render->SetWorld(World);
 
-	Render->Device()->SetRenderState(D3DRS_CULLMODE, D3DCULL_CW);
+	Render->Device()->SetRenderState(D3DRS_CULLMODE, b_HorzFlip && b_HorzFlip ? D3DCULL_CW : b_HorzFlip || b_VertFlip ? D3DCULL_CCW : D3DCULL_CW);
 	Render->Device()->SetRenderState(D3DRS_CLIPPING, TRUE);
 
 	Render->TextureFiltering(m_TextureFilter);
@@ -944,23 +955,75 @@ void Resident_Evil_Model::Draw(void)
 			Index = NORMAL;
 			b_DrawRoot = true;
 		}
-		else
-		{
-			return;
-		}
+		else { return; }
 	}
 
-	if (iClip >= Animation(Index)->GetClipCount()) { iClip = 0; }
-	if (iFrame >= Animation(Index)->GetFrameCount(iClip)) { iFrame = 0; }
+	iClip = min(iClip.load(), Animation(Index)->GetClipCount() - 1);
 
-	DrawFrame(Animation(Index), iClip, iFrame, b_DrawRoot);
+	iFrame = min(iFrame.load(), Animation(Index)->GetFrameCount(iClip) - 1);
+
+	DrawFrame(Animation(Index), iClip.load(), iFrame.load(), b_DrawRoot);
 
 	//const auto& Frame = Animation(Index)->Clip[iClip][iFrame];
 	//static std::size_t Skip = Frame.Attr.Speed;
 	//Skip << 1;
 
-	static std::size_t frameCounter = 0;
-	if (frameCounter % 2 == 0) { iFrame++; }
-	frameCounter++;
-	if (frameCounter >= Animation(Index)->GetFrameCount(iClip)) { frameCounter = 0; }
+	static std::size_t m_FrameCounter = 0;
+	if (b_Play.load() && m_FrameCounter % 2 == 0)
+	{
+		if (!b_Reverse.load()) { iFrame++; }
+		else { iFrame--; }
+	}
+	m_FrameCounter++;
+
+	if (b_PlayAllFrames.load() && iFrame.load() >= Animation(Index)->GetFrameCount(iClip.load()))
+	{
+		b_PlayAllFrames.store(false);
+	}
+
+	else if (b_WaitComplete.load() && b_Reverse.load() && iFrame.load() <= 0)
+	{
+		AnimIndex(m_AnimationIndexNext);
+		m_PlayerState.store(m_PlayerStateNext);
+		m_PlayerStateOld.store(m_PlayerState);
+		b_WaitComplete.store(false);
+		b_Reverse.store(false);
+		iFrame.store(0); m_FrameCounter = 0;
+	}
+
+	else if (b_WaitComplete.load() && iFrame.load() >= Animation(Index)->GetFrameCount(iClip.load()))
+	{
+		AnimIndex(m_AnimationIndexNext);
+		m_PlayerState.store(m_PlayerStateNext);
+		m_PlayerStateOld.store(m_PlayerState);
+		b_WaitComplete.store(false);
+		iFrame.store(0); m_FrameCounter = 0;
+	}
+
+	else if (b_Play.load() && b_Loop.load() && !b_Reverse.load() && iFrame.load() >= Animation(Index)->GetFrameCount(iClip.load()))
+	{
+		iFrame.store(0); m_FrameCounter = 0;
+	}
+
+	else if (b_Play.load() && b_Loop.load() && b_Reverse.load() && iFrame.load() <= 0)
+	{
+		iFrame.store(Animation(Index)->GetFrameCount(iClip.load()) - 1);
+		m_FrameCounter = iFrame;
+	}
+}
+
+void Resident_Evil_Model::AddSpeedXZ(std::int16_t RotY, SVECTOR* Speed, std::int16_t& PosX, std::int16_t& PosZ) const
+{
+	SVECTOR Sv{};
+	MATRIX M{};
+
+	Sv.vx = 0;
+	Sv.vz = 0;
+	Sv.vy = RotY + Speed->vy;
+
+	GTE->RotMatrix(&Sv, &M);
+	GTE->ApplyMatrixSV(&M, Speed, &Sv);
+
+	PosX = Sv.vx;
+	PosZ = Sv.vz;
 }

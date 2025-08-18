@@ -231,4 +231,8 @@ public:
 	*/
 	bool ExtractXaSectorFromStageBin(std::uintmax_t StartAddress, std::uintmax_t Offset, std::size_t Count, std::filesystem::path Input);
 
+	// Disassemble ROOMCUT.BIN
+	bool DisassembleRoomCut(std::filesystem::path Input,
+		std::function<void(float, bool&, std::filesystem::path)> ProgressCallback, std::function<void(std::filesystem::path&)> OnComplete);
+
 };

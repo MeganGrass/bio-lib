@@ -15,11 +15,11 @@
 
 enum class Resident_Evil_2_Collision_Shape : std::uint16_t
 {
-	Box,									// Square/Rectangle
-	Naname_a,								// Right-Angled Triangle	/*  \|  */
-	Naname_b,								// Right-Angled Triangle	/*  |/  */
-	Naname_c,								// Right-Angled Triangle	/*  /|  */
-	Naname_d,								// Right-Angled Triangle	/*  |\  */
+	Box,									// Rectangle
+	Naname_a,								// Diagonal Plane	/*  \  */
+	Naname_b,								// Diagonal Plane	/*  /  */
+	Naname_c,								// Diagonal Plane	/*  /  */
+	Naname_d,								// Diagonal Plane	/*  \  */
 	Hishi,									// Rhombus
 	Circle,									// Cylinder
 	Koban_x,								// Oblong Cylinder			// X-Axis

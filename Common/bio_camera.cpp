@@ -13,27 +13,10 @@ void Resident_Evil_Camera::Shutdown(void) noexcept
 {
 	b_ViewBackground = false;
 	b_ViewSprite = false;
+	b_ViewTopDown = false;
 	b_DrawLine = false;
 	b_DrawSwitch = false;
-#if MSTD_DX9
-	if (m_Background)
-	{
-		m_Background->Release();
-		m_Background.reset(nullptr);
-	}
-
-	if (m_BackgroundVert)
-	{
-		m_BackgroundVert->Release();
-		m_BackgroundVert.reset(nullptr);
-	}
-
-	if (m_Sprite)
-	{
-		m_Sprite->Release();
-		m_Sprite.reset(nullptr);
-	}
-#endif
+	b_ViewModelEdit = false;
 }
 
 void Resident_Evil_Camera::Reset(void)
@@ -48,7 +31,13 @@ void Resident_Evil_Camera::Reset(void)
 	m_At = { 0, 7200, 0 };
 	m_TexWidth = 0.0f;
 	m_TexHeight = 0.0f;
+	m_TexSprWidth = 0.0f;
+	m_TexSprHeight = 0.0f;
+	m_Cx = 0.0f;
+	m_Cy = 50.0f;
+	m_Cz = 0.0f;
 	m_Background.reset(nullptr);
+	m_Sprite.reset(nullptr);
 	if (!b_ViewModelEdit) { Set(m_FOV, m_Eye, m_At); }
 	else { Set(m_ModelFOV, m_ModelEye, m_ModelAt); }
 }
@@ -81,37 +70,62 @@ std::uint8_t Resident_Evil_Camera::SetImage(std::uint8_t iCut)
 	m_TexSprWidth = 0;
 	m_TexSprHeight = 0;
 
+	std::unique_ptr<Sony_PlayStation_Texture> TIM = std::make_unique<Sony_PlayStation_Texture>();
 	std::unique_ptr<Standard_Image> Image = std::make_unique<Standard_Image>();
 	Image->Str.hWnd = Str.hWnd;
 
-	std::filesystem::path Background = Str.FormatCStyle(L"%ws\\ROOM%d%02x%02d.png", m_Path.wstring().c_str(), Stage, Room, Cut);
+	std::filesystem::path BackgroundTIM = Str.FormatCStyle(L"%ws\\ROOM%d%02x%02d.tim", m_Path.wstring().c_str(), Stage, Room, Cut);
+	std::filesystem::path BackgroundPNG = Str.FormatCStyle(L"%ws\\ROOM%d%02x%02d.png", m_Path.wstring().c_str(), Stage, Room, Cut);
 
-	std::filesystem::path Sprite = Str.FormatCStyle(L"%ws\\ROOM_%d%02x_%02d_mask.png", m_Path.wstring().c_str(), Stage, Room, Cut);
+	std::filesystem::path SpriteTIM = Str.FormatCStyle(L"%ws\\ROOM_%d%02x_%02d_mask.tim", m_Path.wstring().c_str(), Stage, Room, Cut);
+	std::filesystem::path SpritePNG = Str.FormatCStyle(L"%ws\\ROOM_%d%02x_%02d_mask.png", m_Path.wstring().c_str(), Stage, Room, Cut);
+
+	if (Standard_FileSystem().Exists(BackgroundTIM) && TIM->OpenTIM(BackgroundTIM))
+	{
+		m_TexWidth = static_cast<float>(TIM->GetWidth());
+		m_TexHeight = static_cast<float>(TIM->GetHeight());
+		Image = TIM->ExportImage();
+		TIM->Close();
+#if MSTD_DX9
+		m_Background.reset(Render->CreateTexture(Image));
+#endif
+		Image->Close();
+	}
 
 #ifdef LIB_PNG
-	if (Standard_FileSystem().Exists(Background) && Image->OpenPNG(Background))
+	else if (Standard_FileSystem().Exists(BackgroundPNG) && Image->OpenPNG(BackgroundPNG))
 	{
-		m_TexWidth = (float)Image->GetWidth();
-		m_TexHeight = (float)Image->GetHeight();
+		m_TexWidth = static_cast<float>(Image->GetWidth());
+		m_TexHeight = static_cast<float>(Image->GetHeight());
+#if MSTD_DX9
+		m_Background.reset(Render->CreateTexture(Image));
+#endif
+		Image->Close();
 	}
 #endif
 
+	if (Standard_FileSystem().Exists(SpriteTIM) && TIM->OpenTIM(SpriteTIM))
+	{
+		m_TexSprWidth = static_cast<float>(TIM->GetWidth());
+		m_TexSprHeight = static_cast<float>(TIM->GetHeight());
+		Image = TIM->ExportImage();
+		TIM->Close();
 #if MSTD_DX9
-	m_Background.reset(Render->CreateTexture(Image));
+		m_Sprite.reset(Render->CreateTexture(Image, true, 0, 0, true));
 #endif
-
-	Image->Close();
+		Image->Close();
+	}
 
 #ifdef LIB_PNG
-	if (Standard_FileSystem().Exists(Sprite) && Image->OpenPNG(Sprite))
+	else if (Standard_FileSystem().Exists(SpritePNG) && Image->OpenPNG(SpritePNG))
 	{
-		m_TexSprWidth = (float)Image->GetWidth();
-		m_TexSprHeight = (float)Image->GetHeight();
-	}
-#endif
-
+		m_TexSprWidth = static_cast<float>(Image->GetWidth());
+		m_TexSprHeight = static_cast<float>(Image->GetHeight());
 #if MSTD_DX9
-	m_Sprite.reset(Render->CreateTexture(Image, false, 0, 0, true));
+		m_Sprite.reset(Render->CreateTexture(Image, false, 0, 0, true));
+#endif
+		Image->Close();
+	}
 #endif
 
 	return Cut;
@@ -133,8 +147,8 @@ std::vector<vec4t> Resident_Evil_Camera::GetImageVert(void) const
 	float b = m_OrthoHeight;
 #endif
 	
-	if (b_HorzFlipTex) std::swap(l, r);
-	if (b_VertFlipTex) std::swap(t, b);
+	if (b_HorzFlip) { std::swap(l, r); }
+	if (b_VertFlip) { std::swap(t, b); }
 
 	Vert[0].vec.Set(l, b, 1.0f, 1.0f);	Vert[0].uv.Set(0.0f, 0.0f);
 	Vert[1].vec.Set(r, b, 1.0f, 1.0f);	Vert[1].uv.Set(1.0f, 0.0f);
@@ -156,8 +170,6 @@ void Resident_Evil_Camera::SetTopDownPerspective(void)
 		-((m_OrthoHeight / 2.0f) / m_Cy) - m_Cz, ((m_OrthoHeight / 2.0f) / m_Cy) - m_Cz,
 		4096.0f, -1.0f
 	);
-
-	World->SetWorld(vec3{ 0.0f, 0.0f, 0.0f }, vec3{ 0.0f, 0.0f, 0.0f }, vec3{ 1.0f, 1.0f, 1.0f });
 
 #if MSTD_DX9
 	Render->SetWorld(World);
@@ -242,7 +254,17 @@ void Resident_Evil_Camera::Set(std::uint32_t FOV, VECTOR2 Eye, VECTOR2 At)
 	Projection->m20 = Proj.OffsetX;	Projection->m21 = Proj.OffsetY;	Projection->m22 = Proj.OffsetZ;	Projection->m23 = -1.0f;
 	Projection->m30 = 0.0f;			Projection->m31 = 0.0f;			Projection->m32 = Proj.ScaleZ;	Projection->m33 = 0.0f;
 
-	World->SetWorld(vec3{ 0.0f, 0.0f, 0.0f }, vec3{ 0.0f, 0.0f, 0.0f }, vec3{ 1.0f, 1.0f, 1.0f });
+	if (b_HorzFlip)
+	{
+		Projection->m00 = -Projection->m00;
+		Projection->m20 = -Projection->m20;
+	}
+
+	if (b_VertFlip)
+	{
+		Projection->m11 = -Projection->m11;
+		Projection->m21 = -Projection->m21;
+	}
 
 #if MSTD_DX9
 	Render->SetWorld(World);

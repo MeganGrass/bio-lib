@@ -64,6 +64,11 @@ public:
 	}
 
 	/*
+		Get data
+	*/
+	std::vector<Resident_Evil_2_RVD_Data>& data(void) { return Data; }
+
+	/*
 		Get data count
 	*/
 	std::size_t Count(void) const { return Data.size(); }

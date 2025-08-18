@@ -44,10 +44,10 @@ struct DX9_MODEL
 enum class ModelType : std::int32_t
 {
 	None = (0 << 0),
-	Object = (1 << 1),
-	Player = (1 << 2),
-	SubPlayer = (1 << 3),
-	Enemy = (1 << 4)
+	Object = (1 << 0),
+	Player = (1 << 1),
+	SubPlayer = (1 << 2),
+	Enemy = (1 << 3)
 };
 
 
@@ -74,6 +74,9 @@ private:
 	// Matrix
 	std::shared_ptr<Standard_Matrix> World;
 
+	// Model Type
+	ModelType m_ModelType;
+
 	// Interactive/Collision Size Vector
 	SIZEVECTOR m_Hitbox;
 
@@ -93,7 +96,13 @@ private:
 	std::array<std::shared_ptr<Resident_Evil_Animation>, std::to_underlying(AnimationIndex::Count)> m_Animations;
 
 	// Animation Index ID
-	AnimationIndex m_AnimationIndex;
+	std::atomic<AnimationIndex> m_AnimationIndex, m_AnimationIndexNext;
+
+	// Player State
+	std::atomic<Bio2PlayerState> m_PlayerState, m_PlayerStateOld, m_PlayerStateNext;
+
+	// Previous Offset
+	SVECTOR2 m_Speed;
 
 	// Get data pointers from file archive (EMD/EMW/PLD/PLW)
 	std::vector<std::uint32_t> GetDataPtr(StdFile& File, std::uintmax_t _FileBeginPtr);
@@ -140,12 +149,21 @@ public:
 		m_WeaponTexture(std::make_unique<Sony_PlayStation_Texture>()),
 		m_Model(std::make_unique<Sony_PlayStation_Model>()),
 		m_WeaponModel(std::make_unique<Sony_PlayStation_Model>()),
+		m_ModelType(ModelType::None),
 		m_AnimationIndex(NORMAL),
 		m_Hitbox{},
 		b_Active(true),
 		b_Drawing(false),
-		b_Loop(true),
 		b_Play(true),
+		b_Loop(true),
+		b_Reverse(false),
+		b_WaitComplete(false),
+		b_HorzFlip(false),
+		b_VertFlip(false),
+		b_LerpKeyframes(true),
+		m_LerpValue(0.25f),
+		b_QuickTurn(false),
+		b_ControllerMode(false),
 		b_EditorMode(false),
 		b_Dither(true),
 		b_LockPosition(false),
@@ -182,6 +200,7 @@ public:
 		}
 		m_Model->IgnoreMagic(true);
 		m_WeaponModel->IgnoreMagic(true);
+		SetGame(Video_Game::Resident_Evil_2);
 	}
 
 	~Resident_Evil_Model(void) = default;
@@ -211,16 +230,55 @@ public:
 #endif
 
 	// Will the model be drawn?
-	bool b_Active;
+	std::atomic<bool> b_Active;
 
 	// Any model objects currently being drawn?
-	bool b_Drawing;
+	std::atomic<bool> b_Drawing;
+
+	// Stop drawing model objects
+	std::atomic<bool> b_StopDrawing;
 
 	// Is keyframe processing active?
-	bool b_Play;
+	std::atomic<bool> b_Play;
 
 	// Will keyframe processing loop?
-	bool b_Loop;
+	std::atomic<bool> b_Loop;
+
+	// Will keyframe process in reverse?
+	std::atomic<bool> b_Reverse;
+
+	// Keyframes must complete before another clip can be processed
+	std::atomic<bool> b_WaitComplete;
+
+	// All keyframes must be processed
+	std::atomic<bool> b_PlayAllFrames;
+
+	// Lerp keyframes
+	std::atomic<bool> b_LerpKeyframes;
+
+	// Lerp value
+	float m_LerpValue;
+
+	/*
+		Quick-Turn Animation
+		 - for Bio1/Bio2, both don't have quick-turn animation
+	*/
+	std::atomic<bool> b_QuickTurn;
+
+	// Quick-Turn Rotation Counter
+	std::atomic<std::int32_t> m_QuickTurnRotation;
+
+	/*
+		Perspective Flip
+		 - requires camera to be flipped
+	*/
+	bool b_HorzFlip, b_VertFlip;
+
+	/*
+		Controller Mode
+		 - allow animation state changes with controller input
+	*/
+	bool b_ControllerMode;
 
 	/*
 		Editor Mode
@@ -302,10 +360,10 @@ public:
 	std::size_t iWeaponObject, iWeaponObjectMin, iWeaponObjectMax;
 
 	// Animation clip index
-	std::size_t iClip;
+	std::atomic<std::size_t> iClip;
 
 	// Animation keyframe index
-	std::size_t iFrame;
+	std::atomic<std::size_t> iFrame;
 
 	// Room animation index
 	std::size_t iRoom, iRoomMin, iRoomMax;
@@ -373,8 +431,23 @@ public:
 	// Animation Data
 	std::shared_ptr<Resident_Evil_Animation>& Animation(AnimationIndex Type) noexcept { return m_Animations[std::to_underlying(Type)]; }
 
+	// Get Animation Index
+	AnimationIndex AnimIndex(void) noexcept { return m_AnimationIndex.load(); }
+
 	// Set Animation Index
-	AnimationIndex& AnimIndex(void) noexcept { return m_AnimationIndex; }
+	void AnimIndex(AnimationIndex Index) noexcept { m_AnimationIndex.store(Index); }
+
+	// Player State
+	Bio2PlayerState State(void) noexcept { return m_PlayerState.load(); }
+
+	// Player State Old
+	Bio2PlayerState PriorState(void) noexcept { return m_PlayerStateOld.load(); }
+
+	// Set Model Type
+	ModelType& ModelType(void) noexcept { return m_ModelType; }
+
+	// Previous Offset
+	SVECTOR2& Speed(void) noexcept { return m_Speed; }
 
 	/*
 		Set world matrix
@@ -433,11 +506,26 @@ public:
 	// Reset clip
 	void ResetClip(void) { iClip = 0; iFrame = 0; }
 
+	// Reset frame if not in prior state
+	void ResetFrame(Bio2PlayerState iPriorState) { if (PriorState() != iPriorState) { iFrame.store(0); } }
+
+	// Clamp rotation between -4096 and 4096
+	void ClampRotation(void)
+	{
+		if (Rotation().y <= -ONE || Rotation().y >= ONE) { Rotation().y = Rotation().y >> 12; }
+	}
+
+	// Clamp rotation between -4096 and 4096
+	void ClampEditorRotation(void)
+	{
+		if (EditorRotation().y <= -ONE || EditorRotation().y >= ONE) { EditorRotation().y = EditorRotation().y >> 12; }
+	}
+
 	// Setup room data
 	void SetRoomAnimations(std::shared_ptr<Resident_Evil_Animation>& Rbj);
 
 	// Clear all data
-	void Close(void) { ResetClip(); CloseModel(); CloseWeapon(); }
+	void Close(void) { m_ModelType = ModelType::None; ResetClip(); CloseModel(); CloseWeapon(); }
 
 	// Clear model data
 	void CloseModel(void);
@@ -448,6 +536,39 @@ public:
 	// Clear room data
 	void CloseRoom(void);
 
+	// Shutdown model
+	void Shutdown(void);
+
+	// Set State
+	void SetState(Bio2PlayerState iState, AnimationIndex Index, size_t Frame, bool WaitComplete, bool Loop)
+	{
+		b_Play.store(false);
+
+		if (iState != PriorState())
+		{
+			iFrame.store(0);
+			m_Speed = { 0, 0, 0 };
+		}
+
+		iFrame.store(Frame);
+		iClip.store(std::to_underlying(iState));
+
+		AnimIndex(Index);
+		m_PlayerStateOld.store(m_PlayerState.load());
+		m_PlayerState.store(iState);
+
+		b_WaitComplete.store(WaitComplete);
+		b_Loop.store(Loop);
+		b_Play.store(true);
+	}
+
+	// Set Next State
+	void SetNextState(Bio2PlayerState iNexState, AnimationIndex Index)
+	{
+		m_PlayerStateNext.store(iNexState);
+		m_AnimationIndexNext.store(Index);
+	}
+
 	// Draw model at animation keyframe
 	void DrawFrame(std::shared_ptr<Resident_Evil_Animation> Animation, size_t iClip, size_t iFrame, bool b_DrawRoot = false);
 
@@ -456,5 +577,7 @@ public:
 
 	// Draw model
 	void Draw(void);
+
+	void AddSpeedXZ(std::int16_t RotY, SVECTOR* Speed, std::int16_t& PosX, std::int16_t& PosZ) const;
 
 };

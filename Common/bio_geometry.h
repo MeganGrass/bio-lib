@@ -18,10 +18,10 @@
 enum class Shape_Type : std::int32_t
 {
 	Rectangle = (1 << 0),
-	Triangle_A = (1 << 1),	/*  \|  */
-	Triangle_B = (1 << 2),	/*  |/  */
-	Triangle_C = (1 << 3),	/*  /|  */
-	Triangle_D = (1 << 4),	/*  |\  */
+	Diagonal_A = (1 << 1),	//  \  // Plane
+	Diagonal_B = (1 << 2),	//  /  // Plane
+	Diagonal_C = (1 << 3),	//  /  // Plane
+	Diagonal_D = (1 << 4),	//  \  // Plane
 	Rhombus = (1 << 5),
 	Circle = (1 << 6),
 	OblongX = (1 << 7),
@@ -35,34 +35,15 @@ enum class Shape_Type : std::int32_t
 };
 
 
-enum class Shape_Flag : std::int32_t
-{
-	Weapon = (1 << 0),		// cannot auto-aim or shoot through shape
-	unk00 = (1 << 1),		// 
-	unk01 = (1 << 2),		// 
-	Enemy = (1 << 3),		// enemy
-	unk02 = (1 << 4),		// 
-	unk03 = (1 << 5),		// 
-	Bullet = (1 << 6),		// bullet casing
-	Object = (1 << 7),		// basic 3D object
-	Player = (1 << 8)		// player
-};
-
-static Shape_Flag operator | (Shape_Flag _Mode0, Shape_Flag _Mode1)
-{
-	return static_cast<Shape_Flag>(std::to_underlying(_Mode0) | std::to_underlying(_Mode1));
-}
-
-
 class Resident_Evil_Geometry final {
 private:
 
 	// Shape Type Constants
 	static constexpr std::uint32_t RECT = std::to_underlying(Shape_Type::Rectangle);
-	static constexpr std::uint32_t TRIANGLE_A = std::to_underlying(Shape_Type::Triangle_A);
-	static constexpr std::uint32_t TRIANGLE_B = std::to_underlying(Shape_Type::Triangle_B);
-	static constexpr std::uint32_t TRIANGLE_C = std::to_underlying(Shape_Type::Triangle_C);
-	static constexpr std::uint32_t TRIANGLE_D = std::to_underlying(Shape_Type::Triangle_D);
+	static constexpr std::uint32_t DIAGONAL_A = std::to_underlying(Shape_Type::Diagonal_A);
+	static constexpr std::uint32_t DIAGONAL_B = std::to_underlying(Shape_Type::Diagonal_B);
+	static constexpr std::uint32_t DIAGONAL_C = std::to_underlying(Shape_Type::Diagonal_C);
+	static constexpr std::uint32_t DIAGONAL_D = std::to_underlying(Shape_Type::Diagonal_D);
 	static constexpr std::uint32_t RHOMBUS = std::to_underlying(Shape_Type::Rhombus);
 	static constexpr std::uint32_t CIRCLE = std::to_underlying(Shape_Type::Circle);
 	static constexpr std::uint32_t OBLONG_X = std::to_underlying(Shape_Type::OblongX);
@@ -105,6 +86,9 @@ private:
 	std::unique_ptr<IDirect3DIndexBuffer9, IDirect3DDelete9<IDirect3DIndexBuffer9>> IndicesBoxWire;
 	std::unique_ptr<IDirect3DIndexBuffer9, IDirect3DDelete9<IDirect3DIndexBuffer9>> IndicesBox;
 
+	std::unique_ptr<IDirect3DIndexBuffer9, IDirect3DDelete9<IDirect3DIndexBuffer9>> IndicesPlaneWire;
+	std::unique_ptr<IDirect3DIndexBuffer9, IDirect3DDelete9<IDirect3DIndexBuffer9>> IndicesPlane;
+
 	std::unique_ptr<IDirect3DIndexBuffer9, IDirect3DDelete9<IDirect3DIndexBuffer9>> IndicesTriWire;
 	std::unique_ptr<IDirect3DIndexBuffer9, IDirect3DDelete9<IDirect3DIndexBuffer9>> IndicesTri;
 
@@ -126,6 +110,9 @@ public:
 
 	// Entity Collision Detection On/Off
 	bool b_CollisionDetection;
+
+	// Automatic Camera Switching On/Off
+	bool b_SwitchDetection;
 
 	// Draw Collision Polygons On/Off
 	bool b_DrawCollision;
@@ -164,6 +151,7 @@ public:
 		iObjectMin(0),
 		iObjectMax(0),
 		b_CollisionDetection(true),
+		b_SwitchDetection(true),
 		b_DrawCollision(true),
 		b_SolidCollision(true),
 		b_SolidCollisionAll(false),
@@ -181,14 +169,20 @@ public:
 	// Initialize Geometry
 	void Init(void);
 
+	// Shutdown
+	void Shutdown(void) noexcept;
+
 	// Draw 4-point Rectangle
 	void Draw4p(const std::int16_t Xz[4][2], std::int32_t Y, DWORD Color) const;
 
 	// Draw Box
 	void DrawBox(SHAPEVECTOR Vec, VECTOR2 Rotation, DWORD Color, bool Solid = false) const;
 
+	// Draw Diagonal
+	void DrawDiagonal(SHAPEVECTOR Vec, VECTOR2 Rotation, DWORD Color, bool Solid = false, Shape_Type Type = Shape_Type::Diagonal_A) const;
+
 	// Draw Triangle
-	void DrawTriangle(SHAPEVECTOR Vec, VECTOR2 Rotation, DWORD Color, bool Solid = false, Shape_Type Type = Shape_Type::Triangle_A) const;
+	void DrawTriangle(SHAPEVECTOR Vec, VECTOR2 Rotation, DWORD Color, bool Solid = false, Shape_Type Type = Shape_Type::Slope_A) const;
 
 	// Draw Rhombus
 	void DrawRhombus(SHAPEVECTOR Vec, VECTOR2 Rotation, DWORD Color, bool Solid = false) const;
@@ -197,6 +191,9 @@ public:
 	void DrawCylinder(SHAPEVECTOR Vec, VECTOR2 Rotation, DWORD Color, bool Solid = false) const;
 
 	// Collision Detection
-	bool Collision(VECTOR2& Position, const SIZEVECTOR Hitbox, const SHAPEVECTOR Shape, const Shape_Type Type);
+	bool Collision(VECTOR2& Position, const SIZEVECTOR Hitbox, const SHAPEVECTOR Shape, const Shape_Type ShapeType);
+
+	// Camera Switch Detection
+	bool CameraSwitch(VECTOR2& Position, const SIZEVECTOR Hitbox, const std::int16_t Xz[4][2]);
 
 };

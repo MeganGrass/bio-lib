@@ -568,20 +568,18 @@ bool Resident_Evil_2::ExtractBgmFromSaveFile(std::filesystem::path Input)
 
 std::unique_ptr<Standard_Image> Resident_Evil_2::OpenBSS(std::filesystem::path Input, std::int32_t No)
 {
-	Standard_String Str;
-
 	std::unique_ptr<Standard_Image> Image = std::make_unique<Standard_Image>(32, 320, 240);
 
-	StdFile m_Input { Input, FileAccessMode::Read_Ex, true, false };
+	StdFile m_Input { Input, FileAccessMode::Read, true, false };
 	if (!m_Input)
 	{
-		Str.Message("Resident Evil 2: BSS error, could not open %s", Input.filename().string().c_str());
+		Standard_String().Message("Resident Evil 2: BSS error, could not open %s", Input.filename().string().c_str());
 		return Image;
 	}
 
 	if (m_Input.Size() % 65536 != 0)
 	{
-		Str.Message("Resident Evil 2: BSS error, file size is not a multiple of 65536");
+		Standard_String().Message("Resident Evil 2: BSS error, file size is not a multiple of 65536");
 		return Image;
 	}
 
@@ -589,7 +587,7 @@ std::unique_ptr<Standard_Image> Resident_Evil_2::OpenBSS(std::filesystem::path I
 
 	if (!nBs)
 	{
-		Str.Message("Resident Evil 2: BSS error, no bitstreams");
+		Standard_String().Message("Resident Evil 2: BSS error, no bitstreams");
 		return Image;
 	}
 
@@ -634,7 +632,7 @@ std::unique_ptr<Standard_Image> Resident_Evil_2::OpenBSS(std::filesystem::path I
 
 	if (!Index.Bs_size)
 	{
-		Str.Message("Resident Evil 2: BSS error, no bitstream");
+		Standard_String().Message("Resident Evil 2: BSS error, no bitstream");
 		return Image;
 	}
 
@@ -1335,6 +1333,167 @@ bool Resident_Evil_2::ExtractXaSectorFromStageBin(std::uintmax_t StartAddress, s
 	Text->Close();
 
 	Exe->Close();
+
+	return true;
+}
+
+bool Resident_Evil_2::DisassembleRoomCut(std::filesystem::path Input,
+	std::function<void(float, bool&, std::filesystem::path)> ProgressCallback, std::function<void(std::filesystem::path&)> OnComplete)
+{
+#ifdef _WINDOWS
+	HEAP_OPTIMIZE_RESOURCES_INFORMATION ResourceInfo = { HEAP_OPTIMIZE_RESOURCES_CURRENT_VERSION, 0 };
+	HeapSetInformation(NULL, HeapOptimizeResources, &ResourceInfo, sizeof(HEAP_OPTIMIZE_RESOURCES_INFORMATION));
+#endif
+
+	bool b_Execute = true;
+
+	std::filesystem::path Dir = Standard_Basic_FStream().GetDirectory(Input);
+
+	StdFile m_File{ Input, FileAccessMode::Read, true, false };
+
+	if (!m_File.IsOpen())
+	{
+		Standard_String().Message(L"Resident Evil 2 Error: could not read \"%ws\"", m_File.GetPath().filename().wstring().c_str());
+
+		ProgressCallback(1.0f, b_Execute, "");
+
+		OnComplete(Dir);
+
+		return false;
+	}
+
+	if (m_File.CRC32() != 0x93817868)
+	{
+		Standard_String().Message(L"Resident Evil 2 Error: invalid CRC32 for \"%ws\"", m_File.GetPath().filename().wstring().c_str());
+
+		ProgressCallback(1.0f, b_Execute, "");
+
+		OnComplete(Dir);
+
+		return false;
+	}
+
+	Dir = m_File.GetDirectory() / m_File.GetFileName().stem();
+	std::wstring Stem = m_File.GetFileName().stem().wstring();
+
+	m_File.CreateDirectory(Dir);
+
+	std::uint32_t Stage = 1, Room = 0, Camera = 0;
+
+	std::uintmax_t IndexPtr = 0, ADTPointer = 0, ADTPointerNext = 0, ADTSize = 0;
+
+	std::uintmax_t RAWPtr0 = 0, TIMPtr0 = 0, RAWPtr1 = 0x20000, TIMPtr1 = 0x200, RAWPtr2 = 0x20080, TIMPtr2 = 0x14200;
+
+	std::vector<std::uint8_t> ADT, RAW;
+
+	Sony_PlayStation_Texture Background(16, 320, 240, 0), Sprite;
+
+	Resident_Evil_2_ADT ADTDecoder;
+
+	Standard_String Filename;
+
+	Standard_Basic_FStream MaskFile;
+
+	while (b_Execute)
+	{
+		for (std::size_t i = 0; i < 3584; i++)
+		{
+			ProgressCallback(static_cast<float>(i) / 3584.0f, b_Execute, Filename.FormatCStyle(L"ROOM%d%02X Cam: %02d", Stage, Room, Camera));
+
+			if (!b_Execute) { break; }
+
+			IndexPtr = i * sizeof(std::uint32_t);
+			m_File.Read(IndexPtr + 0, &ADTPointer, sizeof(std::uint32_t));
+			m_File.Read(IndexPtr + 4, &ADTPointerNext, sizeof(std::uint32_t));
+
+			if (i + 1 >= 3584)
+			{
+				ADTSize = m_File.Size() - ADTPointer;
+			}
+			else
+			{
+				ADTSize = ADTPointerNext - ADTPointer;
+			}
+
+			if (ADTSize)
+			{
+				ADT.resize(ADTSize);
+				m_File.Read(ADTPointer, ADT.data(), ADT.size());
+			}
+			else
+			{
+				ADT.clear();
+			}
+
+			if (!ADT.empty())
+			{
+				RAW.resize(0x40000);
+				ADTDecoder.Decompress(ADT, RAW);
+			}
+			else
+			{
+				RAW.clear();
+			}
+
+			if (Camera >= 16)
+			{
+				Room++;
+				Camera = 0;
+			}
+
+			if (Room >= 32)
+			{
+				Stage++;
+				Room = 0;
+			}
+
+			if (!RAW.empty() && RAW.size() >= 0x28000)
+			{
+				RAWPtr0 = 0;
+				TIMPtr0 = 0;
+				RAWPtr1 = 0x20000;
+				TIMPtr1 = 0x200;
+				RAWPtr2 = 0x20080;
+				TIMPtr2 = 0x14200;
+
+				for (std::size_t x = 0; x < 240; x++)
+				{
+					std::memcpy(&Background.GetPixels().data()[TIMPtr0 + x * 0x280], &RAW.data()[RAWPtr0 + x * 0x200], 0x200);
+					std::memcpy(&Background.GetPixels().data()[TIMPtr2 + x * 0x280], &RAW.data()[RAWPtr2 + x * 0x100], 0x80);
+
+					if (x < 128)
+					{
+						std::memcpy(&Background.GetPixels().data()[TIMPtr1 + x * 0x280], &RAW.data()[RAWPtr1 + x * 0x100], 0x80);
+					}
+				}
+
+				Background.SaveTIM(Filename.FormatCStyle(L"%ws\\ROOM%d%02X%02d.TIM", Dir.wstring().c_str(), Stage, Room, Camera));
+				Background.SaveBMP(Filename.FormatCStyle(L"%ws\\ROOM%d%02X%02d.BMP", Dir.wstring().c_str(), Stage, Room, Camera));
+#ifdef LIB_PNG
+				Background.SavePNG(Filename.FormatCStyle(L"%ws\\ROOM%d%02X%02d.PNG", Dir.wstring().c_str(), Stage, Room, Camera));
+#endif
+
+				if (RAW.size() > 0x28000)
+				{
+					m_File.Create(Filename.FormatCStyle(L"%ws\\ROOM_%d%02X_%02d_MASK.TIM", Dir.wstring().c_str(), Stage, Room, Camera), &RAW.data()[0x28000], RAW.size() - 0x28000);
+					MaskFile.Open(Filename.FormatCStyle(L"%ws\\ROOM_%d%02X_%02d_MASK.TIM", Dir.wstring().c_str(), Stage, Room, Camera), FileAccessMode::Read_Ex, true);
+					MaskFile.ResizeAlign(0x18000);
+					MaskFile.Close();
+					Sprite.OpenTIM(Filename.FormatCStyle(L"%ws\\ROOM_%d%02X_%02d_MASK.TIM", Dir.wstring().c_str(), Stage, Room, Camera));
+					Sprite.SaveBMP(Filename.FormatCStyle(L"%ws\\ROOM_%d%02X_%02d_MASK.BMP", Dir.wstring().c_str(), Stage, Room, Camera));
+#ifdef LIB_PNG
+					Sprite.SavePNG(Filename.FormatCStyle(L"%ws\\ROOM_%d%02X_%02d_MASK.PNG", Dir.wstring().c_str(), Stage, Room, Camera));
+#endif
+				}
+			}
+
+			Camera++;
+		}
+	}
+
+	ProgressCallback(1.0f, b_Execute = false, "");
+
+	OnComplete(Dir);
 
 	return true;
 }
