@@ -71,11 +71,82 @@ private:
 	static constexpr AnimationIndex WEAPON_EX1 = AnimationIndex::WeaponEx1;
 	static constexpr AnimationIndex ROOM = AnimationIndex::Room;
 
+	struct LIMB_INDEX
+	{
+		// add 0x08 (sizeof BINARY_HEADER) to very first pTriangleListA to get absolute offset to the first LIMB_DATA entry, then parse from there, ignoring the rest of the offsets
+		std::uint16_t pTriangleListA{};					/*
+															3-byte triangle indices (triplets) into a limb-local vertex pool; ends on an 0xFF triplet, or single 0xFF null terminator
+
+															example:
+															[00,12,00], [01,02,03], [04,05,06], [07,08,09], [0A,0B,0C], [0D,0E,0F], [10,11,12], [16,17,18], [19,1A,1B], [1C,1D,1E],
+															[20,21,22], [23,25,26], [27,28,29], [2A,2B,2C], [2D,2E,2F], [30,31,32], [33,34,35], [37,38,3B], [3B,3B,FF]
+														*/
+		std::uint16_t pTriangleListB{};					/*
+															same as pTriangleListA
+
+															example:
+															[02,0A,12], [01,02,0A], [12,34,35], [37,38,02], [01,22,23], [25,05,01], [1E,20,21], [08,04,16], [17,18,19], [1A,1B,1C], [1D,30,31], [FF,FF,FF]
+														*/
+		std::uint16_t pVertexBind{};					/*
+															bytecode that assigns limb-local vertex IDs to joints for list A/B; stream terminates with 0xFF
+															The stream is a sequence of opcodes and vertex IDs parsed statefully
+
+															Opcodes:
+															- A non-zero byte read while no joint is active sets the current JointId
+															- 0x60: Selects list A for subsequent vertex assignments
+															- 0x61: Selects list B for subsequent vertex assignments
+															- 0x00: Resets the current JointId, requiring a new one to be set
+															- 0xFF: Terminates the stream
+
+															Any other byte is treated as a vertex ID to be assigned to the current joint and list
+
+															example:
+															02 13 60 00					- JointId = 0x02, assign vertex 0x13 to list A, reset joint
+															02 13 60 39 0B 24 60 00		- JointId = 0x02, assign vertices 0x13, 0x39, 0x0B, 0x24 to list A, reset joint
+															02 14 61 14 61 14 61 00		- JointId = 0x02, assign 0x14 to list A, then assign 0x14 to list B twice, reset joint
+															05 15 60 3C 14 3A 0B 00		- JointId = 0x05, assign vertices 0x15, 0x3C, 0x14, 0x3A, 0x0B to list A, reset joint
+															05 1F 60 36 60 1F 60 FF		- JointId = 0x05, assign vertices 0x1F, 0x36, 0x1F to list A, terminate stream
+														*/
+		std::uint16_t reserved{};						// padding, always zero (0)
+	};
+
+	struct BINARY_HEADER
+	{
+		std::uint8_t unk0{};							// total TriangleList Count?
+		std::uint8_t unk1{};							// total TriangleList Count?
+		std::uint16_t unk2{};							// 
+		std::uint16_t pBindPose{};						/*
+															absolute offset to SVECTOR2 array (count matches Animation(NORMAL)->Joint size)
+															coordinate-space difference between the bind pose and animation joint space (opposite signage -/+)
+														*/
+		std::uint16_t LimbCount{};						// number of limbs/body groups
+	};
+
+	struct LIMB_DATA
+	{
+		std::vector<std::array<uint8_t, 3>> TriA{};
+		std::vector<std::array<uint8_t, 3>> TriB{};
+		std::array<int8_t, 256> JointA{};
+		std::array<int8_t, 256> JointB{};
+	};
+
+	struct BINARY_DATA
+	{
+		std::vector<SVECTOR2> BindPose{};
+		std::vector<LIMB_DATA> Limb{};
+	};
+
 	// Matrix
 	std::shared_ptr<Standard_Matrix> World;
 
 	// Model Type
 	ModelType m_ModelType;
+
+	// Model Game Type
+	Video_Game m_ModelGame;
+
+	// Weapon Model Game Type
+	Video_Game m_WeaponModelGame;
 
 	// Interactive/Collision Size Vector
 	SIZEVECTOR m_Hitbox;
@@ -104,10 +175,55 @@ private:
 	// Previous Offset
 	SVECTOR2 m_Speed;
 
+	// Shadow
+	struct SHADOW
+	{
+		rect Rect{};
+		sizevec Size{};
+		size_t TexID{};
+		std::vector<vec3t> Vec;
+#ifdef MSTD_DX9
+		std::unique_ptr<IDirect3DVertexBuffer9, IDirect3DDelete9<IDirect3DVertexBuffer9>> Vertices;
+#endif
+	};
+
+	SHADOW m_Shadow;
+
 	// Get data pointers from file archive (EMD/EMW/PLD/PLW)
 	std::vector<std::uint32_t> GetDataPtr(StdFile& File, std::uintmax_t _FileBeginPtr);
 
-#if MSTD_DX9
+	// Parse binary chunk
+	void ParseBinary(const std::vector<std::uint8_t>& Binary, size_t JointCount, BINARY_DATA& Output);
+
+	/*
+		Open model file -- TMD (Bio1), MD1 (Bio2) or MD2 (Bio3)
+		 - automatically calls ExportDX9 when texture is open
+	*/
+	bool OpenObject(std::filesystem::path Path, std::uintmax_t _Ptr = 0);
+
+	/*
+		Open player file - EMD (Bio1) or PLD (Bio2/Bio3)
+		 - call SetGame before this function
+		 - automatically calls ExportDX9
+	*/
+	bool OpenPlayer(std::filesystem::path Path, std::uintmax_t _Ptr = 0);
+
+	/*
+		Open enemy file - EMD (Bio1/Bio2/Bio3)
+		 - call SetGame before this function
+		 - automatically opens texture when Bio2/Bio3 EMD
+		 - automatically calls ExportDX9
+	*/
+	bool OpenEnemy(std::filesystem::path Path, std::uintmax_t _Ptr = 0);
+
+	/*
+		Open weapon file - EMW (Bio1) or PLW (Bio2/Bio3)
+		 - call SetGame before this function
+		 - automatically calls ExportDX9
+	*/
+	bool OpenWeapon(std::filesystem::path Path, std::uintmax_t _Ptr = 0);
+
+#ifdef MSTD_DX9
 	// Direct-X 9 Model
 	std::unique_ptr<DX9_MODEL> m_DX9Model, m_DX9WeaponModel;
 
@@ -150,6 +266,8 @@ public:
 		m_Model(std::make_unique<Sony_PlayStation_Model>()),
 		m_WeaponModel(std::make_unique<Sony_PlayStation_Model>()),
 		m_ModelType(ModelType::None),
+		m_ModelGame(Video_Game::Resident_Evil_2),
+		m_WeaponModelGame(Video_Game::Resident_Evil_2),
 		m_AnimationIndex(NORMAL),
 		m_Hitbox{},
 		b_Active(true),
@@ -170,12 +288,14 @@ public:
 		b_DrawWireframe(false),
 		b_DrawTextured(true),
 		b_DrawSolidColor(false),
-		b_DrawSkeletonMesh(false),
+		b_DrawSkeleton(false),
 		b_DrawReference(false),
 		b_DrawHitbox(false),
 		b_DrawAllObjects(false),
 		b_DrawSingleObject(false),
 		b_DrawWeapon(false),
+		b_WeaponKickback(false),
+		b_DrawShadow(true),
 		iObject(0),
 		iObjectMin(0),
 		iObjectMax(0),
@@ -187,12 +307,13 @@ public:
 		iRoom(0),
 		iRoomMin(0),
 		iRoomMax(0)
-#if MSTD_DX9
+#ifdef MSTD_DX9
 		,m_TextureFilter(D3DTEXF_NONE),
 		m_DX9Model(nullptr),
 		m_DX9WeaponModel(nullptr)
 #endif
 	{
+		Routine = [&]() {};
 		for (size_t i = 0; i < m_Animations.size(); ++i)
 		{
 			m_Animations[i] = std::make_shared<Resident_Evil_Animation>();
@@ -201,6 +322,11 @@ public:
 		m_Model->IgnoreMagic(true);
 		m_WeaponModel->IgnoreMagic(true);
 		SetGame(Video_Game::Resident_Evil_2);
+		m_Shadow.TexID = 0;
+		m_Shadow.Vec.clear();
+#ifdef MSTD_DX9
+		m_Shadow.Vertices.reset(nullptr);
+#endif
 	}
 
 	~Resident_Evil_Model(void) = default;
@@ -210,7 +336,7 @@ public:
 	// Sony PlayStation (1994) Geometry Transformation Engine
 	std::shared_ptr<Sony_PlayStation_GTE> GTE;
 
-#if MSTD_DX9
+#ifdef MSTD_DX9
 
 	// Direct-X 9 Render Context
 	std::shared_ptr<Standard_DirectX_9> Render;
@@ -229,13 +355,16 @@ public:
 
 #endif
 
+	// Contoller/AI routine
+	std::function<void()> Routine;
+
 	// Will the model be drawn?
 	std::atomic<bool> b_Active;
 
 	// Any model objects currently being drawn?
 	std::atomic<bool> b_Drawing;
 
-	// Stop drawing model objects
+	// Immediately stop drawing model objects
 	std::atomic<bool> b_StopDrawing;
 
 	// Is keyframe processing active?
@@ -244,7 +373,7 @@ public:
 	// Will keyframe processing loop?
 	std::atomic<bool> b_Loop;
 
-	// Will keyframe process in reverse?
+	// Will keyframes process in reverse?
 	std::atomic<bool> b_Reverse;
 
 	// Keyframes must complete before another clip can be processed
@@ -260,12 +389,22 @@ public:
 	float m_LerpValue;
 
 	/*
+		Idle-Turn Animation
+		 - requires reset to idle before next animation
+	*/
+	std::atomic<bool> b_IdleTurn;
+
+	/*
 		Quick-Turn Animation
 		 - for Bio1/Bio2, both don't have quick-turn animation
 	*/
 	std::atomic<bool> b_QuickTurn;
 
-	// Quick-Turn Rotation Counter
+	/*
+		Quick-Turn Rotation Counter
+		 - set to 2048 on quick-turn start
+		 - decrement by 64 on each frame
+	*/
 	std::atomic<std::int32_t> m_QuickTurnRotation;
 
 	/*
@@ -318,9 +457,9 @@ public:
 
 	/*
 		Draw Skeleton
-		 - skeleton mesh will be drawn
+		 - skeleton will be drawn as lines
 	*/
-	bool b_DrawSkeletonMesh;
+	bool b_DrawSkeleton;
 
 	/*
 		Ignore keyframes in DrawFrame
@@ -353,6 +492,15 @@ public:
 	*/
 	bool b_DrawWeapon;
 
+	/*
+		Does the weapon have kickback?
+		 - position change ("push" backward) on weapon discharge
+	*/
+	bool b_WeaponKickback;
+
+	// Will the shadow be drawn?
+	bool b_DrawShadow;
+
 	// Model object index
 	std::size_t iObject, iObjectMin, iObjectMax;
 
@@ -368,6 +516,14 @@ public:
 	// Room animation index
 	std::size_t iRoom, iRoomMin, iRoomMax;
 
+	// set video game type
+	virtual void SetGame(Video_Game Game) override
+	{
+		Resident_Evil_Common::SetGame(Game);
+		for (size_t i = 0; i < m_Animations.size(); ++i) { m_Animations[i]->SetGame(Game); }
+	}
+
+#ifdef _WINDOWS
 	// set window handle for message/debugging
 	void SetWindow(HWND hWnd)
 	{
@@ -378,19 +534,26 @@ public:
 		m_WeaponModel->Str.hWnd = hWnd;
 		for (size_t i = 0; i < m_Animations.size(); ++i) { m_Animations[i]->Str.hWnd = hWnd; }
 	}
+#endif
 
-	// set video game type
-	virtual void SetGame(Video_Game Game) override
+#ifdef MSTD_DX9
+	// initial setup
+	void PlatformSetup(HWND hWnd, std::shared_ptr<Sony_PlayStation_GTE> _GTE, std::shared_ptr<Standard_DirectX_9> _Render, bool HorzFlip, bool VertFlip)
 	{
-		Resident_Evil_Common::SetGame(Game);
-		for (size_t i = 0; i < m_Animations.size(); ++i) { m_Animations[i]->SetGame(Game); }
+		SetWindow(hWnd);
+		SetGame(Game);
+		GTE = _GTE;
+		Render = _Render;
+		b_HorzFlip = HorzFlip;
+		b_VertFlip = VertFlip;
 	}
+#endif
 
 	// Filename
-	const std::filesystem::path Filename(void) noexcept { return m_Filename; }
+	std::filesystem::path& Filename(void) noexcept { return m_Filename; }
 
 	// Weapon Filename
-	const std::filesystem::path WeaponFilename(void) noexcept { return m_WeaponFilename; }
+	std::filesystem::path& WeaponFilename(void) noexcept { return m_WeaponFilename; }
 
 	// Position
 	VECTOR2& Position(void) noexcept { return m_Position; }
@@ -415,6 +578,9 @@ public:
 
 	// Interactive/Collision Shape Vector
 	SHAPEVECTOR HitboxShape(void) noexcept;
+
+	// Shadow
+	SHADOW& Shadow(void) noexcept { return m_Shadow; }
 
 	// Model
 	std::unique_ptr<Sony_PlayStation_Model>& Model(void) noexcept { return m_Model; }
@@ -443,101 +609,46 @@ public:
 	// Player State Old
 	Bio2PlayerState PriorState(void) noexcept { return m_PlayerStateOld.load(); }
 
-	// Set Model Type
+	// Model Type
 	ModelType& ModelType(void) noexcept { return m_ModelType; }
+
+	// Model Game Type
+	const std::uint32_t ModelGame(void) const noexcept { return std::to_underlying(m_ModelGame); }
+
+	// Weapon Model Game Type
+	const std::uint32_t WeaponModelGame(void) const noexcept { return std::to_underlying(m_WeaponModelGame); }
 
 	// Previous Offset
 	SVECTOR2& Speed(void) noexcept { return m_Speed; }
 
-	/*
-		Set world matrix
-		 - position, rotation and scale of model
-	*/
-	void SetWorld(const MATVECTOR& Vec) const;
-
-	/*
-		Open
-		 - TMD, MD1, MD2, PLD, PLW, EMD, EMW
-		 - call SetGame before this function
-		 - automatically calls ExportDX9 when texture is open
-	*/
-	bool Open(std::filesystem::path Path, std::uintmax_t _Ptr = 0, bool b_Bio1Enemy = false);
-
-	/*
-		Open model file -- TMD (Bio1), MD1 (Bio2) or MD2 (Bio3)
-		 - automatically calls ExportDX9 when texture is open
-	*/
-	bool OpenObject(std::filesystem::path Path, std::uintmax_t _Ptr = 0);
-
-	/*
-		Open player file - EMD (Bio1) or PLD (Bio2/Bio3)
-		 - call SetGame before this function
-		 - automatically calls ExportDX9
-	*/
-	bool OpenPlayer(std::filesystem::path Path, std::uintmax_t _Ptr = 0);
-
-	/*
-		Open enemy file - EMD (Bio1/Bio2/Bio3)
-		 - call SetGame before this function
-		 - automatically opens texture when Bio2/Bio3 EMD
-		 - automatically calls ExportDX9
-	*/
-	bool OpenEnemy(std::filesystem::path Path, std::uintmax_t _Ptr = 0);
-
-	/*
-		Open weapon file - EMW (Bio1) or PLW (Bio2/Bio3)
-		 - call SetGame before this function
-		 - automatically calls ExportDX9
-	*/
-	bool OpenWeapon(std::filesystem::path Path, std::uintmax_t _Ptr = 0);
-
-	/*
-		Open model texture
-		 - automatically calls ExportDX9 when model is open
-	*/
-	bool OpenTexture(std::filesystem::path Path, std::uintmax_t _Ptr = 0);
-
-	/*
-		Open weapon texture
-		 - automatically calls ExportDX9 when weapon model is open
-	*/
-	bool OpenWeaponTexture(std::filesystem::path Path, std::uintmax_t _Ptr = 0);
-
 	// Reset clip
-	void ResetClip(void) { iClip = 0; iFrame = 0; }
+	void ResetClip(void) { iClip.store(0); iFrame.store(0); }
 
 	// Reset frame if not in prior state
 	void ResetFrame(Bio2PlayerState iPriorState) { if (PriorState() != iPriorState) { iFrame.store(0); } }
 
-	// Clamp rotation between -4096 and 4096
-	void ClampRotation(void)
+	// Clamp position between -32768 and 32768
+	void ClampPosition(VECTOR2& Pos)
 	{
-		if (Rotation().y <= -ONE || Rotation().y >= ONE) { Rotation().y = Rotation().y >> 12; }
+		constexpr std::int32_t Threshold = 32768;
+		constexpr std::int32_t Offset = Threshold * 2;
+
+		if (Pos.x >= Threshold) { Pos.x -= Offset; }
+		else if (Pos.x <= -Threshold) { Pos.x += Offset; }
+
+		if (Pos.z >= Threshold) { Pos.z -= Offset; }
+		else if (Pos.z <= -Threshold) { Pos.z += Offset; }
 	}
 
 	// Clamp rotation between -4096 and 4096
-	void ClampEditorRotation(void)
+	void ClampRotation(VECTOR2& Rot)
 	{
-		if (EditorRotation().y <= -ONE || EditorRotation().y >= ONE) { EditorRotation().y = EditorRotation().y >> 12; }
+		constexpr std::int32_t Threshold = ONE;
+		constexpr std::int32_t Offset = Threshold * 2;
+
+		if (Rot.y >= Threshold) { Rot.y -= Offset; }
+		else if (Rot.y <= -Threshold) { Rot.y += Offset; }
 	}
-
-	// Setup room data
-	void SetRoomAnimations(std::shared_ptr<Resident_Evil_Animation>& Rbj);
-
-	// Clear all data
-	void Close(void) { m_ModelType = ModelType::None; ResetClip(); CloseModel(); CloseWeapon(); }
-
-	// Clear model data
-	void CloseModel(void);
-
-	// Clear weapon data
-	void CloseWeapon(void);
-
-	// Clear room data
-	void CloseRoom(void);
-
-	// Shutdown model
-	void Shutdown(void);
 
 	// Set State
 	void SetState(Bio2PlayerState iState, AnimationIndex Index, size_t Frame, bool WaitComplete, bool Loop)
@@ -569,6 +680,125 @@ public:
 		m_AnimationIndexNext.store(Index);
 	}
 
+	// Recover from aim begin/aiming/firing/running state
+	void RecoverState(bool b_AimBegin, bool b_Aiming, bool b_Firing, bool b_Running)
+	{
+		if (b_Firing)
+		{
+			SetNextState(Bio2PlayerState::Aim, AnimationIndex::Weapon);
+		}
+		else if (b_Aiming)
+		{
+			b_Reverse.store(true);
+			b_PlayAllFrames.store(true);
+			SetState(Bio2PlayerState::Aim_Begin, AnimationIndex::Weapon, -1, true, false);
+		}
+		else if (b_AimBegin)
+		{
+			b_Reverse.store(true);
+			b_PlayAllFrames.store(true);
+			b_WaitComplete.store(true);
+			SetNextState(Bio2PlayerState::Idle, AnimationIndex::Weapon);
+		}
+		else if (b_Running)
+		{
+			ResetFrame(Bio2PlayerState::Idle);
+			SetState(Bio2PlayerState::Idle, AnimationIndex::Weapon, 0, false, true);
+		}
+	}
+
+	/*
+		Stop drawing model
+		 - stop drawing model objects immediately
+	*/
+	void StopDrawing(void)
+	{
+		b_Active.store(false);
+
+		b_StopDrawing.store(true);
+
+		if (b_Drawing.load())
+		{
+			auto StartTime = std::chrono::steady_clock::now();
+
+			while (b_Drawing.load())
+			{
+				std::this_thread::yield();
+
+				if (std::chrono::steady_clock::now() - StartTime > std::chrono::seconds(1))
+				{
+					break;
+				}
+			}
+		}
+	}
+
+	/*
+		Set world matrix
+		 - position, rotation and scale of model
+	*/
+	void SetWorld(const MATVECTOR& Vec) const;
+
+	/*
+		Open
+		 - TMD, MD1, MD2, PLD, PLW, EMD, EMW
+		 - call SetGame before this function
+		 - automatically calls ExportDX9 when texture is open
+	*/
+	bool Open(std::filesystem::path Path, std::uintmax_t _Ptr = 0, bool b_Bio1Enemy = false);
+
+	/*
+		Open model texture
+		 - TIM, TIM2, BMP, PNG and JPG
+		 - automatically calls ExportDX9 when model is open
+	*/
+	bool OpenTexture(std::filesystem::path Path, std::uintmax_t _Ptr = 0);
+
+	/*
+		Open weapon texture
+		 - TIM, TIM2, BMP, PNG and JPG
+		 - automatically calls ExportDX9 when weapon model is open
+	*/
+	bool OpenWeaponTexture(std::filesystem::path Path, std::uintmax_t _Ptr = 0);
+
+	/*
+		Initialize shadow texture
+		 - player model must be open
+		 - hitbox must be set prior to this function
+	*/
+	void SetShadow(size_t PaletteID, std::uint16_t X, std::uint16_t Y, std::uint16_t Width, std::uint16_t Height);
+
+	// Setup room data
+	void SetRoomAnimations(std::shared_ptr<Resident_Evil_Animation>& Rbj);
+
+	// Clear all data
+	void Close(void)
+	{
+		m_ModelType = ModelType::None;
+		ResetClip();
+		CloseModel();
+		CloseWeapon();
+	}
+
+	// Clear model data
+	void CloseModel(void);
+
+	// Clear weapon data
+	void CloseWeapon(void);
+
+	// Clear room data
+	void CloseRoom(void);
+
+	// Shutdown model
+	void Shutdown(void)
+	{
+		Routine = [&]() {};
+
+		StopDrawing();
+
+		Close();
+	}
+
 	// Draw model at animation keyframe
 	void DrawFrame(std::shared_ptr<Resident_Evil_Animation> Animation, size_t iClip, size_t iFrame, bool b_DrawRoot = false);
 
@@ -578,6 +808,10 @@ public:
 	// Draw model
 	void Draw(void);
 
-	void AddSpeedXZ(std::int16_t RotY, SVECTOR* Speed, std::int16_t& PosX, std::int16_t& PosZ) const;
+	// Draw shadow
+	void DrawShadow(void);
+
+	// Translate model position with keyframe data
+	void AddSpeedXZ(SVECTOR* Speed);
 
 };

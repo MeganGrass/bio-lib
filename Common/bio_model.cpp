@@ -43,6 +43,85 @@ std::vector<std::uint32_t> Resident_Evil_Model::GetDataPtr(StdFile& File, std::u
 	return Pointer;
 }
 
+void Resident_Evil_Model::ParseBinary(const std::vector<std::uint8_t>& Binary, size_t JointCount, BINARY_DATA& Output)
+{
+	if (Binary.empty() || Binary.size() == 0x04 || !JointCount) { return; }
+
+	BINARY_HEADER Header{};
+	std::memcpy(&Header, &Binary.data()[0x00], sizeof(BINARY_HEADER));
+
+	std::vector<LIMB_INDEX> LimbIndex(Header.LimbCount);
+	std::memcpy(&LimbIndex.data()[0x00], &Binary.data()[0x08], Header.LimbCount * sizeof(LIMB_INDEX));
+
+	Output.BindPose.resize(JointCount);
+	std::memcpy(&Output.BindPose.data()[0x00], &Binary.data()[Header.pBindPose], JointCount * sizeof(SVECTOR2));
+
+	size_t Pointer = Output.BindPose.size() * sizeof(SVECTOR2) + sizeof(BINARY_HEADER) + LimbIndex.size() * sizeof(LIMB_INDEX);
+	Standard_Basic_FStream().Align(Pointer, 4);
+
+	auto ParseTri = [&](size_t Pointer, std::vector<std::array<uint8_t, 3>>& Output) -> size_t
+		{
+			uint8_t Value = 0;
+			std::memcpy(&Value, &Binary.data()[Pointer], sizeof(Value));
+			if (Value == 0xFF) { return Pointer + sizeof(Value); }
+
+			while (Pointer <= Binary.size())
+			{
+				std::array<uint8_t, 3> Tri{};
+				std::memcpy(&Tri, &Binary.data()[Pointer], sizeof(Tri));
+
+				Output.push_back(Tri);
+
+				if (Tri[2] == 0xFF) { Pointer += 3; break; }
+				else if (Tri[1] == 0xFF) { Pointer += 2; break; }
+				else if (Tri[0] == 0xFF) { Pointer += 1; break; }
+
+				Pointer += sizeof(Tri);
+			}
+
+			return Pointer;
+		};
+
+	auto ParseVertexBind = [&](size_t Pointer, std::array<int8_t, 256>& OutputA, std::array<int8_t, 256>& OutputB) -> size_t
+		{
+			uint8_t Value = 0;
+			std::memcpy(&Value, &Binary.data()[Pointer], sizeof(Value));
+			if (Value == 0xFF) { return Pointer + sizeof(Value); }
+
+			int8_t JointId = -1;
+			bool UseOutputB = false;
+
+			while (Pointer <= Binary.size())
+			{
+				std::memcpy(&Value, &Binary.data()[Pointer], sizeof(Value));
+				Pointer += sizeof(Value);
+
+				if (Value == 0xFF) { break; }
+				if (Value == 0x00) { JointId = -1; continue; }
+				if (Value == 0x60) { UseOutputB = false; continue; }
+				if (Value == 0x61) { UseOutputB = true;  continue; }
+
+				if (JointId == -1) { JointId = static_cast<int8_t>(Value); continue; }
+
+				if (Value < 256)
+				{
+					if (UseOutputB) { OutputB[Value] = JointId; }
+					else { OutputA[Value] = JointId; }
+				}
+			}
+
+			return Pointer;
+		};
+
+	Output.Limb.resize(Header.LimbCount);
+	for (size_t i = 0; i < Output.Limb.size(); ++i)
+	{
+		Pointer = ParseTri(Pointer, Output.Limb[i].TriA);
+		Pointer = ParseTri(Pointer, Output.Limb[i].TriB);
+		Pointer = ParseVertexBind(Pointer, Output.Limb[i].JointA, Output.Limb[i].JointB);
+	}
+}
+
 SHAPEVECTOR Resident_Evil_Model::HitboxShape(void) noexcept
 {
 	if (b_EditorMode)
@@ -144,6 +223,10 @@ std::unique_ptr<DX9_MODEL> Resident_Evil_Model::ExportDX9(std::unique_ptr<FIXED_
 
 bool Resident_Evil_Model::Open(std::filesystem::path Path, std::uintmax_t _Ptr, bool b_Bio1Enemy)
 {
+	bool b_TerminateDraw = b_Active.load();
+
+	StopDrawing();
+
 	bool b_Open = false;
 
 	String Extension = Path.extension().string();
@@ -174,6 +257,8 @@ bool Resident_Evil_Model::Open(std::filesystem::path Path, std::uintmax_t _Ptr, 
 	{
 		b_Open = OpenWeapon(Path, _Ptr);
 	}
+
+	b_Active.store(b_TerminateDraw);
 
 	return b_Open;
 }
@@ -217,7 +302,11 @@ bool Resident_Evil_Model::OpenObject(std::filesystem::path Path, std::uintmax_t 
 
 	iObjectMax = m_Model->ObjectCount() ? m_Model->ObjectCount() - 1 : 0;
 
-	if (m_ModelType == ModelType::None) { m_ModelType = ModelType::Object; }
+	if (m_ModelType == ModelType::None)
+	{
+		m_ModelType = ModelType::Object;
+		b_DrawSingleObject = true;
+	}
 
 	return m_Model->IsOpen();
 }
@@ -281,6 +370,12 @@ bool Resident_Evil_Model::OpenPlayer(std::filesystem::path Path, std::uintmax_t 
 			m_File.Read(Pointer[3], m_Binary00.data(), m_Binary00.size());
 		}
 		if (Pointer[4]) { m_Texture->OpenTIM(m_File, Pointer[4]); }
+
+		if (!m_Binary00.empty() && m_Binary00.size() > 0x04)
+		{
+			BINARY_DATA Test{};
+			ParseBinary(m_Binary00, Animation(NORMAL)->Joints.size(), Test);
+		}
 	}
 
 	if (Animation(NORMAL)->IsOpen()) { Animation(NORMAL)->CreateSkeleton(); }
@@ -290,9 +385,26 @@ bool Resident_Evil_Model::OpenPlayer(std::filesystem::path Path, std::uintmax_t 
 	m_DX9Model = ExportDX9(Temp, m_Texture);
 #endif
 
+	if (GameType() & BIO1 || GameType() & AUG95 || GameType() & OCT95)
+	{
+		SetShadow(0, 81, 200, 26, 30);
+	}
+	else if (GameType() & BIO2NOV96)
+	{
+		SetShadow(1, 171, 224, 28, 32);
+	}
+	else if (GameType() & BIO2 || GameType() & BIO3)
+	{
+		SetShadow(2, 354, 224, 30, 32);
+	}
+
 	iObjectMax = m_Model->ObjectCount() ? m_Model->ObjectCount() - 1 : 0;
 
 	m_ModelType = ModelType::Player;
+	m_ModelGame = Game;
+
+	b_DrawAllObjects = false;
+	b_DrawSingleObject = false;
 
 	return true;
 }
@@ -433,6 +545,10 @@ bool Resident_Evil_Model::OpenEnemy(std::filesystem::path Path, std::uintmax_t _
 	iObjectMax = m_Model->ObjectCount() ? m_Model->ObjectCount() - 1 : 0;
 
 	m_ModelType = ModelType::Enemy;
+	m_ModelGame = Game;
+
+	b_DrawAllObjects = false;
+	b_DrawSingleObject = false;
 
 	return true;
 }
@@ -507,20 +623,22 @@ bool Resident_Evil_Model::OpenWeapon(std::filesystem::path Path, std::uintmax_t 
 #if MSTD_DX9
 	if (GameType() & (BIO2NOV96 | BIO2TRIAL | BIO2 | BIO3))
 	{
-		bool b_TerminateDraw = b_Active;
+		//bool b_TerminateDraw = b_Active.load();
 
-		b_Active = false;
-
-		while (b_Drawing) { std::this_thread::sleep_for(std::chrono::milliseconds(100)); }
+		//StopDrawing();
 
 		IDirect3DTexture9* Temp = Render->BlitTexture(
 			Render->CreateTexture(m_WeaponTexture, 0, Sony_Texture_Transparency::Superblack, 0xFF00FF, true),
 			Render->CreateTexture(m_Texture, 1, Sony_Texture_Transparency::Superblack, 0xFF00FF, true),
 			m_WeaponTexture->GetWidth(), m_WeaponTexture->GetHeight(), 200, 224, false);
 
-		m_DX9Model->Texture[1].reset(Temp);
+		if (m_DX9Model)
+		{
+			size_t iTexture = !m_DX9Model ? 0 : min(1, m_DX9Model->Texture.size() - 1);
+			m_DX9Model->Texture[iTexture].reset(Temp);
+		}
 
-		b_Active = b_TerminateDraw;
+		//b_Active.store(b_TerminateDraw);
 	}
 
 	std::unique_ptr<FIXED_MODEL> Temp = m_WeaponModel->Export(m_Texture->GetWidth(), m_Texture->GetHeight(), true);
@@ -544,6 +662,8 @@ bool Resident_Evil_Model::OpenWeapon(std::filesystem::path Path, std::uintmax_t 
 
 	iWeaponObject = std::clamp(iWeaponObject, (size_t)0, iObjectMax);
 
+	m_WeaponModelGame = Game;
+
 	b_DrawWeapon = true;
 
 	return true;
@@ -551,20 +671,24 @@ bool Resident_Evil_Model::OpenWeapon(std::filesystem::path Path, std::uintmax_t 
 
 bool Resident_Evil_Model::OpenTexture(std::filesystem::path Path, std::uintmax_t _Ptr)
 {
+	bool b_TerminateDraw = b_Active.load();
+
+	StopDrawing();
+
 	if (m_Texture) { m_Texture->Close(); }
 
 	bool b_Open = false;
 
 	String Extension = Path.extension().string();
 
-	if (Standard_String().ToUpper(Extension) == ".TM2" && !m_Texture->OpenTIM2(Path, _Ptr)) { return false; }
-	if (Standard_String().ToUpper(Extension) == ".TIM" && !m_Texture->OpenTIM(Path, _Ptr)) { return false; }
-	if (Standard_String().ToUpper(Extension) == ".BMP" && !m_Texture->OpenBMP(Path, _Ptr)) { return false; }
+	if (Standard_String().ToUpper(Extension) == ".TM2" && !m_Texture->OpenTIM2(Path, _Ptr)) { b_Active.store(b_TerminateDraw); return false; }
+	if (Standard_String().ToUpper(Extension) == ".TIM" && !m_Texture->OpenTIM(Path, _Ptr)) { b_Active.store(b_TerminateDraw); return false; }
+	if (Standard_String().ToUpper(Extension) == ".BMP" && !m_Texture->OpenBMP(Path, _Ptr)) { b_Active.store(b_TerminateDraw); return false; }
 #ifdef LIB_PNG
-	if (Standard_String().ToUpper(Extension) == ".PNG" && !m_Texture->OpenPNG(Path, _Ptr)) { return false; }
+	if (Standard_String().ToUpper(Extension) == ".PNG" && !m_Texture->OpenPNG(Path, _Ptr)) { b_Active.store(b_TerminateDraw); return false; }
 #endif
 #ifdef LIB_JPEG
-	if ((Standard_String().ToUpper(Extension) == ".JPG" || Standard_String().ToUpper(Extension) == ".JPEG") && !m_Texture->OpenJPEG(Path, _Ptr)) { return false; }
+	if ((Standard_String().ToUpper(Extension) == ".JPG" || Standard_String().ToUpper(Extension) == ".JPEG") && !m_Texture->OpenJPEG(Path, _Ptr)) { b_Active.store(b_TerminateDraw); return false; }
 #endif
 
 #if MSTD_DX9
@@ -576,26 +700,32 @@ bool Resident_Evil_Model::OpenTexture(std::filesystem::path Path, std::uintmax_t
 		m_DX9Model = ExportDX9(Temp, m_Texture);
 	}
 #endif
+
+	b_Active.store(b_TerminateDraw);
 	
 	return b_Open;
 }
 
 bool Resident_Evil_Model::OpenWeaponTexture(std::filesystem::path Path, std::uintmax_t _Ptr)
 {
+	bool b_TerminateDraw = b_Active.load();
+
+	StopDrawing();
+
 	if (m_WeaponTexture) { m_WeaponTexture->Close(); }
 
 	bool b_Open = false;
 
 	String Extension = Path.extension().string();
 
-	if (Standard_String().ToUpper(Extension) == ".TM2" && !m_WeaponTexture->OpenTIM2(Path, _Ptr)) { return false; }
-	if (Standard_String().ToUpper(Extension) == ".TIM" && !m_WeaponTexture->OpenTIM(Path, _Ptr)) { return false; }
-	if (Standard_String().ToUpper(Extension) == ".BMP" && !m_WeaponTexture->OpenBMP(Path, _Ptr)) { return false; }
+	if (Standard_String().ToUpper(Extension) == ".TM2" && !m_WeaponTexture->OpenTIM2(Path, _Ptr)) { b_Active.store(b_TerminateDraw); return false; }
+	if (Standard_String().ToUpper(Extension) == ".TIM" && !m_WeaponTexture->OpenTIM(Path, _Ptr)) { b_Active.store(b_TerminateDraw); return false; }
+	if (Standard_String().ToUpper(Extension) == ".BMP" && !m_WeaponTexture->OpenBMP(Path, _Ptr)) { b_Active.store(b_TerminateDraw); return false; }
 #ifdef LIB_PNG
-	if (Standard_String().ToUpper(Extension) == ".PNG" && !m_WeaponTexture->OpenPNG(Path, _Ptr)) { return false; }
+	if (Standard_String().ToUpper(Extension) == ".PNG" && !m_WeaponTexture->OpenPNG(Path, _Ptr)) { b_Active.store(b_TerminateDraw); return false; }
 #endif
 #ifdef LIB_JPEG
-	if ((Standard_String().ToUpper(Extension) == ".JPG" || Standard_String().ToUpper(Extension) == ".JPEG") && !m_WeaponTexture->OpenJPEG(Path, _Ptr)) { return false; }
+	if ((Standard_String().ToUpper(Extension) == ".JPG" || Standard_String().ToUpper(Extension) == ".JPEG") && !m_WeaponTexture->OpenJPEG(Path, _Ptr)) { b_Active.store(b_TerminateDraw); return false; }
 #endif
 
 #if MSTD_DX9
@@ -607,6 +737,8 @@ bool Resident_Evil_Model::OpenWeaponTexture(std::filesystem::path Path, std::uin
 		m_DX9WeaponModel = ExportDX9(Temp, m_WeaponTexture);
 	}
 #endif
+
+	b_Active.store(b_TerminateDraw);
 
 	return b_Open;
 }
@@ -629,9 +761,65 @@ void Resident_Evil_Model::SetRoomAnimations(std::shared_ptr<Resident_Evil_Animat
 	}
 }
 
+void Resident_Evil_Model::SetShadow(size_t PaletteID, std::uint16_t X, std::uint16_t Y, std::uint16_t Width, std::uint16_t Height)
+{
+	auto NextPowerOfTwo = [](int32_t x) {
+		if (x <= 0) { return 1; }
+		x--;
+		for (int Shift = 1; Shift < 32; Shift <<= 1) { x |= x >> Shift; }
+		return x + 1;
+		};
+
+	float TextureWidth = (float)NextPowerOfTwo((int32_t)m_DX9Model->TextureWidth);
+	float TextureHeight = (float)NextPowerOfTwo((int32_t)m_DX9Model->TextureHeight);
+
+	m_Shadow.Rect.l = (float)X;
+	m_Shadow.Rect.t = (float)Y;
+	m_Shadow.Rect.r = (float)X + (float)Width;
+	m_Shadow.Rect.b = (float)Y + (float)Height;
+
+	m_Shadow.Size.w = (float)Width;
+	m_Shadow.Size.h = (float)Height;
+
+#ifdef MSTD_DX9
+	float TexelOffsetU = 0.5f / TextureWidth;
+	float TexelOffsetV = 0.5f / TextureHeight;
+#else
+	float TexelOffsetU = 0.0f;
+	float TexelOffsetV = 0.0f;
+#endif
+
+	float U0 = (m_Shadow.Rect.l + TexelOffsetU) / TextureWidth;
+	float V0 = (m_Shadow.Rect.t + TexelOffsetV) / TextureHeight;
+	float U1 = (m_Shadow.Rect.r + TexelOffsetU) / TextureWidth;
+	float V1 = (m_Shadow.Rect.b + TexelOffsetV) / TextureHeight;
+
+	float XX = GTE->ToFloat(Hitbox().w + (Hitbox().w / 4));
+	float ZZ = GTE->ToFloat(Hitbox().d + (Hitbox().d / 2));
+
+	m_Shadow.Vec.clear();
+
+	m_Shadow.Vec = {
+		{ vec3{ -XX,	0.0f,	-ZZ	}, vec2{ U0, V1 } },
+		{ vec3{ -XX,	0.0f,	ZZ	}, vec2{ U0, V0 } },
+		{ vec3{ XX,		0.0f,	ZZ	}, vec2{ U1, V0 } },
+		{ vec3{ -XX,	0.0f,	-ZZ	}, vec2{ U0, V1 } },
+		{ vec3{ XX,		0.0f,	ZZ	}, vec2{ U1, V0 } },
+		{ vec3{ XX,		0.0f,	-ZZ	}, vec2{ U1, V1 } }
+	};
+
+#ifdef MSTD_DX9
+	if (!m_DX9Model || m_DX9Model->Texture.empty()) { return; }
+	m_Shadow.TexID = std::clamp(PaletteID, (size_t)0, m_DX9Model->Texture.size() - 1);
+	m_Shadow.Vertices.reset(Render->CreateVec3t(m_Shadow.Vec));
+#endif
+}
+
 void Resident_Evil_Model::CloseModel(void)
 {
 	m_Filename.clear();
+
+	m_ModelGame = Video_Game::None;
 
 	b_DrawWeapon = false;
 
@@ -666,7 +854,11 @@ void Resident_Evil_Model::CloseWeapon(void)
 {
 	m_WeaponFilename.clear();
 
+	m_WeaponModelGame = Video_Game::None;
+
 	b_DrawWeapon = false;
+
+	b_ControllerMode = false;
 
 	iWeaponObjectMax = 0;
 
@@ -692,20 +884,6 @@ void Resident_Evil_Model::CloseRoom(void)
 	iRoomMin = 0;
 	iRoomMax = 0;
 	Animation(ROOM)->Close();
-}
-
-void Resident_Evil_Model::Shutdown(void)
-{
-	b_Active.store(false);
-
-	b_StopDrawing.store(true);
-
-	while (b_Drawing.load())
-	{
-		std::this_thread::sleep_for(std::chrono::milliseconds(10));
-	}
-
-	Close();
 }
 
 void Resident_Evil_Model::DrawFrame(std::shared_ptr<Resident_Evil_Animation> Animation, size_t iClip, size_t iFrame, bool b_DrawRoot)
@@ -759,6 +937,9 @@ void Resident_Evil_Model::DrawFrame(std::shared_ptr<Resident_Evil_Animation> Ani
 			Standard_Matrix().RotateZ(World->Radian(GTE->ToFloat(Rotations[i].z) * 360.0f));
 	}
 
+	std::vector<vec3c> SkeletonSegments;
+	if (b_DrawSkeleton) { SkeletonSegments.reserve(Rotations.size() * 2); }
+
 	std::function<void(const std::shared_ptr<Resident_Evil_Animation::Bone>&, const Standard_Matrix&)> DrawKeyframe =
 		[&](const std::shared_ptr<Resident_Evil_Animation::Bone>& Skeleton, const Standard_Matrix& Matrix)
 		{
@@ -782,10 +963,20 @@ void Resident_Evil_Model::DrawFrame(std::shared_ptr<Resident_Evil_Animation> Ani
 				Local = Matrix * Skeleton->Local;
 			}
 
+			if (b_DrawSkeleton)
+			{
+				for (const auto& Child : Skeleton->Children)
+				{
+					Standard_Matrix LocalWorld = b_DrawRoot ? (Local * Child->World) : (Local * (Child->World * Transform[Child->ID]));
+					SkeletonSegments.push_back({ Local.GetVector(), 0xFFFFFFFF });
+					SkeletonSegments.push_back({ LocalWorld.GetVector(), 0xFFFFFFFF });
+				}
+			}
+
 #if MSTD_DX9
 			Render->SetWorld(Local);
 
-			if (Skeleton->ID < ModelDX9()->Object.size())
+			if ((b_DrawWireframe || b_DrawSolidColor || b_DrawTextured) && Skeleton->ID < ModelDX9()->Object.size())
 			{
 				size_t i = Skeleton->ID;
 
@@ -860,17 +1051,23 @@ void Resident_Evil_Model::DrawFrame(std::shared_ptr<Resident_Evil_Animation> Ani
 	Render->TextureFiltering(D3DTEXF_NONE);
 
 	Render->ResetWorld();
+
+	if (b_DrawSkeleton && !SkeletonSegments.empty())
+	{
+		std::unique_ptr<IDirect3DVertexBuffer9, IDirect3DDelete9<IDirect3DVertexBuffer9>> Vertices(Render->CreateVec3c(SkeletonSegments));
+		Render->DrawVec3c(Vertices.get(), nullptr, nullptr, D3DFILL_SOLID, D3DPT_LINELIST);
+	}
 #endif
 }
 
 void Resident_Evil_Model::DrawObject(std::size_t iObject, bool b_DrawAll, bool DrawWeapon)
 {
-	b_Drawing = true;
+	b_Drawing.store(true);
 
 #if MSTD_DX9
 	auto& Model = DrawWeapon ? WeaponModelDX9() : ModelDX9();
 
-	if (!Model || Model->Object.empty()) { return; }
+	if (!Model || Model->Object.empty()) { b_Drawing.store(false); return; }
 
 	if (b_EditorMode)
 	{
@@ -903,17 +1100,22 @@ void Resident_Evil_Model::DrawObject(std::size_t iObject, bool b_DrawAll, bool D
 
 	Render->SetWorld(World);
 
-	Render->Device()->SetRenderState(D3DRS_CULLMODE, b_HorzFlip && b_HorzFlip ? D3DCULL_CW : b_HorzFlip || b_VertFlip ? D3DCULL_CCW : D3DCULL_CW);
+	Render->Device()->SetRenderState(D3DRS_CULLMODE, b_HorzFlip && b_HorzFlip ? D3DCULL_CW : b_HorzFlip ? D3DCULL_CCW : b_VertFlip ? D3DCULL_CCW : D3DCULL_CW);
 	Render->Device()->SetRenderState(D3DRS_CLIPPING, TRUE);
 
 	Render->TextureFiltering(m_TextureFilter);
 
 	for (size_t i = iObject; i < nObjects; i++)
 	{
+		if (b_StopDrawing.load()) { break; }
+
 		for (size_t x = 0; x < Model->Object[i].size(); x++)
 		{
+			if (b_StopDrawing.load()) { break; }
+
 			size_t iTexture = std::clamp(Model->Object[i][x].iTexture, (size_t)0, Model->Texture.empty() ? 0 : Model->Texture.size() - 1);
 			IDirect3DTexture9* Texture = DrawWeapon ? 
+				!ModelDX9() ? nullptr :
 				(b_DrawTextured ? ModelDX9()->Texture.empty() ? nullptr : ModelDX9()->Texture[iTexture].get() : nullptr) :
 				(b_DrawTextured ? Model->Texture.empty() ? nullptr : Model->Texture[iTexture].get() : nullptr);
 			Render->DrawVec3cnt(
@@ -932,17 +1134,18 @@ void Resident_Evil_Model::DrawObject(std::size_t iObject, bool b_DrawAll, bool D
 	Render->ResetWorld();
 #endif
 
-	b_Drawing = false;
+	b_Drawing.store(false);
+	b_StopDrawing.store(false);
 }
 
 void Resident_Evil_Model::Draw(void)
 {
-	if (!b_Active) { return; }
+	if (!b_Active.load()) { return; }
 
 	if (b_DrawAllObjects || b_DrawSingleObject)
 	{
 		DrawObject(iObject, b_DrawAllObjects, b_DrawWeapon);
-		return;
+		//return;
 	}
 
 	AnimationIndex Index = m_AnimationIndex;
@@ -955,7 +1158,14 @@ void Resident_Evil_Model::Draw(void)
 			Index = NORMAL;
 			b_DrawRoot = true;
 		}
-		else { return; }
+		else
+		{
+			m_PlayerState.store(m_PlayerStateOld);
+			b_Reverse.store(false);
+			b_PlayAllFrames.store(false);
+			b_WaitComplete.store(false);
+			return;
+		}
 	}
 
 	iClip = min(iClip.load(), Animation(Index)->GetClipCount() - 1);
@@ -1012,18 +1222,46 @@ void Resident_Evil_Model::Draw(void)
 	}
 }
 
-void Resident_Evil_Model::AddSpeedXZ(std::int16_t RotY, SVECTOR* Speed, std::int16_t& PosX, std::int16_t& PosZ) const
+void Resident_Evil_Model::DrawShadow(void)
+{
+	if (!b_DrawShadow) { return; }
+#ifdef MSTD_DX9
+	if (!m_DX9Model || m_DX9Model->Texture.empty() || !Shadow().Vertices) { return; }
+
+	Render->SetWorld(World);
+
+	Render->Device()->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+
+	Render->AlphaTesting(TRUE, 0xFF, D3DCMP_GREATEREQUAL);
+
+	Shadow().TexID = std::clamp(Shadow().TexID, (size_t)0, m_DX9Model->Texture.size() - 1);
+
+	Render->DrawVec3t(
+		Shadow().Vertices.get(),
+		nullptr,
+		ModelDX9()->Texture[Shadow().TexID].get(),
+		Render->PS1DitherPixelShader.get(),
+		ModelDX9()->TextureWidth, ModelDX9()->TextureHeight,
+		D3DFILL_SOLID, D3DPT_TRIANGLESTRIP
+	);
+
+	Render->ResetWorld();
+#endif
+}
+
+void Resident_Evil_Model::AddSpeedXZ(SVECTOR* Speed)
 {
 	SVECTOR Sv{};
 	MATRIX M{};
 
 	Sv.vx = 0;
 	Sv.vz = 0;
-	Sv.vy = RotY + Speed->vy;
+	Sv.vy = Rotation().y + Speed->vy;
 
 	GTE->RotMatrix(&Sv, &M);
 	GTE->ApplyMatrixSV(&M, Speed, &Sv);
 
-	PosX = Sv.vx;
-	PosZ = Sv.vz;
+	Position().x += Sv.vx;
+	Position().y += Speed->vy;
+	Position().z += Sv.vz;
 }

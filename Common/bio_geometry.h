@@ -194,6 +194,6 @@ public:
 	bool Collision(VECTOR2& Position, const SIZEVECTOR Hitbox, const SHAPEVECTOR Shape, const Shape_Type ShapeType);
 
 	// Camera Switch Detection
-	bool CameraSwitch(VECTOR2& Position, const SIZEVECTOR Hitbox, const std::int16_t Xz[4][2]);
+	bool CameraSwitch(VECTOR2& Position, const std::int16_t Xz[4][2]);
 
 };

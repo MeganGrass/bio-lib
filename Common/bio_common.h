@@ -16,6 +16,7 @@
 
 enum class Video_Game : std::uint32_t
 {
+	None = (0 << 0),
 	Resident_Evil_Aug_4_1995 = (1 << 0),
 	Resident_Evil_Oct_4_1995 = (1 << 1),
 	Resident_Evil_Trial = (1 << 2),	// Jan_15_1996

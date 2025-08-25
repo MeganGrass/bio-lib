@@ -12,7 +12,7 @@
 
 #include <functional>
 
-#if MSTD_XINPUT
+#ifdef MSTD_XINPUT
 #include <std_xinput.h>
 #endif
 
@@ -136,7 +136,7 @@ private:
 
 	void SetTrigger(const std::string& ButtonStr, bool b_LeftTrigger, bool b_RightTrigger);
 
-#if MSTD_XINPUT
+#ifdef MSTD_XINPUT
 	std::unique_ptr<Standard_XInput> m_XInput;
 #endif
 
@@ -147,14 +147,14 @@ public:
 	explicit Resident_Evil_Gamepad(void) :
 		m_Map{}
 	{
-#if MSTD_XINPUT
+#ifdef MSTD_XINPUT
 		m_XInput = std::make_unique<Standard_XInput>();
 #endif
 	}
 
 	virtual ~Resident_Evil_Gamepad(void) = default;
 
-#if MSTD_XINPUT
+#ifdef MSTD_XINPUT
 	// XInput Interface
 	Standard_XInput* XInput(void) const { return m_XInput.get(); }
 #endif
@@ -176,5 +176,33 @@ public:
 
 	// Set Button Mapping
 	bool SetMapping(const std::string ButtonStr, std::function<void(bool&)> ProgressCallback);
+
+	// Is Button Pressed?
+	bool IsPressed(CONTROLLER_KEY& Key) const
+	{
+#ifdef MSTD_XINPUT
+		std::uint16_t Button = XInput()->Gamepad().wButtons;
+		bool b_TriggerL = XInput()->Gamepad().bLeftTrigger > 0;
+		bool b_TriggerR = XInput()->Gamepad().bRightTrigger > 0;
+#else
+		std::uint16_t Button = 0;
+		bool b_TriggerL = false;
+		bool b_TriggerR = false;
+#endif
+
+		bool b_Pressed = Key.Button == 0xFFFF ? false : Button & Key.Button;
+		Key.IsLeftTrigger ? b_Pressed |= b_TriggerL : 0;
+		Key.IsRightTrigger ? b_Pressed |= b_TriggerR : 0;
+
+		return b_Pressed;
+	}
+
+	// Poll Controller State
+	bool PollState(void) const
+	{
+#ifdef MSTD_XINPUT
+		return XInput() && XInput()->PollState();
+#endif
+	}
 
 };

@@ -3,18 +3,12 @@
 *	Megan Grass
 *	April 20, 2024
 *
-*
-*	TODO:
-*
 */
 
 
 #include "bio2_lit.h"
 
 
-/*
-	Open
-*/
 std::uintmax_t Resident_Evil_2_LIT::Open(StdFile& File, std::uintmax_t nCut, std::uintmax_t _Ptr)
 {
 	Standard_String Str;
@@ -33,10 +27,6 @@ std::uintmax_t Resident_Evil_2_LIT::Open(StdFile& File, std::uintmax_t nCut, std
 	return File.Read(_Ptr, Data.data(), Data.size() * sizeof(Resident_Evil_2_LIT_Data));
 }
 
-
-/*
-	Open
-*/
 bool Resident_Evil_2_LIT::Open(std::filesystem::path Path, std::uintmax_t _Ptr)
 {
 	StdFile m_File;
@@ -50,10 +40,6 @@ bool Resident_Evil_2_LIT::Open(std::filesystem::path Path, std::uintmax_t _Ptr)
 	return OldPtr != _Ptr;
 }
 
-
-/*
-	Save
-*/
 std::uintmax_t Resident_Evil_2_LIT::Save(StdFile& File, std::uintmax_t _Ptr)
 {
 	Standard_String Str;
@@ -70,10 +56,6 @@ std::uintmax_t Resident_Evil_2_LIT::Save(StdFile& File, std::uintmax_t _Ptr)
 	return File.Write(_Ptr, Data.data(), Data.size() * sizeof(Resident_Evil_2_LIT_Data));
 }
 
-
-/*
-	Save
-*/
 bool Resident_Evil_2_LIT::Save(std::filesystem::path Path, std::uintmax_t _Ptr)
 {
 	StdFile m_File;
@@ -87,10 +69,6 @@ bool Resident_Evil_2_LIT::Save(std::filesystem::path Path, std::uintmax_t _Ptr)
 	return OldPtr != _Ptr;
 }
 
-
-/*
-	Close
-*/
 void Resident_Evil_2_LIT::Close(void)
 {
 	Data.clear();

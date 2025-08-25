@@ -75,20 +75,6 @@ private:
 			OffsetZ(Near * Far / (Near - Far)) {}
 	};
 
-	struct PRISM {
-
-		vec3 Shape[8];
-
-		explicit PRISM(std::shared_ptr<Sony_PlayStation_GTE> GTE, std::int16_t Xz[4][2], std::int32_t Low, std::int32_t High)
-		{
-			for (std::int32_t i = 0; i < 4; ++i)
-			{
-				Shape[i + 0] = vec3(GTE->ToFloat(Xz[i][0]), GTE->ToFloat(Low), GTE->ToFloat(Xz[i][1]));
-				Shape[i + 4] = vec3(GTE->ToFloat(Xz[i][0]), GTE->ToFloat(High), GTE->ToFloat(Xz[i][1]));
-			}
-		}
-	};
-
 public:
 
 	Standard_String Str;

@@ -56,7 +56,7 @@ bool Resident_Evil_Gamepad::GetTriggerMapR(const std::string& ButtonStr) const
 
 bool Resident_Evil_Gamepad::SetMapping(const std::string ButtonStr, std::function<void(bool&)> ProgressCallback)
 {
-#if MSTD_XINPUT
+#ifdef MSTD_XINPUT
 	if (!XInput()) { return false; }
 
 	bool b_Execute = true;

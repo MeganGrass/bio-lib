@@ -251,7 +251,7 @@ void Resident_Evil_Camera::Set(std::uint32_t FOV, VECTOR2 Eye, VECTOR2 At)
 
     Projection->m00 = Proj.ScaleX;	Projection->m01 = 0.0f;			Projection->m02 = 0.0f;			Projection->m03 = 0.0f;
 	Projection->m10 = 0.0f;			Projection->m11 = Proj.ScaleY;	Projection->m12 = 0.0f;			Projection->m13 = 0.0f;
-	Projection->m20 = Proj.OffsetX;	Projection->m21 = Proj.OffsetY;	Projection->m22 = Proj.OffsetZ;	Projection->m23 = -1.0f;
+	Projection->m20 = Proj.OffsetX;	Projection->m21 = Proj.OffsetY;	Projection->m22 = Proj.OffsetZ;	Projection->m23 = -0.5f;
 	Projection->m30 = 0.0f;			Projection->m31 = 0.0f;			Projection->m32 = Proj.ScaleZ;	Projection->m33 = 0.0f;
 
 	if (b_HorzFlip)

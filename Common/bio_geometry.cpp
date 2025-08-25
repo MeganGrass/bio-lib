@@ -5,7 +5,9 @@
 * 
 *	CREDIT:
 *
-*		"Collision" function (original): https://github.com/XProger/OpenResident/blob/main/src/collision.h
+*		"CameraSwitch" function:
+*		"Collision" function (original):
+			https://github.com/XProger/OpenResident/blob/main/src/collision.h
 *
 */
 
@@ -523,20 +525,19 @@ bool Resident_Evil_Geometry::Collision(VECTOR2& Position, const SIZEVECTOR Hitbo
 	return false;
 }
 
-bool Resident_Evil_Geometry::CameraSwitch(VECTOR2& Position, const SIZEVECTOR Hitbox, const std::int16_t Xz[4][2])
+bool Resident_Evil_Geometry::CameraSwitch(VECTOR2& Position, const std::int16_t Xz[4][2])
 {
-	int32_t minX = min(min(Xz[0][0], Xz[1][0]), min(Xz[2][0], Xz[3][0]));
-	int32_t maxX = max(max(Xz[0][0], Xz[1][0]), max(Xz[2][0], Xz[3][0]));
-	int32_t minZ = min(min(Xz[0][1], Xz[1][1]), min(Xz[2][1], Xz[3][1]));
-	int32_t maxZ = max(max(Xz[0][1], Xz[1][1]), max(Xz[2][1], Xz[3][1]));
+	int32_t px, pz;
 
-	int32_t w = Hitbox.w + ((Hitbox.w * 3) / 2);
-	int32_t d = Hitbox.d + ((Hitbox.d * 3) / 2);
+	px = Position.x - Xz[0][0];
+	pz = Position.z - Xz[0][1];
+	if ((Xz[1][1] - Xz[0][1]) * px < (Xz[1][0] - Xz[0][0]) * pz) { return false; }
+	if ((Xz[3][0] - Xz[0][0]) * pz < (Xz[3][1] - Xz[0][1]) * px) { return false; }
 
-	int32_t pxmin = Position.x - w;
-	int32_t pxmax = Position.x + w;
-	int32_t pminz = Position.z - d;
-	int32_t pmaxz = Position.z + d;
+	px = Position.x - Xz[2][0];
+	pz = Position.z - Xz[2][1];
+	if ((Xz[1][0] - Xz[2][0]) * pz < (Xz[1][1] - Xz[2][1]) * px) { return false; }
+	if ((Xz[3][1] - Xz[2][1]) * px < (Xz[3][0] - Xz[2][0]) * pz) { return false; }
 
-	return (pxmin >= minX && pxmax <= maxX && pminz >= minZ && pmaxz <= maxZ);
+	return true;
 }
