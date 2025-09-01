@@ -8,11 +8,19 @@
 
 #pragma once
 
-#include "gte/lib_gte.h"
+#include <gte/lib_gte.h>
 
-#include "std_matrix.h"
+#include <std_matrix.h>
 
 #include <bio_common.h>
+
+#include <animation/bio1_anim_state.h>
+
+#include <animation/bio2_anim_state.h>
+
+#include <animation/bio2_anim_state_nov96.h>
+
+#include <animation/bio3_anim_state.h>
 
 
 enum class Resident_Evil_Animation_Type : std::uint32_t
@@ -40,173 +48,6 @@ enum class AnimationIndex : std::size_t
 	WeaponEx1,
 	Room,
 	Count
-};
-
-enum class Bio1PlayerState : std::size_t
-{
-	Idle,
-	Damage_Front,
-	Walk_Backward_Startled,
-	Walk_Backward,
-	Death,
-	Aim,
-	Aim_Upward,
-	Aim_Downward,
-	Aim_Handgun,
-	Aim_Handgun_Upward,
-	Aim_Handgun_Downward,
-	Aim_Shotgun,
-	Aim_Shotgun_Upward,
-	Aim_Shotgun_Downward,
-	Aim_Revolver,
-	Aim_Revolver_Upward,
-	Aim_Revolver_Downward,
-	Aim_DumDum,
-	Aim_DumDum_Upward,
-	Aim_DumDum_Downward,
-	Aim_Flamethrower,
-	Aim_Flamethrower_Upward,
-	Aim_Flamethrower_Downward,
-	Aim_Bazooka_Explosive,
-	Aim_Bazooka_Explosive_Upward,
-	Aim_Bazooka_Explosive_Downward,
-	Aim_Bazooka_Acid,
-	Aim_Bazooka_Acid_Upward,
-	Aim_Bazooka_Acid_Downward,
-	Aim_Bazooka_Flame,
-	Aim_Bazooka_Flame_Upward,
-	Aim_Bazooka_Flame_Downward,
-	Aim_Rocket_Launcher,
-	Aim_Rocket_Launcher_Upward,
-	Aim_Rocket_Launcher_Downward
-};
-
-enum class Bio2Nov96PlayerState : std::size_t
-{
-	Walk_Backward = 0,
-	Walk_Backward_Startled = 1,
-	Climb_Up = 2,
-	Climb_Down = 3,
-	Falling = 4,
-	Landing = 5,
-	Damage_Above = 6,
-	Death = 7,
-	Damage_Front = 8,
-	Damage_Back = 9,
-	Damage_Front_Minor = 10,
-	Inspect_Kneel = 11,
-	Damage_Laying = 12,
-	Knock_Backward_Begin = 13,
-	Knock_Backward_End = 14,
-	Knock_Forward_Begin = 15,
-	Knock_Forward_End = 16,
-	Push_Begin = 17,
-	Push = 18,
-	Step_Forward = 19,
-	Stairs_Ascend = 20,
-	Stairs_Descend = 21,
-	Idle_Caution = 22,
-	Idle_Danger = 23,
-
-	Run = 0,
-	Idle_Begin = 1,
-	Idle = 2,
-	Idle_Pose_Begin = 3,
-	Idle_Pose = 4,
-	Walk_Forward = 5,
-	Aim_Begin = 6,
-	Fire = 7,
-	Aim = 8,
-	Fire_Upward = 9,
-	Aim_Upward = 10,
-	Fire_Downward = 11,
-	Aim_Downward = 12,
-	Reload = 13
-};
-
-enum class Bio2PlayerState : std::size_t
-{
-	Walk_Backward = 0,
-	Walk_Backward_Startled = 1,
-	Death = 2,
-	Damage_Front_Minor = 3,
-	Damage_Back = 4,
-	Damage_Front = 5,
-	Inspect_Kneel = 6,
-	Push_Begin = 7,
-	Push = 8,
-	Walk_Backward_Caution = 9,
-
-	Walk_Forward = 0,
-	Run = 1,
-	Idle = 2,
-	Walk_Forward_Caution = 3,
-	Run_Caution = 4,
-	Idle_Caution = 5,
-	Walk_Forward_Danger = 6,
-	Run_Danger = 7,
-	Idle_Danger = 8,
-	Aim_Begin = 9,
-	Fire = 10,
-	Aim = 11,
-	Fire_Upward = 12,
-	Aim_Upward = 13,
-	Fire_Downward = 14,
-	Aim_Downward = 15,
-	Reload = 16
-};
-
-enum class Bio3PlayerState : std::size_t
-{
-	Walk_Backward = 0,
-	Death = 1,
-	Damage_Front_Minor = 2,
-	Damage_Back = 3,
-	Damage_Front = 4,
-	Inspect_Kneel = 5,
-	Push_Begin = 6,
-	Push = 7,
-	Knock_Forward_Begin = 8,
-	Knock_Forward_End = 9,
-	Knock_Backward_Major_Begin = 10,
-	Knock_Backward_Major_End = 11,
-	Knock_Backward = 12,
-	Dodge_Backward_Begin = 13,
-	Dodge_Backward = 14,
-	Dodge_Rightward = 15,
-	Dodge_Leftward = 16,
-	Dodge_Push_Begin = 17,
-	Dodge_Push = 18,
-	Dodge_Rightward_Roll = 19,
-	Dodge_Leftward_Roll = 20,
-	Idle_Pose = 21,
-
-	Walk_Forward = 0,
-	Run = 1,
-	Idle = 2,
-	Walk_Forward_Caution = 3,
-	Run_Caution = 4,
-	Idle_Caution = 5,
-	Walk_Forward_Danger = 6,
-	Run_Danger = 7,
-	Idle_Danger = 8,
-	Walk_Backward_Startled = 9,
-	Walk_Backward_Caution = 10,
-	Idle_Pose_Alt_Begin = 11,
-	Idle_Pose_Alt = 12,
-	Dodge_Aim_Begin = 13,
-	Dodge_Fire = 14,
-	Dodge_Aim = 15,
-	Dodge_Aim_End = 16,
-	Dodge_End = 17,
-	Aim_Begin = 18,
-	Fire = 19,
-	Aim = 20,
-	Fire_Upward = 21,
-	Aim_Upward = 22,
-	Fire_Downward = 23,
-	Aim_Downward = 24,
-	Reload = 25
 };
 
 

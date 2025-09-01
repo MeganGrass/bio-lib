@@ -19,6 +19,7 @@
 // Resident Evil 2 values for G.Key
 enum class Resident_Evil_Key : std::int32_t
 {
+	NONE = (0 << 0),	// non-vanilla
 	UP = (1 << 0),
 	RIGHT = (1 << 1),
 	DOWN = (1 << 2),
@@ -40,6 +41,44 @@ enum class Resident_Evil_Key : std::int32_t
 static Resident_Evil_Key operator | (Resident_Evil_Key _Mode0, Resident_Evil_Key _Mode1)
 {
 	return static_cast<Resident_Evil_Key>(std::to_underlying(_Mode0) | std::to_underlying(_Mode1));
+}
+
+static Resident_Evil_Key operator |= (Resident_Evil_Key& _Mode0, Resident_Evil_Key _Mode1)
+{
+	_Mode0 = static_cast<Resident_Evil_Key>(std::to_underlying(_Mode0) | std::to_underlying(_Mode1));
+	return _Mode0;
+}
+
+static Resident_Evil_Key operator & (Resident_Evil_Key _Mode0, Resident_Evil_Key _Mode1)
+{
+	return static_cast<Resident_Evil_Key>(std::to_underlying(_Mode0) & std::to_underlying(_Mode1));
+}
+
+static Resident_Evil_Key operator &= (Resident_Evil_Key& _Mode0, Resident_Evil_Key _Mode1)
+{
+	_Mode0 = static_cast<Resident_Evil_Key>(std::to_underlying(_Mode0) & std::to_underlying(_Mode1));
+	return _Mode0;
+}
+
+static Resident_Evil_Key operator ^ (Resident_Evil_Key _Mode0, Resident_Evil_Key _Mode1)
+{
+	return static_cast<Resident_Evil_Key>(std::to_underlying(_Mode0) ^ std::to_underlying(_Mode1));
+}
+
+static Resident_Evil_Key operator ^= (Resident_Evil_Key& _Mode0, Resident_Evil_Key _Mode1)
+{
+	_Mode0 = static_cast<Resident_Evil_Key>(std::to_underlying(_Mode0) ^ std::to_underlying(_Mode1));
+	return _Mode0;
+}
+
+static Resident_Evil_Key operator ~ (Resident_Evil_Key _Mode)
+{
+	return static_cast<Resident_Evil_Key>(~std::to_underlying(_Mode));
+}
+
+static Resident_Evil_Key operator ! (Resident_Evil_Key _Mode)
+{
+	return static_cast<Resident_Evil_Key>(!std::to_underlying(_Mode));
 }
 
 /*

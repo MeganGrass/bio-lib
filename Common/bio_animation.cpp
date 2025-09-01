@@ -175,14 +175,16 @@ std::uintmax_t Resident_Evil_Animation::OpenEMR(StdFile& File, std::uintmax_t _P
 	{
 		for (std::size_t x = 0; x < Clip[i].size(); x++)
 		{
-			pEmr.push_back(Clip[i][x].Attr.pEmr);
-			for (std::size_t y = 0; y < pEmr.size() - 1; y++)
+			const std::uint32_t pGlobal = Clip[i][x].Attr.pEmr;
+			std::size_t LocalIndex = SIZE_MAX;
+			for (std::size_t y = 0; y < pEmr.size(); ++y)
 			{
-				if (Clip[i][x].Attr.pEmr == pEmr[y])
-				{
-					pEmr.pop_back();
-					break;
-				}
+				if (pEmr[y] == pGlobal) { LocalIndex = y; break; }
+			}
+			if (LocalIndex == SIZE_MAX)
+			{
+				LocalIndex = pEmr.size();
+				pEmr.push_back(pGlobal);
 			}
 
 			if (GameType() & (AUG95 | OCT95 | BIO1))
@@ -198,7 +200,17 @@ std::uintmax_t Resident_Evil_Animation::OpenEMR(StdFile& File, std::uintmax_t _P
 			}
 			else if (GameType() & (BIO2NOV96 | BIO2TRIAL | BIO2 | BIO3))
 			{
-				std::uintmax_t pFrame = Pointer + (std::uintmax_t)(pEmr.back() * Header.FrameLen);
+				std::uintmax_t pFrame = 0;
+
+				if (GameType() & BIO3)
+				{
+					pFrame = Pointer + (std::uintmax_t)(pEmr.back() * Header.FrameLen);
+				}
+				else
+				{
+					const std::uint32_t FrameIndex = static_cast<std::uint32_t>(Clip[i][x].Attr.pEmr);
+					pFrame = Pointer + (std::uintmax_t)(FrameIndex * Header.FrameLen);
+				}
 
 				std::vector<std::uint8_t> FrameBuffer;
 
@@ -496,14 +508,17 @@ std::uintmax_t Resident_Evil_Animation::SaveEMR(StdFile& File, std::uintmax_t _P
 				}
 				else if (GameType() & BIO3)
 				{
-					pEmr.push_back(Clip[i][x].Attr.pEmr);
-					for (std::size_t y = 0; y < pEmr.size() - 1; y++)
+					const std::uint32_t pGlobal = Clip[i][x].Attr.pEmr;
+
+					std::size_t LocalIndex = SIZE_MAX;
+					for (std::size_t y = 0; y < pEmr.size(); ++y)
 					{
-						if (Clip[i][x].Attr.pEmr == pEmr[y])
-						{
-							pEmr.pop_back();
-							break;
-						}
+						if (pEmr[y] == pGlobal) { LocalIndex = y; break; }
+					}
+					if (LocalIndex == SIZE_MAX)
+					{
+						LocalIndex = pEmr.size();
+						pEmr.push_back(pGlobal);
 					}
 
 					pFrame = Pointer + (std::uintmax_t)(pEmr.back() * Header.FrameLen);

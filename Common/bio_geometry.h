@@ -196,4 +196,7 @@ public:
 	// Camera Switch Detection
 	bool CameraSwitch(VECTOR2& Position, const std::int16_t Xz[4][2]);
 
+	// Camera Frustum Detection
+	bool CameraFrustum(VECTOR2& Position, const std::int16_t Xz[4][2]);
+
 };

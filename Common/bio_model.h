@@ -18,7 +18,11 @@
 
 #include <bio_animation.h>
 
+#include <bio_state_machine.h>
+
 #include <array>
+
+#include <variant>
 
 #if MSTD_DX9
 #include <std_dx9.h>
@@ -41,6 +45,13 @@ struct DX9_MODEL
 #endif
 
 
+using StateMachineVariant = std::variant<
+	StateMachine<AnimStatePlayerBio1>,
+	StateMachine<AnimStatePlayerBio2Nov96>,
+	StateMachine<AnimStatePlayerBio2>
+>;
+
+
 enum class ModelType : std::int32_t
 {
 	None = (0 << 0),
@@ -57,9 +68,6 @@ private:
 
 	// Standard String for messages/debugging
 	Standard_String Str;
-
-	// Filename
-	std::filesystem::path m_Filename, m_WeaponFilename;
 
 	// Animation Type Constants
 	static constexpr AnimationIndex NORMAL = AnimationIndex::Normal;
@@ -136,6 +144,20 @@ private:
 		std::vector<LIMB_DATA> Limb{};
 	};
 
+	struct SHADOW
+	{
+		rect Rect{};
+		sizevec Size{};
+		size_t TexID{};
+		std::vector<vec3t> Vec;
+#ifdef MSTD_DX9
+		std::unique_ptr<IDirect3DVertexBuffer9, IDirect3DDelete9<IDirect3DVertexBuffer9>> Vertices;
+#endif
+	};
+
+	// Filename
+	std::filesystem::path m_Filename, m_WeaponFilename;
+
 	// Matrix
 	std::shared_ptr<Standard_Matrix> World;
 
@@ -160,34 +182,23 @@ private:
 	// Model
 	std::unique_ptr<Sony_PlayStation_Model> m_Model, m_WeaponModel;
 
-	// Binary Chunk (some EMDs in Bio2, every type in Bio3; currently unknown purpose, likely vertice blending/mesh deform...)
+	// Binary Chunk
 	std::vector<std::uint8_t> m_Binary00, m_Binary01, m_WeaponBinary;
 
 	// Animation Data
 	std::array<std::shared_ptr<Resident_Evil_Animation>, std::to_underlying(AnimationIndex::Count)> m_Animations;
 
 	// Animation Index ID
-	std::atomic<AnimationIndex> m_AnimationIndex, m_AnimationIndexNext;
-
-	// Player State
-	std::atomic<Bio2PlayerState> m_PlayerState, m_PlayerStateOld, m_PlayerStateNext;
+	std::atomic<AnimationIndex> m_AnimationIndex;
 
 	// Previous Offset
 	SVECTOR2 m_Speed;
 
 	// Shadow
-	struct SHADOW
-	{
-		rect Rect{};
-		sizevec Size{};
-		size_t TexID{};
-		std::vector<vec3t> Vec;
-#ifdef MSTD_DX9
-		std::unique_ptr<IDirect3DVertexBuffer9, IDirect3DDelete9<IDirect3DVertexBuffer9>> Vertices;
-#endif
-	};
-
 	SHADOW m_Shadow;
+
+	// Frame Counter
+	std::size_t m_FrameCounter;
 
 	// Get data pointers from file archive (EMD/EMW/PLD/PLW)
 	std::vector<std::uint32_t> GetDataPtr(StdFile& File, std::uintmax_t _FileBeginPtr);
@@ -254,6 +265,7 @@ public:
 
 	explicit Resident_Evil_Model(void) :
 		m_Filename{},
+		m_WeaponFilename{},
 		m_Position{ 0, 0, 0 },
 		m_Rotation{ 0, 0, 0 },
 		m_Scale{ ONE, ONE, ONE },
@@ -269,17 +281,22 @@ public:
 		m_ModelGame(Video_Game::Resident_Evil_2),
 		m_WeaponModelGame(Video_Game::Resident_Evil_2),
 		m_AnimationIndex(NORMAL),
+#ifdef MSTD_DX9
+		m_TextureFilter(D3DTEXF_NONE),
+		m_DX9Model(nullptr),
+		m_DX9WeaponModel(nullptr),
+#endif
 		m_Hitbox{},
+		m_FrameCounter(0),
 		b_Active(true),
 		b_Drawing(false),
 		b_Play(true),
 		b_Loop(true),
-		b_Reverse(false),
-		b_WaitComplete(false),
+		b_PlayInReverse(false),
 		b_HorzFlip(false),
 		b_VertFlip(false),
 		b_LerpKeyframes(true),
-		m_LerpValue(0.25f),
+		m_LerpValue(0.50f),
 		b_QuickTurn(false),
 		b_ControllerMode(false),
 		b_EditorMode(false),
@@ -295,25 +312,25 @@ public:
 		b_DrawSingleObject(false),
 		b_DrawWeapon(false),
 		b_WeaponKickback(false),
+		b_WeaponKickbackComplete(false),
 		b_DrawShadow(true),
+		iClip(0),
+		iFrame(0),
+		iHealth(200),
+		iHealthMin(0),
+		iHealthMax(200),
 		iObject(0),
 		iObjectMin(0),
 		iObjectMax(0),
 		iWeaponObject(0),
 		iWeaponObjectMin(0),
 		iWeaponObjectMax(0),
-		iClip(0),
-		iFrame(0),
 		iRoom(0),
 		iRoomMin(0),
 		iRoomMax(0)
-#ifdef MSTD_DX9
-		,m_TextureFilter(D3DTEXF_NONE),
-		m_DX9Model(nullptr),
-		m_DX9WeaponModel(nullptr)
-#endif
 	{
 		Routine = [&]() {};
+		Controller = [&]() {};
 		for (size_t i = 0; i < m_Animations.size(); ++i)
 		{
 			m_Animations[i] = std::make_shared<Resident_Evil_Animation>();
@@ -355,8 +372,11 @@ public:
 
 #endif
 
-	// Contoller/AI routine
+	// Runtime Routine
 	std::function<void()> Routine;
+
+	// Gamepad Routine
+	std::function<void()> Controller;
 
 	// Will the model be drawn?
 	std::atomic<bool> b_Active;
@@ -374,10 +394,7 @@ public:
 	std::atomic<bool> b_Loop;
 
 	// Will keyframes process in reverse?
-	std::atomic<bool> b_Reverse;
-
-	// Keyframes must complete before another clip can be processed
-	std::atomic<bool> b_WaitComplete;
+	std::atomic<bool> b_PlayInReverse;
 
 	// All keyframes must be processed
 	std::atomic<bool> b_PlayAllFrames;
@@ -496,16 +513,13 @@ public:
 		Does the weapon have kickback?
 		 - position change ("push" backward) on weapon discharge
 	*/
-	bool b_WeaponKickback;
+	std::atomic<bool> b_WeaponKickback;
+
+	// Is the weapon kickback complete?
+	std::atomic<bool> b_WeaponKickbackComplete;
 
 	// Will the shadow be drawn?
 	bool b_DrawShadow;
-
-	// Model object index
-	std::size_t iObject, iObjectMin, iObjectMax;
-
-	// ID of model object to replace with weapon object
-	std::size_t iWeaponObject, iWeaponObjectMin, iWeaponObjectMax;
 
 	// Animation clip index
 	std::atomic<std::size_t> iClip;
@@ -513,7 +527,16 @@ public:
 	// Animation keyframe index
 	std::atomic<std::size_t> iFrame;
 
-	// Room animation index
+	// Health Power
+	std::int32_t iHealth, iHealthMin, iHealthMax;
+
+	// Model object index
+	std::size_t iObject, iObjectMin, iObjectMax;
+
+	// ID of model object to replace with weapon object
+	std::size_t iWeaponObject, iWeaponObjectMin, iWeaponObjectMax;
+
+	// Room animation clip index
 	std::size_t iRoom, iRoomMin, iRoomMax;
 
 	// set video game type
@@ -601,13 +624,7 @@ public:
 	AnimationIndex AnimIndex(void) noexcept { return m_AnimationIndex.load(); }
 
 	// Set Animation Index
-	void AnimIndex(AnimationIndex Index) noexcept { m_AnimationIndex.store(Index); }
-
-	// Player State
-	Bio2PlayerState State(void) noexcept { return m_PlayerState.load(); }
-
-	// Player State Old
-	Bio2PlayerState PriorState(void) noexcept { return m_PlayerStateOld.load(); }
+	void SetAnimIndex(AnimationIndex Index) noexcept { m_AnimationIndex.store(Index); }
 
 	// Model Type
 	ModelType& ModelType(void) noexcept { return m_ModelType; }
@@ -618,14 +635,17 @@ public:
 	// Weapon Model Game Type
 	const std::uint32_t WeaponModelGame(void) const noexcept { return std::to_underlying(m_WeaponModelGame); }
 
-	// Previous Offset
-	SVECTOR2& Speed(void) noexcept { return m_Speed; }
-
 	// Reset clip
 	void ResetClip(void) { iClip.store(0); iFrame.store(0); }
 
-	// Reset frame if not in prior state
-	void ResetFrame(Bio2PlayerState iPriorState) { if (PriorState() != iPriorState) { iFrame.store(0); } }
+	// Previous Offset
+	SVECTOR2& Speed(void) noexcept { return m_Speed; }
+
+	// Is health in caution range?
+	bool IsHealthCaution(void) const { return (iHealth <= ((iHealthMax / 3) * 2)); }
+
+	// Is health in danger range?
+	bool IsHealthDanger(void) const { return (iHealth <= (iHealthMax / 3)); }
 
 	// Clamp position between -32768 and 32768
 	void ClampPosition(VECTOR2& Pos)
@@ -648,63 +668,6 @@ public:
 
 		if (Rot.y >= Threshold) { Rot.y -= Offset; }
 		else if (Rot.y <= -Threshold) { Rot.y += Offset; }
-	}
-
-	// Set State
-	void SetState(Bio2PlayerState iState, AnimationIndex Index, size_t Frame, bool WaitComplete, bool Loop)
-	{
-		b_Play.store(false);
-
-		if (iState != PriorState())
-		{
-			iFrame.store(0);
-			m_Speed = { 0, 0, 0 };
-		}
-
-		iFrame.store(Frame);
-		iClip.store(std::to_underlying(iState));
-
-		AnimIndex(Index);
-		m_PlayerStateOld.store(m_PlayerState.load());
-		m_PlayerState.store(iState);
-
-		b_WaitComplete.store(WaitComplete);
-		b_Loop.store(Loop);
-		b_Play.store(true);
-	}
-
-	// Set Next State
-	void SetNextState(Bio2PlayerState iNexState, AnimationIndex Index)
-	{
-		m_PlayerStateNext.store(iNexState);
-		m_AnimationIndexNext.store(Index);
-	}
-
-	// Recover from aim begin/aiming/firing/running state
-	void RecoverState(bool b_AimBegin, bool b_Aiming, bool b_Firing, bool b_Running)
-	{
-		if (b_Firing)
-		{
-			SetNextState(Bio2PlayerState::Aim, AnimationIndex::Weapon);
-		}
-		else if (b_Aiming)
-		{
-			b_Reverse.store(true);
-			b_PlayAllFrames.store(true);
-			SetState(Bio2PlayerState::Aim_Begin, AnimationIndex::Weapon, -1, true, false);
-		}
-		else if (b_AimBegin)
-		{
-			b_Reverse.store(true);
-			b_PlayAllFrames.store(true);
-			b_WaitComplete.store(true);
-			SetNextState(Bio2PlayerState::Idle, AnimationIndex::Weapon);
-		}
-		else if (b_Running)
-		{
-			ResetFrame(Bio2PlayerState::Idle);
-			SetState(Bio2PlayerState::Idle, AnimationIndex::Weapon, 0, false, true);
-		}
 	}
 
 	/*
@@ -793,6 +756,8 @@ public:
 	void Shutdown(void)
 	{
 		Routine = [&]() {};
+
+		Controller = [&]() {};
 
 		StopDrawing();
 

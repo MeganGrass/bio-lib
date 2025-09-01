@@ -892,29 +892,31 @@ void Resident_Evil_Model::DrawFrame(std::shared_ptr<Resident_Evil_Animation> Ani
 	const auto& Speed = Animation->Clip[iClip][iFrame].Speed;
 	const auto& Rotations = Animation->Clip[iClip][iFrame].Rotation;
 
-	size_t iNextFrame = min(iFrame + 1, Animation->GetFrameCount(iClip) - 1);
-
-	bool b_Lerp = true;
-	if (!b_LerpKeyframes || iNextFrame == iFrame) { b_Lerp = false; }
-
 	vec3 Vector;
-	if (b_LockPosition)
-	{
-		Vector = { 0.0f, GTE->ToFloat(Origin.y), 0.0f };
-	}
+	std::vector<vec3c> SkeletonSegments;
+	std::vector<Standard_Matrix> Transform(Rotations.size());
+
+	if (b_DrawSkeleton) { SkeletonSegments.reserve(Rotations.size() * 2); }
+
+	if (b_LockPosition) { Vector = { 0.0f, GTE->ToFloat(Origin.y) + GTE->ToFloat(Speed.y), 0.0f }; }
 	else
 	{
-		if (b_Lerp)
-		{
-			const auto& NextOrigin = Animation->Clip[iClip][iFrame].Origin;
-			const auto& NextSpeed = Animation->Clip[iClip][iFrame].Speed;
-			const auto& NextRotations = Animation->Clip[iClip][iFrame].Rotation;
+		size_t iNextFrame = iFrame + 1;
 
+		if (iNextFrame >= Animation->GetFrameCount(iClip))
+		{
+			iNextFrame = 0;
+		}
+
+		if (b_LerpKeyframes.load() && iNextFrame != iFrame)
+		{
+			const auto& OriginNext = Animation->Clip[iClip][iNextFrame].Origin;
+			const auto& SpeedNext = Animation->Clip[iClip][iNextFrame].Speed;
 			Vector =
 			{
-				std::lerp(GTE->ToFloat(Origin.x) + GTE->ToFloat(Speed.x), GTE->ToFloat(NextOrigin.x) + GTE->ToFloat(NextSpeed.x), m_LerpValue),
-				std::lerp(GTE->ToFloat(Origin.y) + GTE->ToFloat(Speed.y), GTE->ToFloat(NextOrigin.y) + GTE->ToFloat(NextSpeed.y), m_LerpValue),
-				std::lerp(GTE->ToFloat(Origin.z) + GTE->ToFloat(Speed.z), GTE->ToFloat(NextOrigin.z) + GTE->ToFloat(NextSpeed.z), m_LerpValue)
+				std::lerp(GTE->ToFloat(Origin.x) + GTE->ToFloat(Speed.x), GTE->ToFloat(OriginNext.x) + GTE->ToFloat(SpeedNext.x), m_LerpValue),
+				std::lerp(GTE->ToFloat(Origin.y) + GTE->ToFloat(Speed.y), GTE->ToFloat(OriginNext.y) + GTE->ToFloat(SpeedNext.y), m_LerpValue),
+				std::lerp(GTE->ToFloat(Origin.z) + GTE->ToFloat(Speed.z), GTE->ToFloat(OriginNext.z) + GTE->ToFloat(SpeedNext.z), m_LerpValue)
 			};
 		}
 		else
@@ -928,7 +930,6 @@ void Resident_Evil_Model::DrawFrame(std::shared_ptr<Resident_Evil_Animation> Ani
 		}
 	}
 
-	std::vector<Standard_Matrix> Transform(Rotations.size());
 	for (size_t i = 0; i < Rotations.size(); i++)
 	{
 		Transform[i] =
@@ -937,12 +938,11 @@ void Resident_Evil_Model::DrawFrame(std::shared_ptr<Resident_Evil_Animation> Ani
 			Standard_Matrix().RotateZ(World->Radian(GTE->ToFloat(Rotations[i].z) * 360.0f));
 	}
 
-	std::vector<vec3c> SkeletonSegments;
-	if (b_DrawSkeleton) { SkeletonSegments.reserve(Rotations.size() * 2); }
-
 	std::function<void(const std::shared_ptr<Resident_Evil_Animation::Bone>&, const Standard_Matrix&)> DrawKeyframe =
 		[&](const std::shared_ptr<Resident_Evil_Animation::Bone>& Skeleton, const Standard_Matrix& Matrix)
 		{
+			if (b_StopDrawing) { return; }
+
 			Standard_Matrix Local;
 
 			if (b_DrawRoot)
@@ -1018,9 +1018,6 @@ void Resident_Evil_Model::DrawFrame(std::shared_ptr<Resident_Evil_Animation> Ani
 				}
 			}
 #endif
-
-			if (b_StopDrawing) { return; }
-
 			for (const auto& Children : Skeleton->Children) { DrawKeyframe(Children, Local); }
 		};
 
@@ -1036,7 +1033,7 @@ void Resident_Evil_Model::DrawFrame(std::shared_ptr<Resident_Evil_Animation> Ani
 #if MSTD_DX9
 	Render->SetWorld(World);
 
-	Render->Device()->SetRenderState(D3DRS_CULLMODE, b_HorzFlip && b_HorzFlip ? D3DCULL_CW : b_HorzFlip ? D3DCULL_CCW : b_VertFlip ? D3DCULL_CCW : D3DCULL_CW);
+	Render->Device()->SetRenderState(D3DRS_CULLMODE, b_HorzFlip && b_VertFlip ? D3DCULL_CW : b_HorzFlip ? D3DCULL_CCW : b_VertFlip ? D3DCULL_CCW : D3DCULL_CW);
 	Render->Device()->SetRenderState(D3DRS_CLIPPING, TRUE);
 
 	Render->TextureFiltering(m_TextureFilter);
@@ -1100,7 +1097,7 @@ void Resident_Evil_Model::DrawObject(std::size_t iObject, bool b_DrawAll, bool D
 
 	Render->SetWorld(World);
 
-	Render->Device()->SetRenderState(D3DRS_CULLMODE, b_HorzFlip && b_HorzFlip ? D3DCULL_CW : b_HorzFlip ? D3DCULL_CCW : b_VertFlip ? D3DCULL_CCW : D3DCULL_CW);
+	Render->Device()->SetRenderState(D3DRS_CULLMODE, b_HorzFlip && b_VertFlip ? D3DCULL_CW : b_HorzFlip ? D3DCULL_CCW : b_VertFlip ? D3DCULL_CCW : D3DCULL_CW);
 	Render->Device()->SetRenderState(D3DRS_CLIPPING, TRUE);
 
 	Render->TextureFiltering(m_TextureFilter);
@@ -1148,7 +1145,7 @@ void Resident_Evil_Model::Draw(void)
 		//return;
 	}
 
-	AnimationIndex Index = m_AnimationIndex;
+	auto Index = m_AnimationIndex.load();
 	bool b_DrawRoot = b_DrawReference;
 
 	if (!Animation(Index)->IsOpen() || !Animation(Index)->Skeleton->IsOpen())
@@ -1160,65 +1157,56 @@ void Resident_Evil_Model::Draw(void)
 		}
 		else
 		{
-			m_PlayerState.store(m_PlayerStateOld);
-			b_Reverse.store(false);
-			b_PlayAllFrames.store(false);
-			b_WaitComplete.store(false);
 			return;
 		}
 	}
 
-	iClip = min(iClip.load(), Animation(Index)->GetClipCount() - 1);
+	iClip.store(min(iClip.load(), Animation(Index)->GetClipCount() - 1));
 
-	iFrame = min(iFrame.load(), Animation(Index)->GetFrameCount(iClip) - 1);
+	iFrame.store(min(iFrame.load(), Animation(Index)->GetFrameCount(iClip.load()) - 1));
 
 	DrawFrame(Animation(Index), iClip.load(), iFrame.load(), b_DrawRoot);
 
-	//const auto& Frame = Animation(Index)->Clip[iClip][iFrame];
-	//static std::size_t Skip = Frame.Attr.Speed;
-	//Skip << 1;
+	if (!b_Play.load()) { return; }
 
-	static std::size_t m_FrameCounter = 0;
-	if (b_Play.load() && m_FrameCounter % 2 == 0)
+	if (m_FrameCounter % 2 == 0)
 	{
-		if (!b_Reverse.load()) { iFrame++; }
-		else { iFrame--; }
+		if (b_PlayInReverse.load())
+		{
+			iFrame.fetch_sub(1);
+			if (iFrame.load() >= Animation(Index)->GetFrameCount(iClip.load())) { iFrame.store(0); }
+		}
+		else
+		{
+			iFrame.fetch_add(1);
+		}
 	}
 	m_FrameCounter++;
 
-	if (b_PlayAllFrames.load() && iFrame.load() >= Animation(Index)->GetFrameCount(iClip.load()))
+	const auto m_FrameCount = Animation(Index)->GetFrameCount(iClip.load());
+	const auto b_FirstFrame = (iFrame.load() == 0);
+	const auto b_LastFrame = (iFrame.load() >= m_FrameCount);
+
+	if (b_PlayAllFrames.load())
 	{
-		b_PlayAllFrames.store(false);
+		if ((!b_PlayInReverse.load() && b_LastFrame) || (b_PlayInReverse.load() && b_FirstFrame))
+		{
+			b_PlayAllFrames.store(false);
+			b_PlayInReverse.store(false);
+			m_FrameCounter = 0;
+		}
 	}
 
-	else if (b_WaitComplete.load() && b_Reverse.load() && iFrame.load() <= 0)
+	else if (b_Loop.load())
 	{
-		AnimIndex(m_AnimationIndexNext);
-		m_PlayerState.store(m_PlayerStateNext);
-		m_PlayerStateOld.store(m_PlayerState);
-		b_WaitComplete.store(false);
-		b_Reverse.store(false);
-		iFrame.store(0); m_FrameCounter = 0;
-	}
-
-	else if (b_WaitComplete.load() && iFrame.load() >= Animation(Index)->GetFrameCount(iClip.load()))
-	{
-		AnimIndex(m_AnimationIndexNext);
-		m_PlayerState.store(m_PlayerStateNext);
-		m_PlayerStateOld.store(m_PlayerState);
-		b_WaitComplete.store(false);
-		iFrame.store(0); m_FrameCounter = 0;
-	}
-
-	else if (b_Play.load() && b_Loop.load() && !b_Reverse.load() && iFrame.load() >= Animation(Index)->GetFrameCount(iClip.load()))
-	{
-		iFrame.store(0); m_FrameCounter = 0;
-	}
-
-	else if (b_Play.load() && b_Loop.load() && b_Reverse.load() && iFrame.load() <= 0)
-	{
-		iFrame.store(Animation(Index)->GetFrameCount(iClip.load()) - 1);
-		m_FrameCounter = iFrame;
+		if (!b_PlayInReverse.load())
+		{
+			if (b_LastFrame) { iFrame.store(0); m_FrameCounter = 0; }
+		}
+		else
+		{
+			if (b_FirstFrame) { iFrame.store(m_FrameCount - 1); m_FrameCounter = 0; }
+		}
 	}
 }
 
