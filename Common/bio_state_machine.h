@@ -18,6 +18,8 @@
 
 #include <functional>
 
+#include <unordered_map> 
+
 enum class AnimationIndex : std::size_t;
 
 enum class Resident_Evil_Key : std::int32_t;

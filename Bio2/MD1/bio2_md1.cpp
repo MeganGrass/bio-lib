@@ -389,9 +389,14 @@ void Resident_Evil_2_MD1::Close(void)
 	for (std::size_t i = 0; i < Object.size(); i++)
 	{
 		Object[i].Vertice.clear();
+		Object[i].Vertice.shrink_to_fit();
 		Object[i].Normal.clear();
+		Object[i].Normal.shrink_to_fit();
 		Object[i].Triangle.clear();
+		Object[i].Triangle.shrink_to_fit();
 		Object[i].Quadrangle.clear();
+		Object[i].Quadrangle.shrink_to_fit();
 	}
 	Object.clear();
+	Object.shrink_to_fit();
 }

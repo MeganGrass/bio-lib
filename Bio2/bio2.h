@@ -97,7 +97,7 @@ public:
 		Rdt(std::make_unique<Resident_Evil_2_RDT>()),
 		b_PreferAsm(false)
 	{
-		Game = Video_Game::Resident_Evil_2;
+		m_Game = Video_Game::Resident_Evil_2;
 	}
 	virtual ~Resident_Evil_2(void)
 	{

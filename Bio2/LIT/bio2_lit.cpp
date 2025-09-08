@@ -72,4 +72,5 @@ bool Resident_Evil_2_LIT::Save(std::filesystem::path Path, std::uintmax_t _Ptr)
 void Resident_Evil_2_LIT::Close(void)
 {
 	Data.clear();
+	Data.shrink_to_fit();
 }

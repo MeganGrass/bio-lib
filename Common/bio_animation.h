@@ -268,6 +268,7 @@ public:
 			Local = Standard_Matrix();
 			Parent.reset();
 			Children.clear();
+			Children.shrink_to_fit();
 		}
 	};
 

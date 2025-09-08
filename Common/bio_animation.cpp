@@ -557,6 +557,7 @@ std::uintmax_t Resident_Evil_Animation::SaveEMR(StdFile& File, std::uintmax_t _P
 		{
 			Pointer += (pEmr.size() * Header.FrameLen);
 			pEmr.clear();
+			pEmr.shrink_to_fit();
 		}
 	}
 
@@ -678,11 +679,11 @@ bool Resident_Evil_Animation::OpenRBJ(StdFile& File, std::uintmax_t _Ptr)
 	{
 		Data[i] = std::make_shared<Resident_Evil_Animation>();
 		Data[i]->Str.hWnd = Str.hWnd;
-		Data[i]->Game = Game;
+		Data[i]->m_Game = m_Game;
 		Data[i]->m_Type = m_Type;
 
-		if (!Pointer[x + 0] || Pointer[x + 0] == 0xFFFFFFFF) { continue; }
-		if (!Pointer[x + 1] || Pointer[x + 1] == 0xFFFFFFFF) { continue; }
+		if (!Pointer[x + 0] || Pointer[x + 0] == 0xFFFFFFFF || Pointer[x + 0] >= File.Size()) { continue; }
+		if (!Pointer[x + 1] || Pointer[x + 1] == 0xFFFFFFFF || Pointer[x + 1] >= File.Size()) { continue; }
 
 		File.Read(_Ptr + Pointer[x], &Data[i]->EntityList, sizeof(Entity));
 
@@ -700,13 +701,33 @@ void Resident_Evil_Animation::Close(void)
 	b_IsContainer = false;
 
 	Joints.clear();
+	Joints.shrink_to_fit();
 	Clip.clear();
+	Clip.shrink_to_fit();
 
 	Skeleton->Reset();
 
 	std::memset(&EntityList, 0, sizeof(Entity));
 
+	for (auto& Element : Data)
+	{
+		Element->b_EddOpen = false;
+		Element->b_EmrOpen = false;
+		Element->b_IsContainer = false;
+
+		Element->Joints.clear();
+		Element->Joints.shrink_to_fit();
+		Element->Clip.clear();
+		Element->Clip.shrink_to_fit();
+
+		Element->Skeleton->Reset();
+
+		std::memset(&Element->EntityList, 0, sizeof(Entity));
+
+		Element.reset();
+	}
 	Data.clear();
+	Data.shrink_to_fit();
 }
 
 std::uint16_t Resident_Evil_Animation::GetFrameLength(void) const

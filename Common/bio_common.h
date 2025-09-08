@@ -44,12 +44,12 @@ private:
 public:
 
 	explicit Resident_Evil_Common(void) :
-		Game(Video_Game::Resident_Evil),
-		Stage(0),
-		Room(0),
-		Disk(0),
-		Cut(0),
-		CutMax(0)
+		m_Game(Video_Game::Resident_Evil),
+		m_Stage(0),
+		m_Room(0),
+		m_Disk(0),
+		m_Cut(0),
+		m_CutMax(0)
 	{}
 
 	virtual ~Resident_Evil_Common(void) = default;
@@ -64,25 +64,25 @@ public:
 	static constexpr std::uint32_t BIO3 = std::to_underlying(Video_Game::Resident_Evil_3);			// Resident Evil 3
 
 	// Resident Evil Video Game
-	Video_Game Game;
+	Video_Game m_Game;
 
 	// RDT File Stage ID
-	uint8_t Stage;
+	uintmax_t m_Stage;
 
 	// RDT File Room ID
-	uint8_t Room;
+	uintmax_t m_Room;
 
 	// RDT File Disk ID
-	uint8_t Disk;
+	uintmax_t m_Disk;
 
 	// RDT Camera ID
-	uint8_t Cut;
+	uintmax_t m_Cut;
 
 	// RDT Camera Max Count
-	uint8_t CutMax;
+	uintmax_t m_CutMax;
 
 	// Resident Evil Video Game
-	std::uint32_t GameType(void) const { return std::to_underlying(Game); }
+	std::uint32_t GameType(void) const { return std::to_underlying(m_Game); }
 
 	// Get game as string
 	String GameStr(void);
@@ -91,9 +91,21 @@ public:
 	StringW GameStrW(void) { return Standard_String().GetWide(GameStr()); }
 
 	// Set video game type
-	virtual void SetGame(Video_Game _Game) { Game = _Game; }
+	virtual void SetGame(Video_Game Game) { m_Game = Game; }
 
 	// Get Stage and Room IDs from RDT file string
 	void GetStageRoom(std::string Str);
+
+	// Get Player ID from character string
+	std::uint32_t GetPlayerID(Video_Game Game, std::string Str);
+
+	// Get Weapon ID from character string
+	std::uint32_t GetWeaponID(Video_Game Game, std::string Str);
+
+	// Get Enemy ID from character string
+	std::uint32_t GetEnemyID(Video_Game Game, std::string Str);
+
+	// Get Disk ID from character string
+	std::uint32_t GetEnemyDiskID(Video_Game Game, std::string Str);
 
 };

@@ -44,6 +44,27 @@ enum class AnimStatePlayerBio2 : std::size_t
 	Quick_Reload = 102
 };
 
+enum class AnimStateW00Bio2 : std::size_t
+{
+	Walk_Forward = 0,
+	Run = 1,
+	Idle = 2,
+	Walk_Forward_Caution = 3,
+	Run_Caution = 4,
+	Idle_Caution = 5,
+	Walk_Forward_Danger = 6,
+	Run_Danger = 7,
+	Idle_Danger = 8,
+	Aim_Begin = 9,
+	Fire = 10,
+	Aim = 11,
+	Fire_Upward = 12,
+	Aim_Upward = 13,
+	Fire_Downward = 14,
+	Aim_Downward = 15,
+	Reload = 16
+};
+
 enum class AnimStateEM10Bio2 : std::size_t
 {
 	Walk = 0,

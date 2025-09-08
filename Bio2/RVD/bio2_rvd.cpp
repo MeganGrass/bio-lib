@@ -3,18 +3,12 @@
 *	Megan Grass
 *	April 20, 2024
 *
-*
-*	TODO:
-*
 */
 
 
 #include "bio2_rvd.h"
 
 
-/*
-	Sort
-*/
 void Resident_Evil_2_RVD::Sort(void)
 {
 	if (Data.empty()) { return; }
@@ -42,10 +36,6 @@ void Resident_Evil_2_RVD::Sort(void)
 	}
 }
 
-
-/*
-	Open
-*/
 std::uintmax_t Resident_Evil_2_RVD::Open(StdFile& File, std::uintmax_t _Ptr)
 {
 	Standard_String Str;
@@ -85,10 +75,6 @@ std::uintmax_t Resident_Evil_2_RVD::Open(StdFile& File, std::uintmax_t _Ptr)
 	return _Ptr + (Data.size() * sizeof(Resident_Evil_2_RVD_Data)) + sizeof(std::uint32_t);
 }
 
-
-/*
-	Open
-*/
 bool Resident_Evil_2_RVD::Open(std::filesystem::path Path, std::uintmax_t _Ptr)
 {
 	StdFile m_File;
@@ -102,10 +88,6 @@ bool Resident_Evil_2_RVD::Open(std::filesystem::path Path, std::uintmax_t _Ptr)
 	return OldPtr != _Ptr;
 }
 
-
-/*
-	Save
-*/
 std::uintmax_t Resident_Evil_2_RVD::Save(StdFile& File, std::uintmax_t _Ptr)
 {
 	Standard_String Str;
@@ -127,10 +109,6 @@ std::uintmax_t Resident_Evil_2_RVD::Save(StdFile& File, std::uintmax_t _Ptr)
 	return File.Write(_Ptr + Data.size() * sizeof(Resident_Evil_2_RVD_Data), &EoF, sizeof(uint32_t));
 }
 
-
-/*
-	Save
-*/
 bool Resident_Evil_2_RVD::Save(std::filesystem::path Path, std::uintmax_t _Ptr)
 {
 	StdFile m_File;
@@ -144,11 +122,8 @@ bool Resident_Evil_2_RVD::Save(std::filesystem::path Path, std::uintmax_t _Ptr)
 	return OldPtr != _Ptr;
 }
 
-
-/*
-	Close
-*/
 void Resident_Evil_2_RVD::Close(void)
 {
 	Data.clear();
+	Data.shrink_to_fit();
 }

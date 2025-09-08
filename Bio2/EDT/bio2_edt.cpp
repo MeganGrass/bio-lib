@@ -228,4 +228,5 @@ bool Resident_Evil_2_EDT::SaveAsText(std::filesystem::path Output)
 void Resident_Evil_2_EDT::Close(void)
 {
 	Data.clear();
+	Data.shrink_to_fit();
 }

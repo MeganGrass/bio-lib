@@ -16,21 +16,12 @@
 #pragma pack(push, 1)
 
 
-struct Resident_Evil_2_PRI_Layer
+struct Resident_Evil_2_PRI_Group
 {
 	std::uint16_t nSprite;		// Sprite count
-	std::uint16_t Clut;			// CLUT
+	std::uint16_t CBA;			// CLUT
 	std::int16_t OfsX;			// Add to x for actual Screen Pos
 	std::int16_t OfsY;			// Add to y for actual Screen Pos
-};
-
-
-struct Resident_Evil_2_PRI_Square
-{
-	std::uint8_t u, v;			// Texture UV
-	std::uint8_t x, y;			// Screen XY
-	std::uint16_t otz;			// Z-Depth
-	std::uint16_t size;			// Texture Width and Height
 };
 
 
@@ -39,7 +30,14 @@ struct Resident_Evil_2_PRI_Rect
 	std::uint8_t u, v;			// Texture UV
 	std::uint8_t x, y;			// Screen XY
 	std::uint16_t otz;			// Z-Depth
-	std::uint16_t tpage;		// Texture Page (always zero, unless Bio2 Nov96)
+	std::uint16_t flag;			/*
+								*	Bio2:
+								*		if zero, use w/h
+								*		if non-zero, w/h = flag, increment pointer by 0x08 instead of 0x0C
+								*	Other:
+								*		if (flag >> 8) == 0, use w/h
+								*		if (flag >> 8) != 0, w/h = (flag >> 8), increment pointer by 0x08 instead of 0x0C
+								*/
 	std::uint16_t w, h;			// Texture Width and Height
 };
 
@@ -49,7 +47,7 @@ struct Resident_Evil_2_PRI_Rect
 
 struct Resident_Evil_2_PRI_Data
 {
-	Resident_Evil_2_PRI_Layer Layer{};
+	Resident_Evil_2_PRI_Group Group{};
 	std::vector<Resident_Evil_2_PRI_Rect> Sprite;
 };
 
@@ -109,7 +107,7 @@ public:
 	void DeleteSprite(std::size_t iEntry, std::size_t iSprite) { Data[iEntry].Sprite.erase(Data[iEntry].Sprite.begin() + iSprite); }
 
 	// Open
-	std::uintmax_t Open(StdFile& File, std::uintmax_t _Ptr);
+	std::uintmax_t Open(StdFile& File, std::uintmax_t _Ptr, bool b_OldData = false, bool b_Bio1 = false, bool b_Bio2Nov96 = false);
 
 	// Open
 	bool Open(std::filesystem::path Path, std::uintmax_t _Ptr = 0)
@@ -137,8 +135,10 @@ public:
 		for (auto& Element : Data)
 		{
 			Element.Sprite.clear();
+			Element.Sprite.shrink_to_fit();
 		}
 		Data.clear();
+		Data.shrink_to_fit();
 	}
 
 };

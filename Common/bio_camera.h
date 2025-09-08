@@ -104,8 +104,8 @@ public:
 	std::filesystem::path m_Path;
 
 	// Prerendered Background ID
-	using Resident_Evil_Common::Cut;
-	using Resident_Evil_Common::CutMax;
+	using Resident_Evil_Common::m_Cut;
+	using Resident_Evil_Common::m_CutMax;
 
 	// Prerendered Background View On/Off
 	bool b_ViewBackground;
@@ -200,7 +200,7 @@ public:
 	void Reset(void);
 
 	// Set Meta Data
-	void SetMeta(std::filesystem::path _Path, std::uint8_t _Stage, std::uint8_t _Room, std::uint8_t _CutMax) noexcept;
+	void SetMeta(std::filesystem::path Path, std::uintmax_t Stage, std::uintmax_t Room, std::uintmax_t CutMax) noexcept;
 
 	// Set Orthographic Projection Matrix
 	void SetOrtho(float Width, float Height);
@@ -209,7 +209,7 @@ public:
 		Set Prerendered Background Image
 		- SetMeta must be called before this function
 	*/
-	std::uint8_t SetImage(std::uint8_t iCut);
+	std::uintmax_t SetImage(std::uintmax_t iCut);
 
 	// Get Prerendered Background Vertices
 	[[nodiscard]] std::vector<vec4t> GetImageVert(void) const;

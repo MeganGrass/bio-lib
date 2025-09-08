@@ -469,8 +469,10 @@ bool Resident_Evil_2_ADT::Decompress(std::vector<std::uint8_t> src, std::vector<
 	}
 
 	tmp16k.clear();
+	tmp16k.shrink_to_fit();
 
 	tmp32k.clear();
+	tmp32k.shrink_to_fit();
 
 	dstBufPtr.resize(dstBufLen);
 

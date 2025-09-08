@@ -59,4 +59,5 @@ std::uintmax_t Resident_Evil_2_Message::Open(StdFile& File, std::uintmax_t _Ptr,
 void Resident_Evil_2_Message::Close(void)
 {
 	Data.clear();
+	Data.shrink_to_fit();
 }

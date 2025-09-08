@@ -53,7 +53,7 @@ public:
 		Bs(std::make_unique<Sony_PlayStation_Bitstream>()),
 		Pak(std::make_unique<Resident_Evil_PAK>())
 	{
-		Game = Video_Game::Resident_Evil;
+		m_Game = Video_Game::Resident_Evil;
 	}
 	virtual ~Resident_Evil(void)
 	{

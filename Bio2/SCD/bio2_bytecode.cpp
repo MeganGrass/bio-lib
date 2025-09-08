@@ -492,4 +492,5 @@ bool Resident_Evil_2_Bytecode::Disassemble(std::filesystem::path _Path)
 void Resident_Evil_2_Bytecode::Close(void)
 {
 	m_Bytecode.clear();
+	m_Bytecode.shrink_to_fit();
 }

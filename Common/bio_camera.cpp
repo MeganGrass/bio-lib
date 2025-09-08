@@ -21,11 +21,11 @@ void Resident_Evil_Camera::Shutdown(void) noexcept
 
 void Resident_Evil_Camera::Reset(void)
 {
-	Stage = 0;
-	Room = 0;
+	m_Stage = 0;
+	m_Room = 0;
 	m_Path.clear();
-	Cut = 0;
-	CutMax = 0;
+	m_Cut = 0;
+	m_CutMax = 0;
 	m_FOV = (0x6DD4 >> 7);
 	m_Eye = { -16000, -7200, -16000 };
 	m_At = { 0, 7200, 0 };
@@ -42,12 +42,12 @@ void Resident_Evil_Camera::Reset(void)
 	else { Set(m_ModelFOV, m_ModelEye, m_ModelAt); }
 }
 
-void Resident_Evil_Camera::SetMeta(std::filesystem::path _Path, std::uint8_t _Stage, std::uint8_t _Room, std::uint8_t _CutMax) noexcept
+void Resident_Evil_Camera::SetMeta(std::filesystem::path Path, std::uintmax_t Stage, std::uintmax_t Room, std::uintmax_t CutMax) noexcept
 {
-	m_Path = _Path;
-	Stage = _Stage;
-	Room = _Room;
-	CutMax = _CutMax;
+	m_Path = Path;
+	m_Stage = Stage;
+	m_Room = Room;
+	m_CutMax = CutMax;
 }
 
 void Resident_Evil_Camera::SetOrtho(float Width, float Height)
@@ -59,10 +59,10 @@ void Resident_Evil_Camera::SetOrtho(float Width, float Height)
 	Orthogonal->OrthogonalOffCenterLeft(0.0f, m_OrthoWidth, 0.0f, m_OrthoHeight, 0.0f, 1.0f);
 }
 
-std::uint8_t Resident_Evil_Camera::SetImage(std::uint8_t iCut)
+std::uintmax_t Resident_Evil_Camera::SetImage(std::uintmax_t iCut)
 {
-	if (CutMax) { Cut = std::clamp(iCut, (uint8_t)0, (uint8_t)(CutMax - 1)); }
-	else { Cut = 0; }
+	if (m_CutMax) { m_Cut = std::clamp(iCut, (uintmax_t)0, (uintmax_t)(m_CutMax - 1)); }
+	else { m_Cut = 0; }
 
 	m_TexWidth = 0;
 	m_TexHeight = 0;
@@ -74,11 +74,11 @@ std::uint8_t Resident_Evil_Camera::SetImage(std::uint8_t iCut)
 	std::unique_ptr<Standard_Image> Image = std::make_unique<Standard_Image>();
 	Image->Str.hWnd = Str.hWnd;
 
-	std::filesystem::path BackgroundTIM = Str.FormatCStyle(L"%ws\\ROOM%d%02x%02d.tim", m_Path.wstring().c_str(), Stage, Room, Cut);
-	std::filesystem::path BackgroundPNG = Str.FormatCStyle(L"%ws\\ROOM%d%02x%02d.png", m_Path.wstring().c_str(), Stage, Room, Cut);
+	std::filesystem::path BackgroundTIM = Str.FormatCStyle(L"%ws\\ROOM%d%02x%02d.tim", m_Path.wstring().c_str(), m_Stage, m_Room, m_Cut);
+	std::filesystem::path BackgroundPNG = Str.FormatCStyle(L"%ws\\ROOM%d%02x%02d.png", m_Path.wstring().c_str(), m_Stage, m_Room, m_Cut);
 
-	std::filesystem::path SpriteTIM = Str.FormatCStyle(L"%ws\\ROOM_%d%02x_%02d_mask.tim", m_Path.wstring().c_str(), Stage, Room, Cut);
-	std::filesystem::path SpritePNG = Str.FormatCStyle(L"%ws\\ROOM_%d%02x_%02d_mask.png", m_Path.wstring().c_str(), Stage, Room, Cut);
+	std::filesystem::path SpriteTIM = Str.FormatCStyle(L"%ws\\ROOM_%d%02x_%02d_mask.tim", m_Path.wstring().c_str(), m_Stage, m_Room, m_Cut);
+	std::filesystem::path SpritePNG = Str.FormatCStyle(L"%ws\\ROOM_%d%02x_%02d_mask.png", m_Path.wstring().c_str(), m_Stage, m_Room, m_Cut);
 
 	if (Standard_FileSystem().Exists(BackgroundTIM) && TIM->OpenTIM(BackgroundTIM))
 	{
@@ -128,7 +128,7 @@ std::uint8_t Resident_Evil_Camera::SetImage(std::uint8_t iCut)
 	}
 #endif
 
-	return Cut;
+	return m_Cut;
 }
 
 std::vector<vec4t> Resident_Evil_Camera::GetImageVert(void) const

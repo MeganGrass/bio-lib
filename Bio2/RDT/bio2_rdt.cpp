@@ -24,14 +24,12 @@ bool Resident_Evil_2_RDT::Open(std::filesystem::path Path, std::uintmax_t _Ptr)
 		return false;
 	}
 
-	// Close
 	if (b_Open) { Close(); }
 
-	// Meta
 	m_Path = Standard_FileSystem().GetDirectory(Path);
+
 	GetStageRoom(Path.filename().string().c_str());
 
-	// Header
 	if (GameType() & BIO2NOV96)
 	{
 		Resident_Evil_2_RDT_Nov96 Nov96{};
@@ -70,7 +68,7 @@ bool Resident_Evil_2_RDT::Open(std::filesystem::path Path, std::uintmax_t _Ptr)
 		Header.pRbj = Nov96.pRbj;
 
 		// ROOM1180.RDT uses old standard
-		if (Stage == 1 && Room == 0x18)
+		if (m_Stage == 1 && m_Room == 0x18)
 		{
 			Header.pFloor = 0;
 			Header.pBlock = 0;
@@ -121,40 +119,7 @@ bool Resident_Evil_2_RDT::Open(std::filesystem::path Path, std::uintmax_t _Ptr)
 		File.Read(_Ptr, &Header, sizeof(Resident_Evil_2_RDT_Header));
 	}
 
-	// Fail-Safe
-	{
-		std::uint32_t FileSize = static_cast<std::uint32_t>(File.Size());
-
-		if ((Header.pEdt > FileSize) ||
-			(Header.pVh > FileSize) ||
-			(Header.pVb > FileSize) ||
-			(Header.pZero0 > FileSize) ||
-			(Header.pZero1 > FileSize) ||
-			(Header.pRbj_end > FileSize) ||
-			(Header.pSca > FileSize) ||
-			(Header.pRcut > FileSize) ||
-			(Header.pVcut > FileSize) ||
-			(Header.pLight > FileSize) ||
-			(Header.pOmodel > FileSize) ||
-			(Header.pFloor > FileSize) ||
-			(Header.pBlock > FileSize) ||
-			(Header.pMessage_sub > FileSize) ||
-			(Header.pScrl > FileSize) ||
-			(Header.pScdx > FileSize) ||
-			(Header.pScd > FileSize) ||
-			(Header.pEsp_hed > FileSize) ||
-			(Header.pEsp_end > FileSize) ||
-			(Header.pEsp_tim > FileSize) ||
-			(Header.pEsp_tim_end > FileSize) ||
-			(Header.pRbj > FileSize))
-		{
-			Str.Message("Resident Evil 2: Aborting RDT, abnormal data offsets detected in %s", File.GetPath().filename().string().c_str());
-			return false;
-		}
-	}
-
-	// RID
-	if (Header.pRcut)
+	if (Header.pRcut && Header.pRcut != 0xFFFFFFFF && Header.pRcut < File.Size())
 	{
 		Rid->Open(File, Header.nCut, Header.pRcut);
 
@@ -163,30 +128,24 @@ bool Resident_Evil_2_RDT::Open(std::filesystem::path Path, std::uintmax_t _Ptr)
 		{
 			Pri.push_back(std::make_unique<Resident_Evil_2_PRI>());
 
-			if (Rid->Get(i)->pSp || (Rid->Get(i)->pSp != 0xFFFFFFFF))
+			if (Rid->Get(i)->pSp && Rid->Get(i)->pSp != 0xFFFFFFFF && Rid->Get(i)->pSp < File.Size())
 			{
 				Pri[i]->Open(File, Rid->Get(i)->pSp);
 			}
 		}
 	}
 
-	// RVD
-	if (Header.pVcut) { Rvd->Open(File, Header.pVcut); }
+	if (Header.pVcut && Header.pVcut != 0xFFFFFFFF && Header.pVcut < File.Size()) { Rvd->Open(File, Header.pVcut); Rvd->Sort(); }
 
-	// LIT
-	if (Header.pLight) { Lit->Open(File, Header.nCut, Header.pLight); }
+	if (Header.pLight && Header.pLight != 0xFFFFFFFF && Header.pLight < File.Size()) { Lit->Open(File, Header.nCut, Header.pLight); }
 
-	// SCA
-	if (Header.pSca) { Sca->Open(File, Header.pSca); }
+	if (Header.pSca && Header.pSca != 0xFFFFFFFF && Header.pSca < File.Size()) { Sca->Open(File, Header.pSca); }
 
-	// BLK
-	if (Header.pBlock) { Blk->Open(File, Header.pBlock); }
+	if (Header.pBlock && Header.pBlock != 0xFFFFFFFF && Header.pBlock < File.Size()) { Blk->Open(File, Header.pBlock); }
 
-	// FLR
-	if (Header.pFloor) { Flr->Open(File, Header.pFloor); }
+	if (Header.pFloor && Header.pFloor != 0xFFFFFFFF && Header.pFloor < File.Size()) { Flr->Open(File, Header.pFloor); }
 
-	// SCD
-	if (Header.pScdx)
+	if (Header.pScdx && Header.pScdx != 0xFFFFFFFF && Header.pScdx < File.Size())
 	{
 		std::uint16_t nData = 0;
 		std::uint16_t pData = 0;
@@ -206,7 +165,7 @@ bool Resident_Evil_2_RDT::Open(std::filesystem::path Path, std::uintmax_t _Ptr)
 
 	}
 
-	if (Header.pScd)
+	if (Header.pScd && Header.pScd != 0xFFFFFFFF && Header.pScd < File.Size())
 	{
 		std::uint16_t nData = 0;
 		std::uint16_t pData = 0;
@@ -226,8 +185,7 @@ bool Resident_Evil_2_RDT::Open(std::filesystem::path Path, std::uintmax_t _Ptr)
 
 	}
 
-	// MSG
-	if (Header.pMessage)
+	if (Header.pMessage && Header.pMessage != 0xFFFFFFFF && Header.pMessage < File.Size())
 	{
 		std::uint16_t nData = 0;
 		std::uint16_t pData = 0;
@@ -247,7 +205,7 @@ bool Resident_Evil_2_RDT::Open(std::filesystem::path Path, std::uintmax_t _Ptr)
 
 	}
 
-	if (Header.pMessage_sub)
+	if (Header.pMessage_sub && Header.pMessage_sub != 0xFFFFFFFF && Header.pMessage_sub < File.Size())
 	{
 		std::uint16_t nData = 0;
 		std::uint16_t pData = 0;
@@ -267,15 +225,13 @@ bool Resident_Evil_2_RDT::Open(std::filesystem::path Path, std::uintmax_t _Ptr)
 
 	}
 
-	// Camera Scroll Texture
-	if (Header.pScrl)
+	if (Header.pScrl && Header.pScrl != 0xFFFFFFFF && Header.pScrl < File.Size())
 	{
 		Scrl->Create(16, 320, 240, 0);
 		Scrl->ReadPixels(File, Header.pScrl, 320, 240);
 	}
 
-	// Object Models
-	if (Header.pOmodel)
+	if (Header.pOmodel && Header.pOmodel != 0xFFFFFFFF && Header.pOmodel < File.Size())
 	{
 		struct Model_Link
 		{
@@ -290,7 +246,7 @@ bool Resident_Evil_2_RDT::Open(std::filesystem::path Path, std::uintmax_t _Ptr)
 		{
 			Omodel.push_back(std::make_pair(std::make_shared<Sony_PlayStation_Texture>(), std::make_shared<Resident_Evil_2_MD1>()));
 
-			if (Link[i].pTexture && (Link[i].pTexture != 0xFFFFFFFF))
+			if (Link[i].pTexture && Link[i].pTexture != 0xFFFFFFFF && Link[i].pTexture < File.Size())
 			{
 				if (i)
 				{
@@ -301,7 +257,7 @@ bool Resident_Evil_2_RDT::Open(std::filesystem::path Path, std::uintmax_t _Ptr)
 					Omodel.back().first->OpenTIM(File, Link[i].pTexture);
 				}
 			}
-			if (Link[i].pModel && (Link[i].pModel != 0xFFFFFFFF))
+			if (Link[i].pModel && Link[i].pModel != 0xFFFFFFFF && Link[i].pModel < File.Size())
 			{
 				if (i)
 				{
@@ -315,7 +271,6 @@ bool Resident_Evil_2_RDT::Open(std::filesystem::path Path, std::uintmax_t _Ptr)
 		}
 	}
 
-	// Sony PlayStation Soundbank
 	if (GameType() & BIO2TRIAL)
 	{
 		Resident_Evil_2_RDT_Header_Trial_Ver Header_Trial{};
@@ -332,18 +287,16 @@ bool Resident_Evil_2_RDT::Open(std::filesystem::path Path, std::uintmax_t _Ptr)
 	}
 	else
 	{
-		if (Header.pEdt) { Edt0->Open(File, 48, Header.pEdt); }
-		if (Header.pVh) { Vab0->OpenVH(File, Header.pVh); }
-		if (Header.pVb) { Vab0->OpenVB(File, Header.pVb); }
+		if (Header.pEdt && Header.pEdt != 0xFFFFFFFF && Header.pEdt < File.Size()) { Edt0->Open(File, 48, Header.pEdt); }
+		if (Header.pVh && Header.pVh != 0xFFFFFFFF && Header.pVh < File.Size()) { Vab0->OpenVH(File, Header.pVh); }
+		if (Header.pVb && Header.pVb != 0xFFFFFFFF && Header.pVb < File.Size()) { Vab0->OpenVB(File, Header.pVb); }
 	}
 
-	// Animation
-	if (Header.pRbj && Header.pRbj != 0xFFFFFFFF)
+	if (Header.pRbj && Header.pRbj != 0xFFFFFFFF && Header.pRbj < File.Size())
 	{
 		Rbj->OpenRBJ(File, Header.pRbj);
 	}
 
-	// Flag
 	return b_Open = true;
 }
 
@@ -353,8 +306,8 @@ void Resident_Evil_2_RDT::Close(void)
 	b_Open = false;
 
 	// Meta
-	Stage = 0;
-	Room = 0;
+	m_Stage = 0;
+	m_Room = 0;
 
 	// Header
 	std::memset(&Header, 0, sizeof(Resident_Evil_2_RDT_Header));
@@ -369,6 +322,7 @@ void Resident_Evil_2_RDT::Close(void)
 		Element.reset();
 	}
 	Pri.clear();
+	Pri.shrink_to_fit();
 
 	// RVD
 	Rvd->Close();
@@ -392,6 +346,7 @@ void Resident_Evil_2_RDT::Close(void)
 		Element.reset();
 	}
 	ScdX.clear();
+	Pri.shrink_to_fit();
 
 	// SCD
 	for (auto& Element : Scd)
@@ -400,6 +355,7 @@ void Resident_Evil_2_RDT::Close(void)
 		Element.reset();
 	}
 	Scd.clear();
+	Pri.shrink_to_fit();
 
 	// MSG
 	for (auto& Element : Message)
@@ -408,6 +364,7 @@ void Resident_Evil_2_RDT::Close(void)
 		Element.reset();
 	}
 	Message.clear();
+	Pri.shrink_to_fit();
 
 	// MSG
 	for (auto& Element : Message_sub)
@@ -416,6 +373,7 @@ void Resident_Evil_2_RDT::Close(void)
 		Element.reset();
 	}
 	Message_sub.clear();
+	Message_sub.shrink_to_fit();
 
 	// Camera Scroll Texture
 	Scrl->Close();
@@ -429,6 +387,7 @@ void Resident_Evil_2_RDT::Close(void)
 		Element.second.reset();
 	}
 	Omodel.clear();
+	Pri.shrink_to_fit();
 
 	// Soundbank
 	Edt0->Close();

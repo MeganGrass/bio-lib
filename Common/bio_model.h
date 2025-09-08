@@ -244,7 +244,9 @@ private:
 		if (m_DX9Model)
 		{
 			m_DX9Model->Object.clear();
+			m_DX9Model->Object.shrink_to_fit();
 			m_DX9Model->Texture.clear();
+			m_DX9Model->Texture.shrink_to_fit();
 			m_DX9Model.reset(nullptr);
 		}
 	}
@@ -255,7 +257,9 @@ private:
 		if (m_DX9WeaponModel)
 		{
 			m_DX9WeaponModel->Object.clear();
+			m_DX9WeaponModel->Object.shrink_to_fit();
 			m_DX9WeaponModel->Texture.clear();
+			m_DX9WeaponModel->Texture.shrink_to_fit();
 			m_DX9WeaponModel.reset(nullptr);
 		}
 	}
@@ -281,6 +285,10 @@ public:
 		m_ModelGame(Video_Game::Resident_Evil_2),
 		m_WeaponModelGame(Video_Game::Resident_Evil_2),
 		m_AnimationIndex(NORMAL),
+		m_PlayerID(0),
+		m_WeaponID(0),
+		m_EnemyID(0),
+		m_DiskID(0),
 #ifdef MSTD_DX9
 		m_TextureFilter(D3DTEXF_NONE),
 		m_DX9Model(nullptr),
@@ -314,6 +322,7 @@ public:
 		b_WeaponKickback(false),
 		b_WeaponKickbackComplete(false),
 		b_DrawShadow(true),
+		b_Bio1Enemy(false),
 		iClip(0),
 		iFrame(0),
 		iHealth(200),
@@ -341,6 +350,7 @@ public:
 		SetGame(Video_Game::Resident_Evil_2);
 		m_Shadow.TexID = 0;
 		m_Shadow.Vec.clear();
+		m_Shadow.Vec.shrink_to_fit();
 #ifdef MSTD_DX9
 		m_Shadow.Vertices.reset(nullptr);
 #endif
@@ -371,6 +381,9 @@ public:
 	std::unique_ptr<DX9_MODEL>& WeaponModelDX9(void) noexcept { return m_DX9WeaponModel; }
 
 #endif
+
+	// Player, Weapon, Enemy and Disk IDs
+	std::uint32_t m_PlayerID, m_WeaponID, m_EnemyID, m_DiskID;
 
 	// Runtime Routine
 	std::function<void()> Routine;
@@ -521,6 +534,9 @@ public:
 	// Will the shadow be drawn?
 	bool b_DrawShadow;
 
+	// Is Bio1 EMD file enemy type?
+	bool b_Bio1Enemy;
+
 	// Animation clip index
 	std::atomic<std::size_t> iClip;
 
@@ -564,7 +580,7 @@ public:
 	void PlatformSetup(HWND hWnd, std::shared_ptr<Sony_PlayStation_GTE> _GTE, std::shared_ptr<Standard_DirectX_9> _Render, bool HorzFlip, bool VertFlip)
 	{
 		SetWindow(hWnd);
-		SetGame(Game);
+		SetGame(m_Game);
 		GTE = _GTE;
 		Render = _Render;
 		b_HorzFlip = HorzFlip;
@@ -708,7 +724,7 @@ public:
 		 - call SetGame before this function
 		 - automatically calls ExportDX9 when texture is open
 	*/
-	bool Open(std::filesystem::path Path, std::uintmax_t _Ptr = 0, bool b_Bio1Enemy = false);
+	bool Open(std::filesystem::path Path, std::uintmax_t _Ptr = 0);
 
 	/*
 		Open model texture

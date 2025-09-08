@@ -41,7 +41,7 @@ public:
 	explicit Resident_Evil_2_Nov96(void) :
 		Bio2(std::make_unique<Resident_Evil_2>())
 	{
-		Game = Video_Game::Resident_Evil_2_Nov_6_1996;
+		m_Game = Video_Game::Resident_Evil_2_Nov_6_1996;
 	}
 	virtual ~Resident_Evil_2_Nov96(void)
 	{

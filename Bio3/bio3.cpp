@@ -150,7 +150,7 @@ bool Resident_Evil_3::ExtractBSS(std::filesystem::path Input)
 
 	GetStageRoom(m_Input.GetFileName().stem().string());
 
-	std::filesystem::path Dir = m_Input.GetDirectory() / Str.FormatCStyle("ROOM%X%02X", Stage, Room);
+	std::filesystem::path Dir = m_Input.GetDirectory() / Str.FormatCStyle("ROOM%X%02X", m_Stage, m_Room);
 
 	m_Input.CreateDirectory(Dir);
 
@@ -212,7 +212,7 @@ bool Resident_Evil_3::ExtractBSS(std::filesystem::path Input)
 
 		m_Input.Read(pBs, BS.data(), Index.Bs_size);
 
-		std::filesystem::path OutStr = Str.FormatCStyle("%s/ROOM_%X%02X_%02d.bs", Dir.string().c_str(), Stage, Room, i);
+		std::filesystem::path OutStr = Str.FormatCStyle("%s/ROOM_%X%02X_%02d.bs", Dir.string().c_str(), m_Stage, m_Room, i);
 
 		m_Input.Create(OutStr, BS);
 
@@ -251,7 +251,7 @@ bool Resident_Evil_3::ExtractBSS(std::filesystem::path Input)
 
 			m_Input.Read(pSld, SLD.data(), Sld_size);
 
-			OutStr = Str.FormatCStyle("%s/ROOM_%X%02X_%02d_MASK.sld", Dir.string().c_str(), Stage, Room, i);
+			OutStr = Str.FormatCStyle("%s/ROOM_%X%02X_%02d_MASK.sld", Dir.string().c_str(), m_Stage, m_Room, i);
 
 			m_Input.Create(OutStr, SLD);
 

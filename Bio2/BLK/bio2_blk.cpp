@@ -3,18 +3,12 @@
 *	Megan Grass
 *	April 20, 2024
 *
-*
-*	TODO:
-*
 */
 
 
 #include "bio2_blk.h"
 
 
-/*
-	Open
-*/
 std::uintmax_t Resident_Evil_2_BLK::Open(StdFile& File, std::uintmax_t _Ptr)
 {
 	Standard_String Str;
@@ -37,10 +31,6 @@ std::uintmax_t Resident_Evil_2_BLK::Open(StdFile& File, std::uintmax_t _Ptr)
 	return File.Read(_Ptr + sizeof(std::uint32_t), Data.data(), Data.size() * sizeof(Resident_Evil_2_BLK_Data));
 }
 
-
-/*
-	Open
-*/
 bool Resident_Evil_2_BLK::Open(std::filesystem::path Path, std::uintmax_t _Ptr)
 {
 	StdFile m_File;
@@ -54,10 +44,6 @@ bool Resident_Evil_2_BLK::Open(std::filesystem::path Path, std::uintmax_t _Ptr)
 	return OldPtr != _Ptr;
 }
 
-
-/*
-	Save
-*/
 std::uintmax_t Resident_Evil_2_BLK::Save(StdFile& File, std::uintmax_t _Ptr)
 {
 	Standard_String Str;
@@ -78,10 +64,6 @@ std::uintmax_t Resident_Evil_2_BLK::Save(StdFile& File, std::uintmax_t _Ptr)
 	return File.Write(_Ptr + sizeof(std::uint32_t), Data.data(), Data.size() * sizeof(Resident_Evil_2_BLK_Data));
 }
 
-
-/*
-	Save
-*/
 bool Resident_Evil_2_BLK::Save(std::filesystem::path Path, std::uintmax_t _Ptr)
 {
 	StdFile m_File;
@@ -95,11 +77,8 @@ bool Resident_Evil_2_BLK::Save(std::filesystem::path Path, std::uintmax_t _Ptr)
 	return OldPtr != _Ptr;
 }
 
-
-/*
-	Close
-*/
 void Resident_Evil_2_BLK::Close(void)
 {
 	Data.clear();
+	Data.shrink_to_fit();
 }

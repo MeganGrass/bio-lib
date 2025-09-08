@@ -78,12 +78,12 @@ void Resident_Evil::Commandline(StrVec Args)
 
 		if (Args[i] == "AUG95")
 		{
-			Game = Video_Game::Resident_Evil_Aug_4_1995;
+			m_Game = Video_Game::Resident_Evil_Aug_4_1995;
 		}
 
 		if (Args[i] == "OCT95")
 		{
-			Game = Video_Game::Resident_Evil_Oct_4_1995;
+			m_Game = Video_Game::Resident_Evil_Oct_4_1995;
 		}
 
 		if (Args[i] == "PAK")
@@ -218,7 +218,7 @@ bool Resident_Evil::ExtractBSS(std::filesystem::path Input)
 
 		m_Input.Read(pBs, BS.data(), Bs_size);
 
-		std::filesystem::path OutStr = Str.FormatCStyle("%s/ROOM_%X%02X_%02d.bs", Dir.string().c_str(), Stage, Room, i);
+		std::filesystem::path OutStr = Str.FormatCStyle("%s/ROOM_%X%02X_%02d.bs", Dir.string().c_str(), m_Stage, m_Room, i);
 
 		m_Input.Create(OutStr, BS);
 

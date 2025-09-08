@@ -200,6 +200,7 @@ std::unique_ptr<DX9_MODEL> Resident_Evil_Model::ExportDX9(std::unique_ptr<FIXED_
 			Temp->Object[i][x].iTexture = Model->Obj[i][x].Texture.iPalette;
 
 			Shape.clear();
+			Shape.shrink_to_fit();
 
 			for (size_t y = 0; y < Model->Obj[i][x].Vector.size(); y++)
 			{
@@ -221,7 +222,7 @@ std::unique_ptr<DX9_MODEL> Resident_Evil_Model::ExportDX9(std::unique_ptr<FIXED_
 }
 #endif
 
-bool Resident_Evil_Model::Open(std::filesystem::path Path, std::uintmax_t _Ptr, bool b_Bio1Enemy)
+bool Resident_Evil_Model::Open(std::filesystem::path Path, std::uintmax_t _Ptr)
 {
 	bool b_TerminateDraw = b_Active.load();
 
@@ -258,6 +259,11 @@ bool Resident_Evil_Model::Open(std::filesystem::path Path, std::uintmax_t _Ptr, 
 		b_Open = OpenWeapon(Path, _Ptr);
 	}
 
+	if (Standard_String().ToUpper(Extension) == ".RDT")
+	{
+		b_Open = OpenObject(Path, _Ptr);
+	}
+
 	b_Active.store(b_TerminateDraw);
 
 	return b_Open;
@@ -274,6 +280,21 @@ bool Resident_Evil_Model::OpenObject(std::filesystem::path Path, std::uintmax_t 
 	if (Standard_String().ToUpper(Extension) == ".TMD") { m_Model->Open(Path, _Ptr); }
 	if (Standard_String().ToUpper(Extension) == ".MD1") { m_Model = Resident_Evil_2_MD1(Str.hWnd, Path, _Ptr).GetTMD(); }
 	if (Standard_String().ToUpper(Extension) == ".MD2") { m_Model = Resident_Evil_3_MD2(Str.hWnd, Path, _Ptr).GetTMD(); }
+	if (Standard_String().ToUpper(Extension) == ".RDT")
+	{
+		if (GameType() & (AUG95 | OCT95 | BIO1))
+		{
+			m_Model->Open(Path, _Ptr);
+		}
+		else if (GameType() & (BIO2NOV96 | BIO2TRIAL | BIO2))
+		{
+			m_Model = Resident_Evil_2_MD1(Str.hWnd, Path, _Ptr).GetTMD();
+		}
+		else if (GameType() & BIO3)
+		{
+			m_Model = Resident_Evil_3_MD2(Str.hWnd, Path, _Ptr).GetTMD();
+		}
+	}
 
 	if (!m_Texture->IsOpen())
 	{
@@ -307,6 +328,8 @@ bool Resident_Evil_Model::OpenObject(std::filesystem::path Path, std::uintmax_t 
 		m_ModelType = ModelType::Object;
 		b_DrawSingleObject = true;
 	}
+
+	m_ModelGame = m_Game;
 
 	return m_Model->IsOpen();
 }
@@ -385,7 +408,7 @@ bool Resident_Evil_Model::OpenPlayer(std::filesystem::path Path, std::uintmax_t 
 	m_DX9Model = ExportDX9(Temp, m_Texture);
 #endif
 
-	if (GameType() & BIO1 || GameType() & AUG95 || GameType() & OCT95)
+	if (GameType() & (AUG95 | OCT95 | BIO1))
 	{
 		SetShadow(0, 81, 200, 26, 30);
 	}
@@ -393,7 +416,7 @@ bool Resident_Evil_Model::OpenPlayer(std::filesystem::path Path, std::uintmax_t 
 	{
 		SetShadow(1, 171, 224, 28, 32);
 	}
-	else if (GameType() & BIO2 || GameType() & BIO3)
+	else if (GameType() & (BIO2 | BIO3))
 	{
 		SetShadow(2, 354, 224, 30, 32);
 	}
@@ -401,7 +424,9 @@ bool Resident_Evil_Model::OpenPlayer(std::filesystem::path Path, std::uintmax_t 
 	iObjectMax = m_Model->ObjectCount() ? m_Model->ObjectCount() - 1 : 0;
 
 	m_ModelType = ModelType::Player;
-	m_ModelGame = Game;
+	m_ModelGame = m_Game;
+
+	m_PlayerID = GetPlayerID(m_ModelGame, Path.stem().string());
 
 	b_DrawAllObjects = false;
 	b_DrawSingleObject = false;
@@ -545,7 +570,10 @@ bool Resident_Evil_Model::OpenEnemy(std::filesystem::path Path, std::uintmax_t _
 	iObjectMax = m_Model->ObjectCount() ? m_Model->ObjectCount() - 1 : 0;
 
 	m_ModelType = ModelType::Enemy;
-	m_ModelGame = Game;
+	m_ModelGame = m_Game;
+
+	m_EnemyID = GetEnemyID(m_ModelGame, Path.stem().string());
+	m_DiskID = GetEnemyDiskID(m_ModelGame, Path.stem().string());
 
 	b_DrawAllObjects = false;
 	b_DrawSingleObject = false;
@@ -662,7 +690,9 @@ bool Resident_Evil_Model::OpenWeapon(std::filesystem::path Path, std::uintmax_t 
 
 	iWeaponObject = std::clamp(iWeaponObject, (size_t)0, iObjectMax);
 
-	m_WeaponModelGame = Game;
+	m_WeaponModelGame = m_Game;
+
+	m_WeaponID = GetWeaponID(m_WeaponModelGame, Path.stem().string());
 
 	b_DrawWeapon = true;
 
@@ -690,6 +720,7 @@ bool Resident_Evil_Model::OpenTexture(std::filesystem::path Path, std::uintmax_t
 #ifdef LIB_JPEG
 	if ((Standard_String().ToUpper(Extension) == ".JPG" || Standard_String().ToUpper(Extension) == ".JPEG") && !m_Texture->OpenJPEG(Path, _Ptr)) { b_Active.store(b_TerminateDraw); return false; }
 #endif
+	if (Standard_String().ToUpper(Extension) == ".RDT" && !m_Texture->OpenTIM(Path, _Ptr)) { b_Active.store(b_TerminateDraw); return false; }
 
 #if MSTD_DX9
 	if (m_Model->IsOpen())
@@ -798,6 +829,7 @@ void Resident_Evil_Model::SetShadow(size_t PaletteID, std::uint16_t X, std::uint
 	float ZZ = GTE->ToFloat(Hitbox().d + (Hitbox().d / 2));
 
 	m_Shadow.Vec.clear();
+	m_Shadow.Vec.shrink_to_fit();
 
 	m_Shadow.Vec = {
 		{ vec3{ -XX,	0.0f,	-ZZ	}, vec2{ U0, V1 } },
@@ -821,6 +853,10 @@ void Resident_Evil_Model::CloseModel(void)
 
 	m_ModelGame = Video_Game::None;
 
+	m_PlayerID = 0;
+	m_EnemyID = 0;
+	m_DiskID = 0;
+
 	b_DrawWeapon = false;
 
 	iObject = 0;
@@ -835,8 +871,11 @@ void Resident_Evil_Model::CloseModel(void)
 	if (m_Model) { m_Model->Close(); }
 
 	m_Binary00.clear();
+	m_Binary00.shrink_to_fit();
 	m_Binary01.clear();
+	m_Binary01.shrink_to_fit();
 	m_WeaponBinary.clear();
+	m_WeaponBinary.shrink_to_fit();
 
 	for (auto& Animation : m_Animations)
 	{
@@ -856,6 +895,8 @@ void Resident_Evil_Model::CloseWeapon(void)
 
 	m_WeaponModelGame = Video_Game::None;
 
+	m_WeaponID = 0;
+
 	b_DrawWeapon = false;
 
 	b_ControllerMode = false;
@@ -866,6 +907,7 @@ void Resident_Evil_Model::CloseWeapon(void)
 	if (m_WeaponModel) { m_WeaponModel->Close(); }
 
 	m_WeaponBinary.clear();
+	m_WeaponBinary.shrink_to_fit();
 
 	Animation(WEAPON)->Close();
 	Animation(WEAPON_EX0)->Close();

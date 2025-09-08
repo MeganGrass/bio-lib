@@ -51,7 +51,7 @@ public:
 		Bs(std::make_unique<Sony_PlayStation_Bitstream>()),
 		Sld(std::make_unique<Resident_Evil_3_SLD>())
 	{
-		Game = Video_Game::Resident_Evil_3;
+		m_Game = Video_Game::Resident_Evil_3;
 	}
 	virtual ~Resident_Evil_3(void)
 	{

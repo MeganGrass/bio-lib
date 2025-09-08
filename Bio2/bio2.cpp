@@ -746,7 +746,7 @@ bool Resident_Evil_2::ExtractBSS(std::filesystem::path Input)
 
 		m_Input.Read(pBs, BS.data(), Index.Bs_size);
 
-		std::filesystem::path OutStr = Str.FormatCStyle("%s/ROOM_%X%02X_%02d.bs", Dir.string().c_str(), Stage, Room, i);
+		std::filesystem::path OutStr = Str.FormatCStyle("%s/ROOM_%X%02X_%02d.bs", Dir.string().c_str(), m_Stage, m_Room, i);
 
 		m_Input.Create(OutStr, BS);
 
@@ -785,7 +785,7 @@ bool Resident_Evil_2::ExtractBSS(std::filesystem::path Input)
 
 			m_Input.Read(pSld, SLD.data(), Sld_size);
 
-			OutStr = Str.FormatCStyle("%s/ROOM_%X%02X_%02d_MASK.sld", Dir.string().c_str(), Stage, Room, i);
+			OutStr = Str.FormatCStyle("%s/ROOM_%X%02X_%02d_MASK.sld", Dir.string().c_str(), m_Stage, m_Room, i);
 
 			m_Input.Create(OutStr, SLD);
 
@@ -1423,6 +1423,7 @@ bool Resident_Evil_2::DisassembleRoomCut(std::filesystem::path Input,
 			else
 			{
 				ADT.clear();
+				ADT.shrink_to_fit();
 			}
 
 			if (!ADT.empty())
@@ -1433,7 +1434,11 @@ bool Resident_Evil_2::DisassembleRoomCut(std::filesystem::path Input,
 			else
 			{
 				RAW.clear();
+				RAW.shrink_to_fit();
 			}
+
+			ADT.clear();
+			ADT.shrink_to_fit();
 
 			if (Camera >= 16)
 			{
@@ -1486,6 +1491,9 @@ bool Resident_Evil_2::DisassembleRoomCut(std::filesystem::path Input,
 #endif
 				}
 			}
+
+			RAW.clear();
+			RAW.shrink_to_fit();
 
 			Camera++;
 		}

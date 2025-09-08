@@ -161,6 +161,8 @@ struct Resident_Evil_2_SCA_Data
 
 			std::uint16_t Height : 5;		// Height in units of -100
 											// 
+											// This value is typically always 18 to ensure a minimum height of -1800
+											// 
 											// Used by the Sca_get_high function to obtain height of collision
 											// Ignored when shape type is "Slope" (height is always -1800 for Slope, hardcoded in executable)
 											// 
@@ -182,7 +184,7 @@ struct Resident_Evil_2_SCA_Data
 											// 
 											//		if (!Bit)	// Ground height is zero (0)
 											//		{
-											//			ULONG High = ((Height * -200) + (nFloor * -1800));
+											//			LONG High = ((Height * -100) + (nFloor * -1800));
 											//			High /= -1800;
 											//			if (!High) { Floor = 1; }	// Floor variable cannot be zero (0)
 											//			else for (ULONG nBit = NULL; nBit < High; nBit++) { Floor |= 1 << nBit; }
@@ -322,6 +324,11 @@ public:
 	void SetArea(std::size_t iCollision);
 
 	/*
+		Set Area
+	*/
+	void SetArea(Resident_Evil_2_SCA_Data& Input);
+
+	/*
 		Get Slope/Stair Hypotenuse
 	*/
 	Resident_Evil_2_Slope_Hypotenuse GetSlopeHypotenuse(std::size_t iCollision);
@@ -329,26 +336,41 @@ public:
 	/*
 		Get Ground
 	*/
-	std::int32_t GetLow(std::size_t iCollision);
+	const std::int32_t GetLow(std::size_t iCollision);
+
+	/*
+		Get Ground
+	*/
+	const std::int32_t GetLow(Resident_Evil_2_SCA_Data Input);
 
 	/*
 		Get Height
 	*/
-	std::int32_t GetHigh(std::size_t iCollision);
+	const std::int32_t GetHigh(std::size_t iCollision);
 
 	/*
-		Get Floor
+		Get Height
 	*/
-	std::uint32_t GetFloor(std::size_t iCollision);
+	const std::int32_t GetHigh(Resident_Evil_2_SCA_Data Input);
 
 	/*
 		Set Floor
 	*/
-	std::uint32_t SetFloor(std::size_t iCollision, std::int32_t Bit);
+	const std::uint32_t SetFloor(std::size_t iCollision, std::int32_t Bit);
+
+	/*
+		Set Floor
+	*/
+	const std::uint32_t SetFloor(Resident_Evil_2_SCA_Data& Input, std::int32_t Bit);
 
 	/*
 		Get shape vector
 	*/
 	SHAPEVECTOR GetShapeVector(std::size_t iCollision);
+
+	/*
+		Remove duplicate entries
+	*/
+	void RemoveDuplicates(void);
 
 };

@@ -11,7 +11,7 @@
 
 String Resident_Evil_Common::GameStr(void)
 {
-	switch (Game)
+	switch (m_Game)
 	{
 	case Video_Game::Resident_Evil_Aug_4_1995: return "Resident Evil (Aug 4, 1995)";
 	case Video_Game::Resident_Evil_Oct_4_1995: return "Resident Evil (Oct 4, 1995)";
@@ -38,20 +38,88 @@ void Resident_Evil_Common::GetStageRoom(std::string Str) try
 {
 	if (Str.size() >= 6)
 	{
-		Stage = std::stoi(Str.substr(4, 1), nullptr, 16);
-		Room = std::stoi(Str.substr(5, 2), nullptr, 16);
+		m_Stage = std::stoi(Str.substr(4, 1), nullptr, 16);
+		m_Room = std::stoi(Str.substr(5, 2), nullptr, 16);
 	}
 	else if(Str.size() >= 4)
 	{
-		Stage = std::stoi(Str.substr(1, 1), nullptr, 16);
-		Room = std::stoi(Str.substr(2, 2), nullptr, 16);
+		m_Stage = std::stoi(Str.substr(1, 1), nullptr, 16);
+		m_Room = std::stoi(Str.substr(2, 2), nullptr, 16);
 	}
 
-	Disk = 0;
+	m_Disk = 0;
 
 	if (Str.size() >= 8)
 	{
-		Disk = std::stoi(Str.substr(7, 1), nullptr, 16);
+		m_Disk = std::stoi(Str.substr(7, 1), nullptr, 16);
 	}
 }
-catch (...) { Stage = 0, Room = 0; Disk = 0; }
+catch (...) { m_Stage = 0, m_Room = 0; m_Disk = 0; }
+
+std::uint32_t Resident_Evil_Common::GetPlayerID(Video_Game Game, std::string Str) try
+{
+	switch (std::to_underlying(Game))
+	{
+	case AUG95:
+	case OCT95:
+	case BIO1: return std::stoi(Str.substr(5, 1), nullptr, 16);
+	case BIO2NOV96:
+	case BIO2TRIAL:
+	case BIO2:
+	case BIO3: return std::stoi(Str.substr(2, 2), nullptr, 16);
+	}
+
+	return 0;
+}
+catch (...) { return 0; }
+
+std::uint32_t Resident_Evil_Common::GetWeaponID(Video_Game Game, std::string Str) try
+{
+	switch (std::to_underlying(Game))
+	{
+	case AUG95:
+	case OCT95:
+	case BIO1: return std::stoi(Str.substr(2, 1), nullptr, 16);
+	case BIO2NOV96:
+	case BIO2TRIAL:
+	case BIO2: return std::stoi(Str.substr(5, 2), nullptr, 16);
+	case BIO3: return std::stoi(Str.substr(2, 2), nullptr, 16);
+	}
+
+	return 0;
+}
+catch (...) { return 0; }
+
+std::uint32_t Resident_Evil_Common::GetEnemyID(Video_Game Game, std::string Str) try
+{
+	switch (std::to_underlying(Game))
+	{
+	case AUG95:
+	case OCT95: return std::stoi(Str.substr(3, 1), nullptr, 16);
+	case BIO1: return std::stoi(Str.substr(5, 1), nullptr, 16);
+	case BIO2NOV96:
+	case BIO2TRIAL:
+	case BIO2:
+	case BIO3: return std::stoi(Str.substr(3, 2), nullptr, 16);
+	}
+
+	return 0;
+}
+catch (...) { return 0; }
+
+std::uint32_t Resident_Evil_Common::GetEnemyDiskID(Video_Game Game, std::string Str) try
+{
+	switch (std::to_underlying(Game))
+	{
+	case AUG95:
+	case OCT95: return 0;
+	case BIO1: return std::stoi(Str.substr(3, 1), nullptr, 16);
+	case BIO2NOV96:
+	case BIO2TRIAL:
+	case BIO2:
+	case BIO3: return std::stoi(Str.substr(2, 1), nullptr, 16);
+	}
+
+	return 0;
+}
+catch (...) { return 0; }
