@@ -38,6 +38,8 @@ private:
 
 public:
 
+	Standard_String Str;
+
 	explicit Resident_Evil_2_LIT(void) {}
 
 	~Resident_Evil_2_LIT(void) = default;

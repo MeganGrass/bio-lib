@@ -1,7 +1,7 @@
 /*
 *
 *	Megan Grass
-*	April 20, 2024
+*	April 22, 2024
 *
 */
 
@@ -207,6 +207,8 @@ private:
 	std::vector<Resident_Evil_2_SCA_Data> Data;
 
 public:
+
+	Standard_String Str;
 
 	/*
 		Construction

@@ -18,11 +18,7 @@
 
 #include <bio_animation.h>
 
-#include <bio_state_machine.h>
-
 #include <array>
-
-#include <variant>
 
 #if MSTD_DX9
 #include <std_dx9.h>
@@ -43,13 +39,6 @@ struct DX9_MODEL
 	std::vector<std::unique_ptr<IDirect3DTexture9, IDirect3DDelete9<IDirect3DTexture9>>> Texture;
 };
 #endif
-
-
-using StateMachineVariant = std::variant<
-	StateMachine<AnimStatePlayerBio1>,
-	StateMachine<AnimStatePlayerBio2Nov96>,
-	StateMachine<AnimStatePlayerBio2>
->;
 
 
 enum class ModelType : std::int32_t
@@ -266,16 +255,7 @@ private:
 #endif
 
 public:
-
 	explicit Resident_Evil_Model(void) :
-		m_Filename{},
-		m_WeaponFilename{},
-		m_Position{ 0, 0, 0 },
-		m_Rotation{ 0, 0, 0 },
-		m_Scale{ ONE, ONE, ONE },
-		m_EditorPosition{ 0, 0, 0 },
-		m_EditorRotation{ 0, 0, 0 },
-		m_EditorScale{ ONE, ONE, ONE },
 		World(std::make_shared<Standard_Matrix>()),
 		m_Texture(std::make_unique<Sony_PlayStation_Texture>()),
 		m_WeaponTexture(std::make_unique<Sony_PlayStation_Texture>()),
@@ -284,7 +264,16 @@ public:
 		m_ModelType(ModelType::None),
 		m_ModelGame(Video_Game::Resident_Evil_2),
 		m_WeaponModelGame(Video_Game::Resident_Evil_2),
-		m_AnimationIndex(NORMAL),
+		m_Filename{},
+		m_WeaponFilename{},
+		m_Position{ 0, 0, 0 },
+		m_Rotation{ 0, 0, 0 },
+		m_Scale{ ONE, ONE, ONE },
+		m_EditorPosition{ 0, 0, 0 },
+		m_EditorRotation{ 0, 0, 0 },
+		m_EditorScale{ ONE, ONE, ONE },
+		m_Hitbox{ 0, 0, 0 },
+		m_Speed{ 0, 0, 0 },
 		m_PlayerID(0),
 		m_WeaponID(0),
 		m_EnemyID(0),
@@ -294,18 +283,10 @@ public:
 		m_DX9Model(nullptr),
 		m_DX9WeaponModel(nullptr),
 #endif
-		m_Hitbox{},
 		m_FrameCounter(0),
-		b_Active(true),
-		b_Drawing(false),
-		b_Play(true),
-		b_Loop(true),
-		b_PlayInReverse(false),
 		b_HorzFlip(false),
 		b_VertFlip(false),
-		b_LerpKeyframes(true),
 		m_LerpValue(0.50f),
-		b_QuickTurn(false),
 		b_ControllerMode(false),
 		b_EditorMode(false),
 		b_Dither(true),
@@ -319,38 +300,49 @@ public:
 		b_DrawAllObjects(false),
 		b_DrawSingleObject(false),
 		b_DrawWeapon(false),
-		b_WeaponKickback(false),
-		b_WeaponKickbackComplete(false),
 		b_DrawShadow(true),
 		b_Bio1Enemy(false),
-		iClip(0),
-		iFrame(0),
-		iHealth(200),
-		iHealthMin(0),
-		iHealthMax(200),
-		iObject(0),
-		iObjectMin(0),
-		iObjectMax(0),
-		iWeaponObject(0),
-		iWeaponObjectMin(0),
-		iWeaponObjectMax(0),
-		iRoom(0),
-		iRoomMin(0),
-		iRoomMax(0)
+		b_WeaponChange(false),
+		iHealth(200), iHealthMin(0), iHealthMax(200),
+		iObject(0), iObjectMin(0), iObjectMax(0),
+		iWeaponObject(0), iWeaponObjectMin(0), iWeaponObjectMax(0),
+		iRoom(0), iRoomMin(0), iRoomMax(0)
 	{
 		Routine = [&]() {};
 		Controller = [&]() {};
+
+		m_AnimationIndex.store(NORMAL);
+		iClip.store(0);
+		iFrame.store(0);
+		b_Active.store(true);
+		b_Drawing.store(false);
+		b_StopDrawing.store(false);
+		b_Play.store(true);
+		b_Loop.store(true);
+		b_PlayInReverse.store(false);
+		b_PlayAllFrames.store(false);
+		b_LerpKeyframes.store(true);
+		b_IdleTurn.store(false);
+		b_QuickTurn.store(false);
+		m_QuickTurnRotation.store(0);
+		b_WeaponKickback.store(false);
+		b_WeaponKickbackComplete.store(false);
+
+		m_Model->IgnoreMagic(true);
+		m_WeaponModel->IgnoreMagic(true);
+
 		for (size_t i = 0; i < m_Animations.size(); ++i)
 		{
 			m_Animations[i] = std::make_shared<Resident_Evil_Animation>();
 			m_Animations[i]->SetType(Resident_Evil_Animation_Type(1 << i));
 		}
-		m_Model->IgnoreMagic(true);
-		m_WeaponModel->IgnoreMagic(true);
+
 		SetGame(Video_Game::Resident_Evil_2);
+
 		m_Shadow.TexID = 0;
 		m_Shadow.Vec.clear();
 		m_Shadow.Vec.shrink_to_fit();
+
 #ifdef MSTD_DX9
 		m_Shadow.Vertices.reset(nullptr);
 #endif
@@ -522,6 +514,9 @@ public:
 	*/
 	bool b_DrawWeapon;
 
+	// Has the weapon id changed?
+	bool b_WeaponChange;
+
 	/*
 		Does the weapon have kickback?
 		 - position change ("push" backward) on weapon discharge
@@ -554,6 +549,9 @@ public:
 
 	// Room animation clip index
 	std::size_t iRoom, iRoomMin, iRoomMax;
+
+	// Skeleton World Matrices
+	std::vector<Standard_Matrix> m_BoneWorld;
 
 	// set video game type
 	virtual void SetGame(Video_Game Game) override
@@ -753,10 +751,12 @@ public:
 	// Clear all data
 	void Close(void)
 	{
+		b_Active.store(false);
 		m_ModelType = ModelType::None;
 		ResetClip();
 		CloseModel();
 		CloseWeapon();
+		b_Active.store(true);
 	}
 
 	// Clear model data

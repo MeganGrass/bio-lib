@@ -596,6 +596,8 @@ bool Resident_Evil_Model::OpenWeapon(std::filesystem::path Path, std::uintmax_t 
 		return false;
 	}
 
+	std::uint32_t iWeaponID = m_WeaponID;
+
 	CloseWeapon();
 
 	m_WeaponFilename = Path;
@@ -694,6 +696,9 @@ bool Resident_Evil_Model::OpenWeapon(std::filesystem::path Path, std::uintmax_t 
 
 	m_WeaponID = GetWeaponID(m_WeaponModelGame, Path.stem().string());
 
+	if (iWeaponID != m_WeaponID) { b_WeaponChange = true; }
+	else { b_WeaponChange = false; }
+
 	b_DrawWeapon = true;
 
 	return true;
@@ -779,7 +784,7 @@ void Resident_Evil_Model::SetRoomAnimations(std::shared_ptr<Resident_Evil_Animat
 	if (Rbj && !Rbj->Data.empty())
 	{
 		iRoom = 0;
-		iRoomMax = Rbj->Data.size() - 1;
+		iRoomMax = Rbj->Data.empty() ? 0 : Rbj->Data.size() - 1;
 		for (size_t i = 0; i < Rbj->Data.size(); i++)
 		{
 			Rbj->Data[i]->Skeleton = Animation(NORMAL)->Skeleton->Clone();
@@ -1015,6 +1020,11 @@ void Resident_Evil_Model::DrawFrame(std::shared_ptr<Resident_Evil_Animation> Ani
 				}
 			}
 
+			if (Skeleton->ID < m_BoneWorld.size())
+			{
+				m_BoneWorld[Skeleton->ID] = Local;
+			}
+
 #if MSTD_DX9
 			Render->SetWorld(Local);
 
@@ -1080,6 +1090,9 @@ void Resident_Evil_Model::DrawFrame(std::shared_ptr<Resident_Evil_Animation> Ani
 
 	Render->TextureFiltering(m_TextureFilter);
 #endif
+	m_BoneWorld.clear();
+	m_BoneWorld.resize(Rotations.size());
+	m_BoneWorld.shrink_to_fit();
 
 	b_Drawing.store(true);
 	DrawKeyframe(Animation->Skeleton, *World);

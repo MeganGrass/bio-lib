@@ -1,10 +1,7 @@
 /*
 *
 *	Megan Grass
-*	April 20, 2024
-*
-*
-*	TODO:
+*	April 22, 2024
 *
 */
 
@@ -35,10 +32,11 @@ struct Resident_Evil_2_RID_Data
 class Resident_Evil_2_RID {
 private:
 
-	// Data
 	std::vector<Resident_Evil_2_RID_Data> Data;
 
 public:
+
+	Standard_String Str;
 
 	explicit Resident_Evil_2_RID(void) {}
 

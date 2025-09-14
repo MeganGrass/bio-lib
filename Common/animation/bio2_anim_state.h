@@ -7,64 +7,194 @@
 
 #include <cstddef>
 
+// PLD
 enum class AnimStatePlayerBio2 : std::size_t
 {
-	Walk_Backward = 0,
-	Walk_Backward_Startled = 1,
-	Death = 2,
-	Damage_Front_Minor = 3,
-	Damage_Back = 4,
-	Damage_Front = 5,
-	Inspect_Kneel = 6,
-	Push_Begin = 7,
-	Push = 8,
-	Walk_Backward_Caution = 9,
-
-	Walk_Forward = 0,
-	Run = 1,
-	Idle = 2,
-	Walk_Forward_Caution = 3,
-	Run_Caution = 4,
-	Idle_Caution = 5,
-	Walk_Forward_Danger = 6,
-	Run_Danger = 7,
-	Idle_Danger = 8,
-	Aim_Begin = 9,
-	Fire = 10,
-	Aim = 11,
-	Fire_Upward = 12,
-	Aim_Upward = 13,
-	Fire_Downward = 14,
-	Aim_Downward = 15,
-	Reload = 16,
-
-	// non-vanilla
-	Idle_Turn = 100,
-	Quick_Turn = 101,
-	Quick_Reload = 102
+	Walk_Backward,
+	Walk_Backward_Startled,
+	Death,
+	Damage_Front_Minor,
+	Damage_Back,
+	Damage_Front,
+	Inspect_Kneel,
+	Push_Begin,
+	Push,
+	Walk_Backward_Caution
 };
 
+// PLW 00, 02, 03, 04, 05, 06, 07, 08, 0C, 0D, 0E
 enum class AnimStateW00Bio2 : std::size_t
 {
-	Walk_Forward = 0,
-	Run = 1,
-	Idle = 2,
-	Walk_Forward_Caution = 3,
-	Run_Caution = 4,
-	Idle_Caution = 5,
-	Walk_Forward_Danger = 6,
-	Run_Danger = 7,
-	Idle_Danger = 8,
-	Aim_Begin = 9,
-	Fire = 10,
-	Aim = 11,
-	Fire_Upward = 12,
-	Aim_Upward = 13,
-	Fire_Downward = 14,
-	Aim_Downward = 15,
-	Reload = 16
+	Walk_Forward,
+	Run,
+	Idle,
+	Walk_Forward_Caution,
+	Run_Caution,
+	Idle_Caution,
+	Walk_Forward_Danger,
+	Run_Danger,
+	Idle_Danger,
+	Aim_Begin,
+	Fire,
+	Aim,
+	Fire_Upward,
+	Aim_Upward,
+	Fire_Downward,
+	Aim_Downward,
+	Reload
 };
 
+// PLW 01
+enum class AnimStateW01Bio2 : std::size_t
+{
+	Walk_Forward,
+	Run,
+	Idle,
+	Walk_Forward_Caution,
+	Run_Caution,
+	Idle_Caution,
+	Walk_Forward_Danger,
+	Run_Danger,
+	Idle_Danger,
+	Aim_Begin,
+	Fire,
+	Aim,
+	Fire_Upward,
+	Aim_Upward,
+	Fire_Downward,
+	Aim_Downward,
+	Fire_Blocked
+};
+
+// PLW 09, 0A, 0B
+enum class AnimStateW09Bio2 : std::size_t
+{
+	Walk_Forward,
+	Run,
+	Idle,
+	Walk_Forward_Caution,
+	Run_Caution,
+	Idle_Caution,
+	Walk_Forward_Danger,
+	Run_Danger,
+	Idle_Danger,
+	Aim_Begin,
+	Fire,
+	Aim,
+	Fire_Upward,
+	Aim_Upward,
+	Fire_Downward,
+	Aim_Downward
+};
+
+// PLW 0E
+enum class AnimStateW0EBio2 : std::size_t
+{
+	Walk_Forward,
+	Run,
+	Idle,
+	Walk_Forward_Caution,
+	Run_Caution,
+	Idle_Caution,
+	Walk_Forward_Danger,
+	Run_Danger,
+	Idle_Danger,
+	Aim_Begin,
+	Fire,
+	Fire_Charged,
+	Aim,
+	Aim_Downward,
+	Aim_Downward_Copy_00,
+	Aim_Downward_Copy_01,
+	Reload
+};
+
+// PLW 0F, 10
+enum class AnimStateW0FBio2 : std::size_t
+{
+	Walk_Forward,
+	Run,
+	Idle,
+	Walk_Forward_Caution,
+	Run_Caution,
+	Idle_Caution,
+	Walk_Forward_Danger,
+	Run_Danger,
+	Idle_Danger,
+	Aim_Begin,
+	Fire,
+	Fire_Empty,
+	Aim,
+	Fire_Upward,
+	Fire_Upward_Empty,
+	Aim_Upward,
+	Fire_Downward,
+	Fire_Downward_Empty,
+	Aim_Downward,
+	Reload
+};
+
+// PLW 11
+enum class AnimStateW11Bio2 : std::size_t
+{
+	Walk_Forward,
+	Run,
+	Idle,
+	Walk_Forward_Caution,
+	Run_Caution,
+	Idle_Caution,
+	Walk_Forward_Danger,
+	Run_Danger,
+	Idle_Danger,
+	Aim_Begin,
+	Fire,
+	Aim
+};
+
+// PLW 12
+enum class AnimStateW12Bio2 : std::size_t
+{
+	Walk_Forward,
+	Run,
+	Idle,
+	Walk_Forward_Caution,
+	Run_Caution,
+	Idle_Caution,
+	Walk_Forward_Danger,
+	Run_Danger,
+	Idle_Danger,
+	Aim_Begin,
+	Fire_Begin,
+	Fire,
+	Aim,
+	Fire_End
+};
+
+// PLW 13
+enum class AnimStateW13Bio2 : std::size_t
+{
+	Walk_Forward,
+	Run,
+	Idle,
+	Walk_Forward_Caution,
+	Run_Caution,
+	Idle_Caution,
+	Walk_Forward_Danger,
+	Run_Danger,
+	Idle_Danger,
+	Aim_Begin,
+	Fire,
+	Aim,
+	Fire_Upward,
+	Aim_Upward,
+	Fire_Downward,
+	Aim_Downward,
+	Reload,
+	Idle_Pose_Begin,
+	Idle_Pose
+};
+
+// EM 10
 enum class AnimStateEM10Bio2 : std::size_t
 {
 	Walk = 0,

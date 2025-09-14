@@ -16,7 +16,7 @@ void Resident_Evil_Camera::Shutdown(void) noexcept
 	b_ViewTopDown = false;
 	b_DrawLine = false;
 	b_DrawSwitch = false;
-	b_ViewModelEdit = false;
+	b_ViewEditor = false;
 }
 
 void Resident_Evil_Camera::Reset(void)
@@ -38,13 +38,14 @@ void Resident_Evil_Camera::Reset(void)
 	m_Cz = 0.0f;
 	m_Background.reset(nullptr);
 	m_Sprite.reset(nullptr);
-	if (!b_ViewModelEdit) { Set(m_FOV, m_Eye, m_At); }
-	else { Set(m_ModelFOV, m_ModelEye, m_ModelAt); }
+	Set(m_FOV, m_Eye, m_At);
+	SetEditor(m_EditorFOV, m_EditorEye, m_EditorAt);
 }
 
-void Resident_Evil_Camera::SetMeta(std::filesystem::path Path, std::uintmax_t Stage, std::uintmax_t Room, std::uintmax_t CutMax) noexcept
+void Resident_Evil_Camera::SetMeta(std::filesystem::path Path, std::uintmax_t Stage, std::uintmax_t Room, std::uintmax_t CutMax, Video_Game Game) noexcept
 {
 	m_Path = Path;
+	m_Game = Game;
 	m_Stage = Stage;
 	m_Room = Room;
 	m_CutMax = CutMax;
@@ -158,7 +159,7 @@ std::vector<vec4t> Resident_Evil_Camera::GetImageVert(void) const
 	return Vert;
 }
 
-void Resident_Evil_Camera::SetTopDownPerspective(void)
+void Resident_Evil_Camera::SetTopDown(void)
 {
 	b_ViewTopDown = true;
 
@@ -225,13 +226,7 @@ void Resident_Evil_Camera::Set(std::uint32_t FOV, VECTOR2 Eye, VECTOR2 At)
 {
 	b_ViewTopDown = false;
 
-	if (b_ViewModelEdit)
-	{
-		m_ModelFOV = FOV;
-		m_ModelEye = Eye;
-		m_ModelAt = At;
-	}
-	else
+	if (!b_ViewEditor)
 	{
 		m_FOV = FOV;
 		m_Eye = Eye;
@@ -249,9 +244,16 @@ void Resident_Evil_Camera::Set(std::uint32_t FOV, VECTOR2 Eye, VECTOR2 At)
 
 	PROJECTION Proj(FOV);
 
+	// TODO: Fix me for 3D Layout
+	float z_Depth = -0.5f;
+	if (b_ViewEditor)
+	{
+		z_Depth = -0.1f;
+	}
+
     Projection->m00 = Proj.ScaleX;	Projection->m01 = 0.0f;			Projection->m02 = 0.0f;			Projection->m03 = 0.0f;
 	Projection->m10 = 0.0f;			Projection->m11 = Proj.ScaleY;	Projection->m12 = 0.0f;			Projection->m13 = 0.0f;
-	Projection->m20 = Proj.OffsetX;	Projection->m21 = Proj.OffsetY;	Projection->m22 = Proj.OffsetZ;	Projection->m23 = -0.5f;
+	Projection->m20 = Proj.OffsetX;	Projection->m21 = Proj.OffsetY;	Projection->m22 = Proj.OffsetZ;	Projection->m23 = z_Depth;
 	Projection->m30 = 0.0f;			Projection->m31 = 0.0f;			Projection->m32 = Proj.ScaleZ;	Projection->m33 = 0.0f;
 
 	if (b_HorzFlip)

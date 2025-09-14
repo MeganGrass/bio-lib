@@ -14,13 +14,7 @@
 
 #include <bio_common.h>
 
-#include <animation/bio1_anim_state.h>
-
-#include <animation/bio2_anim_state.h>
-
-#include <animation/bio2_anim_state_nov96.h>
-
-#include <animation/bio3_anim_state.h>
+#include <animation/bio_state.h>
 
 
 enum class Resident_Evil_Animation_Type : std::uint32_t
@@ -256,7 +250,9 @@ public:
 				Children.emplace_back(std::move(Child));
 			}
 
-			return b_Initialized = true;
+			b_Initialized = true;
+
+			return b_Initialized;
 		}
 
 		void Reset(void)

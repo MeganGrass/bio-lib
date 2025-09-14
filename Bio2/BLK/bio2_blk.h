@@ -3,9 +3,6 @@
 *	Megan Grass
 *	May 29, 2024
 *
-*
-*	TODO:
-*
 */
 
 
@@ -42,6 +39,8 @@ private:
 	std::vector<Resident_Evil_2_BLK_Data> Data;
 
 public:
+
+	Standard_String Str;
 
 	/*
 		Construction

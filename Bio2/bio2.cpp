@@ -1382,7 +1382,7 @@ bool Resident_Evil_2::DisassembleRoomCut(std::filesystem::path Input,
 
 	std::uintmax_t IndexPtr = 0, ADTPointer = 0, ADTPointerNext = 0, ADTSize = 0;
 
-	std::uintmax_t RAWPtr0 = 0, TIMPtr0 = 0, RAWPtr1 = 0x20000, TIMPtr1 = 0x200, RAWPtr2 = 0x20080, TIMPtr2 = 0x14200;
+	static std::uintmax_t RAWPtr0 = 0, TIMPtr0 = 0, RAWPtr1 = 0x20000, TIMPtr1 = 0x200, RAWPtr2 = 0x20080, TIMPtr2 = 0x14200;
 
 	std::vector<std::uint8_t> ADT, RAW;
 
@@ -1428,7 +1428,7 @@ bool Resident_Evil_2::DisassembleRoomCut(std::filesystem::path Input,
 
 			if (!ADT.empty())
 			{
-				RAW.resize(0x40000);
+				RAW.resize(0x80000);
 				ADTDecoder.Decompress(ADT, RAW);
 			}
 			else
@@ -1454,21 +1454,32 @@ bool Resident_Evil_2::DisassembleRoomCut(std::filesystem::path Input,
 
 			if (!RAW.empty() && RAW.size() >= 0x28000)
 			{
-				RAWPtr0 = 0;
-				TIMPtr0 = 0;
-				RAWPtr1 = 0x20000;
-				TIMPtr1 = 0x200;
-				RAWPtr2 = 0x20080;
-				TIMPtr2 = 0x14200;
-
 				for (std::size_t x = 0; x < 240; x++)
 				{
-					std::memcpy(&Background.GetPixels().data()[TIMPtr0 + x * 0x280], &RAW.data()[RAWPtr0 + x * 0x200], 0x200);
-					std::memcpy(&Background.GetPixels().data()[TIMPtr2 + x * 0x280], &RAW.data()[RAWPtr2 + x * 0x100], 0x80);
+					//std::memcpy(&Background.GetPixels().data()[TIMPtr0 + x * 0x280], &RAW.data()[RAWPtr0 + x * 0x200], 0x200);
+					//std::memcpy(&Background.GetPixels().data()[TIMPtr2 + x * 0x280], &RAW.data()[RAWPtr2 + x * 0x100], 0x80);
+
+					std::copy(
+						RAW.data() + RAWPtr0 + x * 0x200,
+						RAW.data() + RAWPtr0 + x * 0x200 + 0x200,
+						Background.GetPixels().data() + TIMPtr0 + x * 0x280
+					);
+
+					std::copy(
+						RAW.data() + RAWPtr2 + x * 0x100,
+						RAW.data() + RAWPtr2 + x * 0x100 + 0x80,
+						Background.GetPixels().data() + TIMPtr2 + x * 0x280
+					);
 
 					if (x < 128)
 					{
-						std::memcpy(&Background.GetPixels().data()[TIMPtr1 + x * 0x280], &RAW.data()[RAWPtr1 + x * 0x100], 0x80);
+						//std::memcpy(&Background.GetPixels().data()[TIMPtr1 + x * 0x280], &RAW.data()[RAWPtr1 + x * 0x100], 0x80);
+
+						std::copy(
+							RAW.data() + RAWPtr1 + x * 0x100,
+							RAW.data() + RAWPtr1 + x * 0x100 + 0x80,
+							Background.GetPixels().data() + TIMPtr1 + x * 0x280
+						);
 					}
 				}
 

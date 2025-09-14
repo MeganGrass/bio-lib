@@ -1,10 +1,7 @@
 /*
 *
 *	Megan Grass
-*	March 07, 2024
-*
-*
-*	TODO: 
+*	March 22, 2024
 *
 */
 
@@ -12,22 +9,14 @@
 #include "bio2_edt.h"
 
 
-/*
-	Open
-*/
 std::uintmax_t Resident_Evil_2_EDT::Open(StdFile& File, std::uintmax_t Count, std::uintmax_t _Ptr)
 {
-	Standard_String Str;
-
 	Close();
 
-	if (!File.IsOpen())
+	if (!File.IsOpen() || !File.Open(File.GetPath(), FileAccessMode::Read, true, false))
 	{
-		if (!File.Open(File.GetPath(), FileAccessMode::Read, true, false))
-		{
-			Str.Message("EDT: Error, could not open at 0x%llX in %s", _Ptr, File.GetPath().filename().string().c_str());
-			return _Ptr;
-		}
+		Str.Message(L"Resident Evil 2 Error: could not read EDT at 0x%llX in \"%ws\"", _Ptr, File.GetPath().filename().wstring().c_str());
+		return _Ptr;
 	}
 
 	struct EDT
@@ -76,10 +65,6 @@ std::uintmax_t Resident_Evil_2_EDT::Open(StdFile& File, std::uintmax_t Count, st
 	return _Ptr;
 }
 
-
-/*
-	Open
-*/
 bool Resident_Evil_2_EDT::Open(std::filesystem::path Input, std::uintmax_t Count, std::uintmax_t _Ptr)
 {
 	StdFile m_File;
@@ -91,27 +76,18 @@ bool Resident_Evil_2_EDT::Open(std::filesystem::path Input, std::uintmax_t Count
 	return !Data.empty();
 }
 
-
-/*
-	Save
-*/
 std::uintmax_t Resident_Evil_2_EDT::Save(StdFile& File, std::uintmax_t _Ptr)
 {
-	Standard_String Str;
-
 	if (Data.empty())
 	{
 		Str.Message("EDT: Error, no data to save");
 		return _Ptr;
 	}
 
-	if (!File.IsOpen())
+	if (!File.IsOpen() || !File.Open(File.GetPath(), FileAccessMode::Write, true, false))
 	{
-		if (!File.Open(File.GetPath(), FileAccessMode::Write, true, false))
-		{
-			Str.Message("EDT: Error, could not create at 0x%llX in %s", _Ptr, File.GetPath().filename().string().c_str());
-			return _Ptr;
-		}
+		Str.Message(L"Resident Evil 2 Error: could not write EDT at 0x%llX in \"%ws\"", _Ptr, File.GetPath().filename().wstring().c_str());
+		return _Ptr;
 	}
 
 	struct EDT
@@ -140,10 +116,6 @@ std::uintmax_t Resident_Evil_2_EDT::Save(StdFile& File, std::uintmax_t _Ptr)
 	return _Ptr;
 }
 
-
-/*
-	Save
-*/
 bool Resident_Evil_2_EDT::Save(std::filesystem::path Output, std::uintmax_t _Ptr)
 {
 	StdFile m_File;
@@ -157,10 +129,6 @@ bool Resident_Evil_2_EDT::Save(std::filesystem::path Output, std::uintmax_t _Ptr
 	return OldPtr != _Ptr;
 }
 
-
-/*
-	Open text
-*/
 bool Resident_Evil_2_EDT::OpenText(std::filesystem::path Output)
 {
 	Close();
@@ -194,10 +162,6 @@ bool Resident_Evil_2_EDT::OpenText(std::filesystem::path Output)
 	return true;
 }
 
-
-/*
-	Save as text
-*/
 bool Resident_Evil_2_EDT::SaveAsText(std::filesystem::path Output)
 {
 	std::unique_ptr<StdText> Text = std::make_unique<StdText>();
@@ -221,10 +185,6 @@ bool Resident_Evil_2_EDT::SaveAsText(std::filesystem::path Output)
 	return true;
 }
 
-
-/*
-	Close
-*/
 void Resident_Evil_2_EDT::Close(void)
 {
 	Data.clear();

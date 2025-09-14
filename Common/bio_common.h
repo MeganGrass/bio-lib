@@ -108,4 +108,8 @@ public:
 	// Get Disk ID from character string
 	std::uint32_t GetEnemyDiskID(Video_Game Game, std::string Str);
 
+	// Validate a 32-bit file pointer
+	template<std::integral T>
+	const bool IsValidPointer(StdFile& File, T Ptr) { return (Ptr != 0 && Ptr != 0xFFFFFFFF && Ptr < File.Size()); }
+
 };

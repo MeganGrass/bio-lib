@@ -32,10 +32,11 @@ struct Resident_Evil_2_RVD_Data
 class Resident_Evil_2_RVD {
 private:
 
-	// Data
 	std::vector<Resident_Evil_2_RVD_Data> Data;
 
 public:
+
+	Standard_String Str;
 
 	/*
 		Construction

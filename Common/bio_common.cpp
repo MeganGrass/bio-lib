@@ -36,7 +36,7 @@ String Resident_Evil_Common::GameStr(void)
 
 void Resident_Evil_Common::GetStageRoom(std::string Str) try
 {
-	if (Str.size() >= 6)
+	if (Str.size() >= 6 || (Str.size() == 11))
 	{
 		m_Stage = std::stoi(Str.substr(4, 1), nullptr, 16);
 		m_Room = std::stoi(Str.substr(5, 2), nullptr, 16);
@@ -48,6 +48,11 @@ void Resident_Evil_Common::GetStageRoom(std::string Str) try
 	}
 
 	m_Disk = 0;
+
+	if (Str.size() == 11)
+	{
+		return;
+	}
 
 	if (Str.size() >= 8)
 	{

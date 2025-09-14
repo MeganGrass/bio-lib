@@ -15,40 +15,42 @@
 
 #pragma pack(push, 1)
 
+constexpr auto MSEQ_IDX_MAX = 8;
+
 
 struct EFF_HEADER
 {
-	std::uint16_t nSSequence;	// total count of sprite sequences
-	std::uint16_t nSpriteGp;	// total count of sprite groups
-	std::uint16_t CBA;			// CLUT
-	std::uint16_t reserved;		// always zero (0)
+	std::uint16_t nSSequence;				// total count of sprite sequences
+	std::uint16_t nSpriteGp;				// total count of sprite groups
+	std::uint16_t CBA;						// CLUT
+	std::uint16_t reserved;					// always zero (0)
 };
 
 struct EFF_SSEQUENCE
 {
-	std::uint8_t pGp;			// sprite group id
-	std::uint8_t nSpr;			// total count of sprites in this sequence
-	std::uint8_t Time;			// total count of frames to display this sprite (0xFF = terminator)
-	std::uint8_t Twh;			// sprite width/height
-	std::int16_t Hotx;			// hotspot X
-	std::int16_t Hoty;			// hotspot Y
+	std::uint8_t pGp;						// sprite group id
+	std::uint8_t nSpr;						// total count of sprites in this sequence
+	std::uint8_t Time;						// total count of frames to display this sprite (0xFF = terminator)
+	std::uint8_t Twh;						// sprite width/height
+	std::int16_t Hotx;						// hotspot X
+	std::int16_t Hoty;						// hotspot Y
 };
 
 struct EFF_SPRITEGp
 {
-	std::uint8_t U, V;			// texture coordinates
-	std::int8_t OfsX, OfsY;		// screen offset
+	std::uint8_t U, V;						// texture coordinates
+	std::int8_t OfsX, OfsY;					// screen offset
 };
 
 struct EFF_MSEQUENCE_INDEX
 {
-	std::uint16_t pMs[8];		// relative pointer to EFF_MSEQUENCE_HEADER (multiply by 4 and add this struct's starting address for absolute)
+	std::uint16_t pMSequence[MSEQ_IDX_MAX];	// relative pointer to EFF_MSEQUENCE_HEADER (multiply by 4 and add this struct's starting address for absolute)
 };
 
 struct EFF_MSEQUENCE_HEADER
 {
-	std::uint32_t unk;			// always one (1) (?)
-	std::uint32_t nMSequence;	// total number of motion sequences, EFF_MSEQUENCE struct(s) immediately follow
+	std::uint32_t unk;						// always one (1) (?)
+	std::uint32_t nMSequence;				// total number of motion sequences, EFF_MSEQUENCE struct(s) immediately follow
 };
 
 struct EFF_MSEQUENCE
@@ -71,23 +73,18 @@ struct EFF_MSEQUENCE
 	std::uint16_t Free5;
 };
 
-struct EFF_DATA
-{
-	EFF_HEADER Header;
-	std::vector<EFF_SSEQUENCE> SSequence;
-	std::vector<EFF_SPRITEGp> SpriteGp;
-	std::vector<std::vector<EFF_MSEQUENCE>> MSequence;
-};
-
 
 #pragma pack(pop)
 
 
 struct Resident_Evil_2_EFF
 {
-	std::int8_t Id;
-	std::vector<EFF_DATA> Data;
-	std::unique_ptr<Sony_PlayStation_Texture> Tim;
+	std::uint8_t Id;
+	EFF_HEADER Header;
+	std::vector<EFF_SSEQUENCE> SSequence;
+	std::vector<EFF_SPRITEGp> SpriteGp;
+	std::vector<std::vector<EFF_MSEQUENCE>> MSequence;
+	std::shared_ptr<Sony_PlayStation_Texture> Tim;
 };
 
 
@@ -97,31 +94,39 @@ private:
 
 	std::vector<Resident_Evil_2_EFF> m_Data;
 
+	std::atomic<bool> b_Open;
+
 public:
+
+	Standard_String Str;
+
+	using Resident_Evil_Common::m_Game;
 
 	Resident_Evil_2_Effect(void)
 	{
+		b_Open.store(false);
+		SetGame(Video_Game::Resident_Evil_2);
 	}
 
 	~Resident_Evil_2_Effect(void) = default;
+
+	// Is the room open?
+	[[nodiscard]] const bool IsOpen(void) const noexcept { return b_Open.load(); }
 
 	// Get data count
 	constexpr std::size_t Count(void) const { return m_Data.size(); }
 
 	// Get data element
-	Resident_Evil_2_EFF* Get(const std::size_t& iElement) { return &m_Data[iElement]; }
+	[[nodiscard]] Resident_Evil_2_EFF* Get(const std::size_t& iElement) { return &m_Data[iElement]; }
 
-	// Open
-	std::uintmax_t Open(StdFile& File, std::uintmax_t _Ptr);
-
-	// Open
-	bool Open(std::filesystem::path Path, std::uintmax_t _Ptr = 0);
+	// Open ESP container
+	const bool Open(StdFile& File, std::uintmax_t Count, std::uintmax_t pEsp_hed, std::uintmax_t pEsp_end, std::uintmax_t pEsp_tim, std::uintmax_t pEsp_tim_end);
 
 	// Save
-	std::uintmax_t Save(StdFile& File, std::uintmax_t _Ptr);
+	const bool Save(StdFile& File, std::uintmax_t _Ptr);
 
 	// Save
-	bool Save(std::filesystem::path Path, std::uintmax_t _Ptr = 0);
+	const bool Save(std::filesystem::path Path, std::uintmax_t _Ptr = 0);
 
 	// Close
 	void Close(void);

@@ -1,7 +1,7 @@
 /*
 *
 *	Megan Grass
-*	April 20, 2024
+*	April 22, 2024
 *
 */
 
@@ -11,15 +11,10 @@
 
 std::uintmax_t Resident_Evil_2_PRI::Open(StdFile& File, std::uintmax_t _Ptr, bool b_OldData, bool b_Bio1, bool b_Bio2Nov96)
 {
-	Standard_String Str;
-
-	if (!File.IsOpen())
+	if (!File.IsOpen() || !File.Open(File.GetPath(), FileAccessMode::Read, true, false))
 	{
-		if (!File.Open(File.GetPath(), FileAccessMode::Read, true, false))
-		{
-			Str.Message("LResident Evil 2 PRI Error: could not open at 0x%llX in \"%ws\"", _Ptr, File.GetPath().filename().wstring().c_str());
-			return _Ptr;
-		}
+		Str.Message(L"Resident Evil 2 Error: could not read PRI at 0x%llX in \"%ws\"", _Ptr, File.GetPath().filename().wstring().c_str());
+		return _Ptr;
 	}
 
 	struct HEADER
@@ -63,26 +58,28 @@ std::uintmax_t Resident_Evil_2_PRI::Open(StdFile& File, std::uintmax_t _Ptr, boo
 			{
 				_Ptr += 0x08;
 
-				Data[i].Sprite[x].w = Data[i].Sprite[x].flag;
-				Data[i].Sprite[x].h = Data[i].Sprite[x].flag;
-
 				if (b_OldData)
 				{
 					Data[i].Sprite[x].w = (Data[i].Sprite[x].flag >> 8) / 2;
 					Data[i].Sprite[x].h = (Data[i].Sprite[x].flag >> 8) / 2;
 				}
+				else
+				{
+					Data[i].Sprite[x].w = Data[i].Sprite[x].flag;
+					Data[i].Sprite[x].h = Data[i].Sprite[x].flag;
+				}
 			}
 
 			Data[i].Sprite[x].flag = 0;
 
-			if (b_OldData && b_Bio1)
+			if (b_Bio1)
 			{
-				Data[i].Sprite[x].otz /= 2;
+				Data[i].Sprite[x].otz = ((Data[i].Sprite[x].otz * 4) / 9);
 			}
 
 			if (b_Bio2Nov96)
 			{
-				Data[i].Sprite[x].otz *= 2;
+				Data[i].Sprite[x].otz = ((Data[i].Sprite[x].otz * 190) / 100);
 			}
 		}
 	}

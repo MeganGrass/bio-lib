@@ -1,7 +1,7 @@
 /*
 *
 *	Megan Grass
-*	April 20, 2024
+*	May 29, 2024
 *
 */
 
@@ -11,15 +11,10 @@
 
 std::uintmax_t Resident_Evil_2_BLK::Open(StdFile& File, std::uintmax_t _Ptr)
 {
-	Standard_String Str;
-
-	if (!File.IsOpen())
+	if (!File.IsOpen() || !File.Open(File.GetPath(), FileAccessMode::Read, true, false))
 	{
-		if (!File.Open(File.GetPath(), FileAccessMode::Read, true, false))
-		{
-			Str.Message("Resident Evil 2: Error, could not open BLK at 0x%llX in %s", _Ptr, File.GetPath().filename().string().c_str());
-			return _Ptr;
-		}
+		Str.Message(L"Resident Evil 2 Error: could not read BLK at 0x%llX in \"%ws\"", _Ptr, File.GetPath().filename().wstring().c_str());
+		return _Ptr;
 	}
 
 	std::uint32_t Count = 0;
@@ -46,15 +41,10 @@ bool Resident_Evil_2_BLK::Open(std::filesystem::path Path, std::uintmax_t _Ptr)
 
 std::uintmax_t Resident_Evil_2_BLK::Save(StdFile& File, std::uintmax_t _Ptr)
 {
-	Standard_String Str;
-
-	if (!File.IsOpen())
+	if (!File.IsOpen() || !File.Open(File.GetPath(), FileAccessMode::Write, true, false))
 	{
-		if (!File.Open(File.GetPath(), FileAccessMode::Write, true, false))
-		{
-			Str.Message("Resident Evil 2: Error, could not create BLK at 0x%llX in %s", _Ptr, File.GetPath().filename().string().c_str());
-			return _Ptr;
-		}
+		Str.Message(L"Resident Evil 2 Error: could not write BLK at 0x%llX in \"%ws\"", _Ptr, File.GetPath().filename().wstring().c_str());
+		return _Ptr;
 	}
 
 	std::uint32_t Count = static_cast<std::uint32_t>(Data.size());

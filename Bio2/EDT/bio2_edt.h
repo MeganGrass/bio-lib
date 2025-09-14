@@ -1,10 +1,7 @@
 /*
 *
 *	Megan Grass
-*	March 07, 2024
-*
-*
-*	TODO: 
+*	March 22, 2024
 *
 */
 
@@ -38,6 +35,8 @@ private:
 	std::vector<Resident_Evil_2_EDT_Data> Data;
 
 public:
+
+	Standard_String Str;
 
 	/*
 		Construction

@@ -7,6 +7,7 @@
 
 #include <cstddef>
 
+// EMD (Player)
 enum class AnimStatePlayerBio1 : std::size_t
 {
 	Idle,
@@ -43,26 +44,96 @@ enum class AnimStatePlayerBio1 : std::size_t
 	Aim_Bazooka_Flame_Downward,
 	Aim_Rocket_Launcher,
 	Aim_Rocket_Launcher_Upward,
-	Aim_Rocket_Launcher_Downward,
+	Aim_Rocket_Launcher_Downward
+};
 
-	Idle_Pose_Begin = 0,
-	Idle_Pose = 1,
-	Walk_Forward = 2,
-	Run = 3,
-	Inspect_Kneel = 4,
-	Aim_Begin = 5,
-	Fire = 6,
-	Aim = 7,
-	Aim_Upward_Begin = 8,
-	Fire_Upward = 9,
-	Aim_Upward = 10,
-	Aim_Downward_Begin = 11,
-	Fire_Downward = 12,
-	Aim_Downward = 13,
-	Reload = 14,
+// EMW 00, 0B
+enum class AnimStateW00Bio1 : std::size_t
+{
+	Idle_Pose_Begin,
+	Idle_Pose,
+	Walk_Forward,
+	Run,
+	Inspect_Kneel
+};
 
-	// non-vanilla
-	Idle_Turn = 100,
-	Quick_Turn = 101,
-	Quick_Reload = 102
+// EMW 01
+enum class AnimStateW01Bio1 : std::size_t
+{
+	Idle_Pose_Begin,
+	Idle_Pose,
+	Walk_Forward,
+	Run,
+	Inspect_Kneel,
+	Aim_Begin,
+	Fire,
+	Fire_Upward,
+	Fire_Downward,
+	Aim,
+	Fire_Begin,
+	Aim_Upward,
+	Fire_Upward_Begin,
+	Aim_Downward,
+	Fire_Downward_Begin
+};
+
+// EMW 02, 03, 04, 06, 0F
+enum class AnimStateW02Bio1 : std::size_t
+{
+	Idle_Pose_Begin,
+	Idle_Pose,
+	Walk_Forward,
+	Run,
+	Inspect_Kneel,
+	Aim_Begin,
+	Fire,
+	Aim,
+	Aim_Upward_Begin,
+	Fire_Upward,
+	Aim_Upward,
+	Aim_Downward_Begin,
+	Fire_Downward,
+	Aim_Downward,
+	Reload
+};
+
+// EMW 05
+enum class AnimStateW05Bio1 : std::size_t
+{
+	Idle_Pose_Begin,
+	Idle_Pose,
+	Walk_Forward,
+	Run,
+	Inspect_Kneel,
+	Aim_Begin,
+	Fire_Begin,
+	Aim,
+	Aim_Upward_Begin,
+	Fire_Upward_Begin,
+	Aim_Upward,
+	Aim_Downward_Begin,
+	Fire_Downward_Begin,
+	Aim_Downward,
+	Fire,
+	Fire_Upward,
+	Fire_Downward
+};
+
+// EMW 07
+enum class AnimStateW07Bio1 : std::size_t
+{
+	Idle_Pose_Begin,
+	Idle_Pose,
+	Walk_Forward,
+	Run,
+	Inspect_Kneel,
+	Aim_Begin,
+	Fire,
+	Aim,
+	Aim_Upward_Begin,
+	Fire_Upward,
+	Aim_Upward,
+	Aim_Downward_Begin,
+	Fire_Downward,
+	Aim_Downward
 };

@@ -107,6 +107,26 @@ enum class Room_Pointer_Type :std::uint32_t
 };
 
 
+enum class Room_Editor_Type
+{
+	RCUT,
+	PRI,
+	VCUT,
+	LIT,
+	SCA,
+	BLK,
+	FLR,
+	OTA,
+	SCD,
+	MSG,
+	SCRL,
+	MODEL,
+	ESP,
+	RBJ,
+	SOUND,
+};
+
+
 class Resident_Evil_Room :
 	private Resident_Evil_Common {
 private:
@@ -119,18 +139,18 @@ private:
 	Resident_Evil_Room(Resident_Evil_Room&&) = delete;
 	Resident_Evil_Room& operator = (Resident_Evil_Room&&) = delete;
 
+	// Messages/Debugging
+	Standard_String Str;
+
+	// Sony PlayStation (1994) Geometry Transformation Engine
+	std::shared_ptr<Sony_PlayStation_GTE> GTE;
+
 #ifdef MSTD_DX9
 
 	// Direct-X 9 Render Context
 	std::shared_ptr<Standard_DirectX_9> Render;
 
 #endif
-
-	// Sony PlayStation (1994) Geometry Transformation Engine
-	std::shared_ptr<Sony_PlayStation_GTE> GTE;
-
-	// Messages/Debugging
-	Standard_String Str;
 
 	// Header
 	Resident_Evil_Room_Header m_Header;
@@ -180,8 +200,6 @@ private:
 
 	const bool ReadVAB(StdFile& File);
 
-	const bool IsValidPointer(StdFile& File, std::uintmax_t Ptr) { return ((Ptr != 0) && (Ptr != 0xFFFFFFFF) && (Ptr < File.Size())); }
-
 	const std::uintmax_t GetNextValidPointerBio1(StdFile& File, Room_Pointer_Type Start);
 
 	const std::uintmax_t GetNextValidPointerBio2Nov96(StdFile& File, Room_Pointer_Type Start);
@@ -194,6 +212,7 @@ private:
 
 public:
 
+	using Resident_Evil_Common::m_Game;
 	using Resident_Evil_Common::m_Stage;
 	using Resident_Evil_Common::m_Room;
 	using Resident_Evil_Common::m_Disk;
@@ -281,6 +300,18 @@ public:
 	// VAB - Sony PlayStation Soundbank
 	std::shared_ptr<Sony_PlayStation_Soundbank> Vab1;
 
+	// Editor Flags
+	bool b_EditModel;
+
+	// Item/Object Active In Editor?
+	bool b_EditorItem, b_EditorObject;
+
+	// Item Model Index Range
+	std::uintmax_t iItem, iItemMin, iItemMax;
+
+	// Object Model Index Range
+	std::uintmax_t iObject, iObjectMin, iObjectMax;
+
 	explicit Resident_Evil_Room(void) :
 		m_Header{},
 		Rid(std::make_shared<Resident_Evil_2_RID>()),
@@ -295,7 +326,11 @@ public:
 		Edt0(std::make_shared<Resident_Evil_2_EDT>()),
 		Edt1(std::make_shared<Resident_Evil_2_EDT>()),
 		Vab0(std::make_shared<Sony_PlayStation_Soundbank>()),
-		Vab1(std::make_shared<Sony_PlayStation_Soundbank>())
+		Vab1(std::make_shared<Sony_PlayStation_Soundbank>()),
+		b_EditModel(false),
+		b_EditorItem(false), b_EditorObject(false),
+		iItem(0), iItemMin(0), iItemMax(0),
+		iObject(0), iObjectMin(0), iObjectMax(0)
 	{
 		b_Open.store(false);
 		SetGame(Video_Game::Resident_Evil_2);
@@ -340,7 +375,33 @@ public:
 	// set window handle for message/debugging
 	void SetWindow(HWND hWnd)
 	{
-		Str.hWnd = Rbj->Str.hWnd = hWnd;
+		Str.hWnd = hWnd;
+
+		Rid->Str.hWnd = hWnd;
+
+		Rvd->Str.hWnd = hWnd;
+
+		Lit->Str.hWnd = hWnd;
+
+		Sca->Str.hWnd = hWnd;
+
+		Blk->Str.hWnd = hWnd;
+
+		Flr->Str.hWnd = hWnd;
+
+		Scrl->Str.hWnd = hWnd;
+
+		Esp->Str.hWnd = hWnd;
+
+		Rbj->Str.hWnd = hWnd;
+
+		Edt0->Str.hWnd = hWnd;
+
+		Edt1->Str.hWnd = hWnd;
+
+		Vab0->Str.hWnd = hWnd;
+
+		Vab1->Str.hWnd = hWnd;
 
 		for (auto& Texture : PriTex)
 		{
@@ -358,7 +419,7 @@ public:
 			}
 		}
 
-		for (auto& Model : Object)
+		for (auto& Model : Item)
 		{
 			if (Model)
 			{
@@ -366,7 +427,7 @@ public:
 			}
 		}
 
-		for (auto& Model : Item)
+		for (auto& Model : Object)
 		{
 			if (Model)
 			{
@@ -381,11 +442,6 @@ public:
 				Texture->Str.hWnd = hWnd;
 			}
 		}
-
-		Scrl->Str.hWnd = hWnd;
-
-		Vab0->Str.hWnd = hWnd;
-		Vab1->Str.hWnd = hWnd;
 	}
 #endif
 
@@ -416,5 +472,11 @@ public:
 
 	// Get camera count
 	const std::uintmax_t GetCameraCount(void) const noexcept { return Header().nCut; }
+
+	// Set Editor
+	void SetEditor(Room_Editor_Type Type);
+
+	// Reset Editor
+	void ResetEditor(void);
 
 };

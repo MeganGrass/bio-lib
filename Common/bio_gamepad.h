@@ -241,6 +241,8 @@ public:
 	{
 #ifdef MSTD_XINPUT
 		return XInput() && XInput()->PollState();
+#else
+		return false;
 #endif
 	}
 

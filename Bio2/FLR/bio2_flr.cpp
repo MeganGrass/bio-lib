@@ -1,7 +1,7 @@
 /*
 *
 *	Megan Grass
-*	April 20, 2024
+*	May 29, 2024
 *
 */
 
@@ -10,15 +10,10 @@
 
 std::uintmax_t Resident_Evil_2_FLR::Open(StdFile& File, std::uintmax_t _Ptr)
 {
-	Standard_String Str;
-
-	if (!File.IsOpen())
+	if (!File.IsOpen() || !File.Open(File.GetPath(), FileAccessMode::Read, true, false))
 	{
-		if (!File.Open(File.GetPath(), FileAccessMode::Read, true, false))
-		{
-			Str.Message("Resident Evil 2: Error, could not open FLR at 0x%llX in %s", _Ptr, File.GetPath().filename().string().c_str());
-			return _Ptr;
-		}
+		Str.Message(L"Resident Evil 2 Error: could not read FLR at 0x%llX in \"%ws\"", _Ptr, File.GetPath().filename().wstring().c_str());
+		return _Ptr;
 	}
 
 	std::uint16_t Count = 0;
@@ -45,15 +40,10 @@ bool Resident_Evil_2_FLR::Open(std::filesystem::path Path, std::uintmax_t _Ptr)
 
 std::uintmax_t Resident_Evil_2_FLR::Save(StdFile& File, std::uintmax_t _Ptr)
 {
-	Standard_String Str;
-
-	if (!File.IsOpen())
+	if (!File.IsOpen() || !File.Open(File.GetPath(), FileAccessMode::Write, true, false))
 	{
-		if (!File.Open(File.GetPath(), FileAccessMode::Write, true, false))
-		{
-			Str.Message("Resident Evil 2: Error, could not create FLR at 0x%llX in %s", _Ptr, File.GetPath().filename().string().c_str());
-			return _Ptr;
-		}
+		Str.Message(L"Resident Evil 2 Error: could not write FLR at 0x%llX in \"%ws\"", _Ptr, File.GetPath().filename().wstring().c_str());
+		return _Ptr;
 	}
 
 	std::uint16_t Count = static_cast<std::uint16_t>(Data.size());

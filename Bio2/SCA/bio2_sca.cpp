@@ -1,7 +1,7 @@
 /*
 *
 *	Megan Grass
-*	April 20, 2024
+*	April 22, 2024
 *
 */
 
@@ -11,15 +11,10 @@
 
 std::uintmax_t Resident_Evil_2_SCA::Open(StdFile& File, std::uintmax_t _Ptr)
 {
-	Standard_String Str;
-
-	if (!File.IsOpen())
+	if (!File.IsOpen() || !File.Open(File.GetPath(), FileAccessMode::Read, true, false))
 	{
-		if (!File.Open(File.GetPath(), FileAccessMode::Read, true, false))
-		{
-			Str.Message("Resident Evil 2: Error, could not open SCA at 0x%llX in %s", _Ptr, File.GetPath().filename().string().c_str());
-			return _Ptr;
-		}
+		Str.Message(L"Resident Evil 2 Error: could not read SCA at 0x%llX in \"%ws\"", _Ptr, File.GetPath().filename().wstring().c_str());
+		return _Ptr;
 	}
 
 	File.Read(_Ptr , &Header, sizeof(Resident_Evil_2_SCA_Header));
@@ -46,15 +41,10 @@ bool Resident_Evil_2_SCA::Open(std::filesystem::path Path, std::uintmax_t _Ptr)
 
 std::uintmax_t Resident_Evil_2_SCA::Save(StdFile& File, std::uintmax_t _Ptr)
 {
-	Standard_String Str;
-
-	if (!File.IsOpen())
+	if (!File.IsOpen() || !File.Open(File.GetPath(), FileAccessMode::Write, true, false))
 	{
-		if (!File.Open(File.GetPath(), FileAccessMode::Write, true, false))
-		{
-			Str.Message("Resident Evil 2: Error, could not create SCA at 0x%llX in %s", _Ptr, File.GetPath().filename().string().c_str());
-			return _Ptr;
-		}
+		Str.Message(L"Resident Evil 2 Error: could not write SCA at 0x%llX in \"%ws\"", _Ptr, File.GetPath().filename().wstring().c_str());
+		return _Ptr;
 	}
 
 	File.Write(_Ptr, &Header, sizeof(Resident_Evil_2_SCA_Header));

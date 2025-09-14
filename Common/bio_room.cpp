@@ -380,8 +380,6 @@ const bool Resident_Evil_Room::ReadRID(StdFile& File)
 
 	if (!IsValidPointer(File, Header().pRcut)) { return true; }
 
-	bool b_OldData = false;
-
 	if (GameType() & (AUG95 | OCT95 | BIO1))
 	{
 		std::vector<Resident_Evil_RID_Data> Data(Header().nCut);
@@ -399,13 +397,13 @@ const bool Resident_Evil_Room::ReadRID(StdFile& File)
 
 			Temp.ViewR = static_cast<std::uint16_t>((Data[i].ViewR << 7));
 
-			Temp.View_p.x = Data[i].View_p.x & 0x7FFF;
+			Temp.View_p.x = Data[i].View_p.x;
 			Temp.View_p.y = Data[i].View_p.y;
-			Temp.View_p.z = Data[i].View_p.z & 0x7FFF;
+			Temp.View_p.z = Data[i].View_p.z;
 
-			Temp.View_r.x = Data[i].View_r.x & 0x7FFF;
+			Temp.View_r.x = Data[i].View_r.x;
 			Temp.View_r.y = Data[i].View_r.y;
-			Temp.View_r.z = Data[i].View_r.z & 0x7FFF;
+			Temp.View_r.z = Data[i].View_r.z;
 
 			Temp.pSp = Data[i].pSp;
 
@@ -413,7 +411,9 @@ const bool Resident_Evil_Room::ReadRID(StdFile& File)
 
 			PriTex[i] = std::make_shared<Sony_PlayStation_Texture>();
 
-			if (Data[i].pTim && Data[i].pTim != 0xFFFFFFFF && Data[i].pTim < File.Size())
+			PriTex[i]->Str.hWnd = Str.hWnd;
+
+			if (IsValidPointer(File, Data[i].pTim))
 			{
 				PriTex[i]->OpenTIM(File, Data[i].pTim);
 			}
@@ -425,18 +425,15 @@ const bool Resident_Evil_Room::ReadRID(StdFile& File)
 		Rid->Open(File, Header().nCut, Header().pRcut);
 	}
 
-	if (GameType() & (AUG95 | OCT95 | BIO1 | BIO2NOV96))
-	{
-		b_OldData = true;
-	}
-
 	for (std::size_t i = 0; i < Header().nCut; i++)
 	{
 		Pri.push_back(std::make_shared<Resident_Evil_2_PRI>());
 
+		Pri[i]->Str.hWnd = Str.hWnd;
+
 		if (IsValidPointer(File, Rid->Get(i)->pSp))
 		{
-			Pri[i]->Open(File, Rid->Get(i)->pSp, b_OldData, (GameType() & (AUG95 | OCT95 | BIO1)), (GameType() & BIO2NOV96));
+			Pri[i]->Open(File, Rid->Get(i)->pSp, (GameType() & (AUG95 | OCT95 | BIO1 | BIO2NOV96)), (GameType() & (AUG95 | OCT95 | BIO1)), (GameType() & BIO2NOV96));
 		}
 	}
 
@@ -490,7 +487,14 @@ const bool Resident_Evil_Room::ReadRVD(StdFile& File)
 			Temp.Be_flg = 1;
 			Temp.nFloor = -1;
 			Temp.Fcut = static_cast<std::uint8_t>(Data[i].Fcut);
-			Temp.Tcut = static_cast<std::uint8_t>(Data[i].Tcut);
+			if (Data[i].Tcut == 9)
+			{
+				Temp.Tcut = 0;
+			}
+			else
+			{
+				Temp.Tcut = static_cast<std::uint8_t>(Data[i].Tcut);
+			}
 			Temp.Xz[0][0] = (Data[i].Xz[0][0] & 0x7FFF);
 			Temp.Xz[0][1] = (Data[i].Xz[0][1] & 0x7FFF);
 			Temp.Xz[1][0] = (Data[i].Xz[1][0] & 0x7FFF);
@@ -530,12 +534,14 @@ const bool Resident_Evil_Room::ReadLIT(StdFile& File)
 	{
 		Resident_Evil_LIT_Data Data{};
 
+		Resident_Evil_LIT_Data_Aug95 DataAug95{};
+
 		File.Read(Header().pLight, &Data, sizeof(Resident_Evil_LIT_Data));
 
 		if (GameType() & AUG95)
 		{
 			Resident_Evil_LIT_Data_Aug95 DataAug95{};
-			File.Read(Header().pLight, &Data, sizeof(Resident_Evil_LIT_Data_Aug95));
+			File.Read(Header().pLight, &DataAug95, sizeof(Resident_Evil_LIT_Data_Aug95));
 			std::memcpy(&Data.Ambient, &DataAug95.Ambient, sizeof(Data.Ambient));
 			std::memcpy(&Data.Data, &DataAug95.Data, sizeof(Data.Data));
 		}
@@ -551,21 +557,24 @@ const bool Resident_Evil_Room::ReadLIT(StdFile& File)
 			std::memcpy(&Temp.Col[0], &Data.Data[0].Color, sizeof(CVECTOR2));
 			std::memcpy(&Temp.Col[1], &Data.Data[1].Color, sizeof(CVECTOR2));
 			std::memcpy(&Temp.Col[2], &Data.Data[2].Color, sizeof(CVECTOR2));
-			Temp.Ambient.r = static_cast<std::uint8_t>((Data.Ambient[0] / 0x3FF) * 0x1F);
-			Temp.Ambient.g = static_cast<std::uint8_t>((Data.Ambient[1] / 0x3FF) * 0x1F);
-			Temp.Ambient.b = static_cast<std::uint8_t>((Data.Ambient[2] / 0x3FF) * 0x1F);
-			Temp.Pos[0].x = (Data.Data[0].Pos.x & 0x7FFF);
+			//Temp.Ambient.r = static_cast<std::uint8_t>((Data.Ambient[0] / 0x3FF) * 0x1F);
+			//Temp.Ambient.g = static_cast<std::uint8_t>((Data.Ambient[1] / 0x3FF) * 0x1F);
+			//Temp.Ambient.b = static_cast<std::uint8_t>((Data.Ambient[2] / 0x3FF) * 0x1F);
+			Temp.Ambient.r = (Data.Ambient[0] >> 4);
+			Temp.Ambient.g = (Data.Ambient[1] >> 4);
+			Temp.Ambient.b = (Data.Ambient[2] >> 4);
+			Temp.Pos[0].x = Data.Data[0].Pos.x;
 			Temp.Pos[0].y = Data.Data[0].Pos.y;
-			Temp.Pos[0].z = (Data.Data[0].Pos.z & 0x7FFF);
-			Temp.Pos[1].x = (Data.Data[1].Pos.x & 0x7FFF);
+			Temp.Pos[0].z = Data.Data[0].Pos.z;
+			Temp.Pos[1].x = Data.Data[1].Pos.x;
 			Temp.Pos[1].y = Data.Data[1].Pos.y;
-			Temp.Pos[1].z = (Data.Data[1].Pos.z & 0x7FFF);
-			Temp.Pos[2].x = (Data.Data[2].Pos.x & 0x7FFF);
+			Temp.Pos[1].z = Data.Data[1].Pos.z;
+			Temp.Pos[2].x = Data.Data[2].Pos.x;
 			Temp.Pos[2].y = Data.Data[2].Pos.y;
-			Temp.Pos[2].z = (Data.Data[2].Pos.z & 0x7FFF);
-			Temp.L[0] = Data.Data[0].L;
-			Temp.L[1] = Data.Data[1].L;
-			Temp.L[2] = Data.Data[2].L;
+			Temp.Pos[2].z = Data.Data[2].Pos.z;
+			Temp.L[0] = (Data.Data[0].L >> 1);
+			Temp.L[1] = (Data.Data[1].L >> 1);
+			Temp.L[2] = (Data.Data[2].L >> 1);
 
 			Lit->Add(Temp);
 		}
@@ -625,10 +634,10 @@ const bool Resident_Evil_Room::ReadSCA(StdFile& File)
 					case 5: continue;
 					}
 
-					Temp.X = min(Data[i].Xz[1][0], Data[i].Xz[0][0]) & 0x7FFF;
-					Temp.Z = min(Data[i].Xz[1][1], Data[i].Xz[0][1]) & 0x7FFF;
-					Temp.W = std::abs(Data[i].Xz[1][0] - Data[i].Xz[0][0]) & 0x7FFF;
-					Temp.D = std::abs(Data[i].Xz[1][1] - Data[i].Xz[0][1]) & 0x7FFF;
+					Temp.X = min(Data[i].Xz[1][0], Data[i].Xz[0][0]);
+					Temp.Z = min(Data[i].Xz[1][1], Data[i].Xz[0][1]);
+					Temp.W = std::abs(Data[i].Xz[1][0] - Data[i].Xz[0][0]);
+					Temp.D = std::abs(Data[i].Xz[1][1] - Data[i].Xz[0][1]);
 
 					Temp.Id.Bits.bit0 = 8;
 					Temp.Id.Bits.bit1 = 0;
@@ -707,6 +716,8 @@ const bool Resident_Evil_Room::ReadSCA(StdFile& File)
 		Sca->GetHeader()->nData = static_cast<std::uint32_t>(Sca->Count()) + 1;
 
 		Sca->RemoveDuplicates();
+
+		Sca->CalcCxCz();
 	}
 
 	else if (GameType() & BIO2NOV96)
@@ -828,6 +839,8 @@ const bool Resident_Evil_Room::ReadSCA(StdFile& File)
 		Sca->GetHeader()->nData = static_cast<std::uint32_t>(Sca->Count()) + 1;
 
 		Sca->RemoveDuplicates();
+
+		Sca->CalcCxCz();
 	}
 
 	else if (GameType() & (BIO2TRIAL | BIO2 | BIO3))
@@ -902,10 +915,10 @@ const bool Resident_Evil_Room::ReadFLR(StdFile& File)
 
 		for (std::size_t i = 0; i < Data.size(); i++)
 		{
-			Temp.X = (Data[i].X & 0x7FFF);
-			Temp.Z = (Data[i].Z & 0x7FFF);
-			Temp.W = (Data[i].W & 0x7FFF);
-			Temp.D = (Data[i].D & 0x7FFF);
+			Temp.X = Data[i].X;
+			Temp.Z = Data[i].Z;
+			Temp.W = Data[i].W;
+			Temp.D = Data[i].D;
 			Temp.Se_no = Data[i].Se_no;
 			Temp.Floor_height = Data[i].unk;
 			Flr->Add(Temp);
@@ -1217,6 +1230,8 @@ const bool Resident_Evil_Room::ReadIPIX(StdFile& File)
 		{
 			Ipix[i] = std::make_shared<Sony_PlayStation_Texture>();
 
+			Ipix[i]->Str.hWnd = Str.hWnd;
+
 			Ipix[i]->Create(8, 40, 30, 1);
 
 			Ipix[i]->PastePalette(Palette, 0);
@@ -1243,6 +1258,8 @@ const bool Resident_Evil_Room::ReadSCRL(StdFile& File)
 
 	if (GameType() & BIO2)
 	{
+		Scrl->Str.hWnd = Str.hWnd;
+
 		Scrl->Create(16, 320, 240, 0);
 
 		Scrl->ReadPixels(File, Header().pScrl, 320, 240);
@@ -1393,6 +1410,11 @@ const bool Resident_Evil_Room::ReadESP(StdFile& File)
 	}
 
 	if (!IsValidPointer(File, Header().pEsp_hed)) { return true; }
+
+	if (GameType() & (BIO2TRIAL | BIO2))
+	{
+		Esp->Open(File, 8, Header().pEsp_hed, Header().pEsp_end, Header().pEsp_tim, Header().pEsp_tim_end);
+	}
 
 	return true;
 }
@@ -1671,10 +1693,8 @@ const std::uintmax_t Resident_Evil_Room::GetNextValidPointerBio1(StdFile& File, 
 
 			File.Read(Header().pEsp_hed, ID.data(), ID.size() * sizeof(std::uint8_t));
 
-			for (std::size_t i = 0; i < ID.size(); i++)
+			for (std::size_t i = 0; i < ID.size() && ID[i] != 0xFF; i++)
 			{
-				if (ID[i] == 0xFF) { break; }
-
 				File.Read(Header().pEsp_end - (i * sizeof(std::uint32_t)), &Pointer, sizeof(std::uint32_t));
 
 				if (IsValidPointer(File, Pointer)) { return Pointer; }
@@ -1805,10 +1825,8 @@ const std::uintmax_t Resident_Evil_Room::GetNextValidPointerBio1(StdFile& File, 
 
 			File.Read(Header().pEsp_hed, ID.data(), ID.size() * sizeof(std::uint8_t));
 
-			for (std::size_t i = 0; i < ID.size(); i++)
+			for (std::size_t i = 0; i < ID.size() && ID[i] != 0xFF; i++)
 			{
-				if (ID[i] == 0xFF) { break; }
-
 				File.Read(Header().pEsp_tim_end - (i * sizeof(std::uint32_t)), &Pointer, sizeof(std::uint32_t));
 
 				if (IsValidPointer(File, Pointer)) { return Pointer; }
@@ -1977,10 +1995,8 @@ const std::uintmax_t Resident_Evil_Room::GetNextValidPointerBio2Nov96(StdFile& F
 
 			File.Read(Header().pEsp_hed, ID.data(), ID.size() * sizeof(std::uint8_t));
 
-			for (std::size_t i = 0; i < ID.size(); i++)
+			for (std::size_t i = 0; i < ID.size() && ID[i] != 0xFF; i++)
 			{
-				if (ID[i] == 0xFF) { break; }
-
 				File.Read(Header().pEsp_end - (i * sizeof(std::uint32_t)), &Pointer, sizeof(std::uint32_t));
 
 				if (IsValidPointer(File, Header().pEsp_hed + Pointer)) { return Header().pEsp_hed + Pointer; }
@@ -2056,13 +2072,9 @@ const std::uintmax_t Resident_Evil_Room::GetNextValidPointerBio2Nov96(StdFile& F
 
 			File.Read(Header().pEsp_hed, ID.data(), ID.size() * sizeof(std::uint8_t));
 
-			std::uintmax_t pIndex = Header().pEsp_tim_end - sizeof(std::uint32_t);
-
-			for (std::size_t i = 0; i < ID.size(); i++)
+			for (std::size_t i = 0; i < ID.size() && ID[i] != 0xFF; i++)
 			{
-				if (ID[i] == 0xFF) { break; }
-
-				File.Read(pIndex - (i * sizeof(std::uint32_t)), &Pointer, sizeof(std::uint32_t));
+				File.Read(Header().pEsp_tim_end - (i * sizeof(std::uint32_t)) - sizeof(std::uint32_t), &Pointer, sizeof(std::uint32_t));
 
 				if (IsValidPointer(File, Header().pEsp_tim + Pointer)) { return Header().pEsp_tim + Pointer; }
 			}
@@ -2258,10 +2270,8 @@ const std::uintmax_t Resident_Evil_Room::GetNextValidPointerBio2(StdFile& File, 
 
 			File.Read(Header().pEsp_hed, ID.data(), ID.size() * sizeof(std::uint8_t));
 
-			for (std::size_t i = 0; i < ID.size(); i++)
+			for (std::size_t i = 0; i < ID.size() && ID[i] != 0xFF; i++)
 			{
-				if (ID[i] == 0xFF) { break; }
-
 				File.Read(Header().pEsp_end - (i * sizeof(std::uint32_t)), &Pointer, sizeof(std::uint32_t));
 
 				if (IsValidPointer(File, Header().pEsp_hed + Pointer)) { return Header().pEsp_hed + Pointer; }
@@ -2344,13 +2354,9 @@ const std::uintmax_t Resident_Evil_Room::GetNextValidPointerBio2(StdFile& File, 
 
 			File.Read(Header().pEsp_hed, ID.data(), ID.size() * sizeof(std::uint8_t));
 
-			std::uintmax_t pIndex = Header().pEsp_tim_end - sizeof(std::uint32_t);
-
-			for (std::size_t i = 0; i < ID.size(); i++)
+			for (std::size_t i = 0; i < ID.size() && ID[i] != 0xFF; i++)
 			{
-				if (ID[i] == 0xFF) { break; }
-
-				File.Read(pIndex - (i * sizeof(std::uint32_t)), &Pointer, sizeof(std::uint32_t));
+				File.Read(Header().pEsp_tim_end - (i * sizeof(std::uint32_t)) - sizeof(std::uint32_t), &Pointer, sizeof(std::uint32_t));
 
 				if (IsValidPointer(File, Header().pEsp_tim + Pointer)) { return Header().pEsp_tim + Pointer; }
 			}
@@ -2418,7 +2424,7 @@ void Resident_Evil_Room::DebugPrint(StdFile& File)
 		{
 			std::cout << std::left;
 
-			if (GameType() & BIO1)
+			if (GameType() & (AUG95 | OCT95 | BIO1))
 			{
 				std::cout << "  " << std::setw(20) << Label
 					<< std::setw(12) << Str.FormatCStyle("0x%x", Pointer).c_str()
@@ -2537,10 +2543,8 @@ void Resident_Evil_Room::DebugPrint(StdFile& File)
 
 			File.Read(Header().pEsp_hed, ID.data(), ID.size() * sizeof(std::uint8_t));
 
-			for (std::size_t i = 0; i < ID.size(); i++)
+			for (std::size_t i = 0; i < ID.size() && ID[i] != 0xFF; i++)
 			{
-				if (ID[i] == 0xFF) { break; }
-
 				File.Read(Header().pEsp_end - (i * sizeof(std::uint32_t)), &Pointer, sizeof(std::uint32_t));
 
 				if (IsValidPointer(File, Pointer)) { PrintField(Str.FormatCStyle("ESP[%02d]_DAT:", i).c_str(), Pointer, Room_Pointer_Type::ESP_END); }
@@ -2583,10 +2587,8 @@ void Resident_Evil_Room::DebugPrint(StdFile& File)
 
 			File.Read(Header().pEsp_hed, ID.data(), ID.size() * sizeof(std::uint8_t));
 
-			for (std::size_t i = 0; i < ID.size(); i++)
+			for (std::size_t i = 0; i < ID.size() && ID[i] != 0xFF; i++)
 			{
-				if (ID[i] == 0xFF) { break; }
-
 				File.Read(Header().pEsp_tim_end - (i * sizeof(std::uint32_t)), &Pointer, sizeof(std::uint32_t));
 
 				if (IsValidPointer(File, Pointer)) { PrintField(Str.FormatCStyle("ESP[%02d]_TEX:", i).c_str(), Pointer, Room_Pointer_Type::FILE_SIZE); }
@@ -2654,10 +2656,8 @@ void Resident_Evil_Room::DebugPrint(StdFile& File)
 
 			File.Read(Header().pEsp_hed, ID.data(), ID.size() * sizeof(std::uint8_t));
 
-			for (std::size_t i = 0; i < ID.size(); i++)
+			for (std::size_t i = 0; i < ID.size() && ID[i] != 0xFF; i++)
 			{
-				if (ID[i] == 0xFF) { break; }
-
 				File.Read(Header().pEsp_end - (i * sizeof(std::uint32_t)), &Pointer, sizeof(std::uint32_t));
 
 				if (IsValidPointer(File, Header().pEsp_hed + Pointer)) { PrintField(Str.FormatCStyle("ESP[%02d]_DAT:", i).c_str(), Header().pEsp_hed + Pointer, Room_Pointer_Type::ESP_END); }
@@ -2685,13 +2685,9 @@ void Resident_Evil_Room::DebugPrint(StdFile& File)
 
 			File.Read(Header().pEsp_hed, ID.data(), ID.size() * sizeof(std::uint8_t));
 
-			std::uintmax_t pIndex = Header().pEsp_tim_end - sizeof(std::uint32_t);
-
-			for (std::size_t i = 0; i < ID.size(); i++)
+			for (std::size_t i = 0; i < ID.size() && ID[i] != 0xFF; i++)
 			{
-				if (ID[i] == 0xFF) { break; }
-
-				File.Read(pIndex - (i * sizeof(std::uint32_t)), &Pointer, sizeof(std::uint32_t));
+				File.Read(Header().pEsp_tim_end - (i * sizeof(std::uint32_t)) - sizeof(std::uint32_t), &Pointer, sizeof(std::uint32_t));
 
 				if (IsValidPointer(File, Header().pEsp_tim + Pointer)) { PrintField(Str.FormatCStyle("ESP[%02d]_TEX:", i).c_str(), Header().pEsp_tim + Pointer, Room_Pointer_Type::ESP_TIM_END); }
 			}
@@ -2764,10 +2760,8 @@ void Resident_Evil_Room::DebugPrint(StdFile& File)
 
 			File.Read(Header().pEsp_hed, ID.data(), ID.size() * sizeof(std::uint8_t));
 
-			for (std::size_t i = 0; i < ID.size(); i++)
+			for (std::size_t i = 0; i < ID.size() && ID[i] != 0xFF; i++)
 			{
-				if (ID[i] == 0xFF) { break; }
-
 				File.Read(Header().pEsp_end - (i * sizeof(std::uint32_t)), &Pointer, sizeof(std::uint32_t));
 
 				if (IsValidPointer(File, Header().pEsp_hed + Pointer)) { PrintField(Str.FormatCStyle("ESP[%02d]_DAT:", i).c_str(), Header().pEsp_hed + Pointer, Room_Pointer_Type::ESP_END); }
@@ -2795,13 +2789,9 @@ void Resident_Evil_Room::DebugPrint(StdFile& File)
 
 			File.Read(Header().pEsp_hed, ID.data(), ID.size() * sizeof(std::uint8_t));
 
-			std::uintmax_t pIndex = Header().pEsp_tim_end - sizeof(std::uint32_t);
-
-			for (std::size_t i = 0; i < ID.size(); i++)
+			for (std::size_t i = 0; i < ID.size() && ID[i] != 0xFF; i++)
 			{
-				if (ID[i] == 0xFF) { break; }
-
-				File.Read(pIndex - (i * sizeof(std::uint32_t)), &Pointer, sizeof(std::uint32_t));
+				File.Read(Header().pEsp_tim_end - (i * sizeof(std::uint32_t)) - sizeof(std::uint32_t), &Pointer, sizeof(std::uint32_t));
 
 				if (IsValidPointer(File, Header().pEsp_tim + Pointer)) { PrintField(Str.FormatCStyle("ESP[%02d]_TEX:", i).c_str(), Header().pEsp_tim + Pointer, Room_Pointer_Type::ESP_TIM_END); }
 			}
@@ -2871,7 +2861,7 @@ const bool Resident_Evil_Room::Open(std::filesystem::path Path)
 	if (!ReadVAB(m_File)) { return false; }
 
 #ifdef _DEBUG
-	DebugPrint(m_File);
+	//DebugPrint(m_File);
 #endif
 
 	SetWindow(Str.hWnd);
@@ -2885,6 +2875,8 @@ void Resident_Evil_Room::Close(void)
 {
 	b_Open.store(false);
 
+	ResetEditor();
+
 	std::memset(&m_Header, 0, sizeof(Resident_Evil_Room_Header));
 
 	m_Stage = 0;
@@ -2897,16 +2889,22 @@ void Resident_Evil_Room::Close(void)
 
 	for (auto& Element : Pri)
 	{
-		Element->Close();
-		Element.reset();
+		if (Element)
+		{
+			Element->Close();
+			Element.reset();
+		}
 	}
 	Pri.clear();
 	Pri.shrink_to_fit();
 
 	for (auto& Element : PriTex)
 	{
-		Element->Close();
-		Element.reset();
+		if (Element)
+		{
+			Element->Close();
+			Element.reset();
+		}
 	}
 	PriTex.clear();
 	PriTex.shrink_to_fit();
@@ -2987,13 +2985,16 @@ void Resident_Evil_Room::Close(void)
 
 	for (auto& Element : Ipix)
 	{
-		Element->Close();
-		Element.reset();
+		if (Element)
+		{
+			Element->Close();
+			Element.reset();
+		}
 	}
 	Ipix.clear();
 	Ipix.shrink_to_fit();
 
-	Scrl->Close();
+	if (Scrl) { Scrl->Close(); }
 
 	for (auto& Element : Object)
 	{
@@ -3011,7 +3012,7 @@ void Resident_Evil_Room::Close(void)
 	Item.clear();
 	Item.shrink_to_fit();
 
-	// Esp
+	Esp->Close();
 
 	Rbj->Close();
 
@@ -3019,4 +3020,29 @@ void Resident_Evil_Room::Close(void)
 	Edt1->Close();
 	Vab0->CloseVAB();
 	Vab1->CloseVAB();
+}
+
+void Resident_Evil_Room::SetEditor(Room_Editor_Type Type)
+{
+	ResetEditor();
+
+	if (Type == Room_Editor_Type::MODEL)
+	{
+		b_EditModel = true;
+
+		for (size_t i = 0; i < Item.size(); i++) { Item[i]->b_EditorMode = true; }
+		for (size_t i = 0; i < Object.size(); i++) { Object[i]->b_EditorMode = true; }
+	}
+}
+
+void Resident_Evil_Room::ResetEditor(void)
+{
+	b_EditModel = false;
+
+	b_EditorItem = b_EditorObject = false;
+	iItem = iItemMin = iItemMax = 0;
+	iObject = iObjectMin = iObjectMax = 0;
+
+	for (size_t i = 0; i < Item.size(); i++) { Item[i]->b_EditorMode = false; }
+	for (size_t i = 0; i < Object.size(); i++) { Object[i]->b_EditorMode = false; }
 }

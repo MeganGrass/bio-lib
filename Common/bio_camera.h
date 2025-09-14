@@ -24,6 +24,9 @@ public:
 	// Sony PlayStation (1994) Native Screen Resolution
 	constexpr static float m_NativeWidth = 320.0f, m_NativeHeight = 240.0f;
 
+	// Sony PlayStation (1994) Aspect Ratio
+	constexpr static float m_AspectRatio = (m_NativeWidth / m_NativeHeight);
+
 	// Sony PlayStation (1994) Geometry Transformation Engine
 	std::shared_ptr<Sony_PlayStation_GTE> GTE;
 
@@ -83,13 +86,13 @@ public:
 	std::shared_ptr<Standard_Matrix> Orthogonal, View, Projection, World;
 
 	// Field of View
-	std::uint32_t m_FOV, m_ModelFOV;
+	std::uint32_t m_FOV, m_EditorFOV;
 
 	// Position
-	VECTOR2 m_Eye, m_ModelEye;
+	VECTOR2 m_Eye, m_EditorEye;
 
 	// Target
-	VECTOR2 m_At, m_ModelAt;
+	VECTOR2 m_At, m_EditorAt;
 
 	// Viewport Size
 	float m_OrthoWidth, m_OrthoHeight;
@@ -131,8 +134,8 @@ public:
 	// Draw Switch Vectors On/Off
 	bool b_DrawSwitch;
 
-	// Model Editor Perspective
-	bool b_ViewModelEdit;
+	// Editor Perspective On/Off
+	bool b_ViewEditor;
 
 #if MSTD_DX9
 
@@ -161,9 +164,9 @@ public:
 		m_FOV(0x6DD4 >> 7),
 		m_Eye{ -16000, -7200, -16000 },
 		m_At{ 0, 7200, 0 },
-		m_ModelFOV(0x6DD4 >> 7),
-		m_ModelEye{ 5400, -1800, 0 },
-		m_ModelAt{ 0, -1800 , 0 },
+		m_EditorFOV(0x6DD4 >> 7),
+		m_EditorEye{ 5400, -1800, 0 },
+		m_EditorAt{ 0, -1800 , 0 },
 		m_OrthoWidth(m_NativeWidth),
 		m_OrthoHeight(m_NativeHeight),
 		m_OrthoScaleX(m_OrthoWidth / m_NativeWidth),
@@ -183,12 +186,18 @@ public:
 		m_Cz(0.0f),
 		b_DrawLine(true),
 		b_DrawSwitch(true),
-		b_ViewModelEdit(false) {}
+		b_ViewEditor(false) {}
 #else
 #error "Resident_Evil_Camera does not have a render pipeline"
 #endif
 
 	~Resident_Evil_Camera(void) = default;
+
+	// Sony PlayStation (1994) Native Screen Width
+	const float NativeWidth(void) const { return m_NativeWidth; }
+
+	// Sony PlayStation (1994) Native Screen Height
+	const float NativeHeight(void) const { return m_NativeHeight; }
 
 	// Shutdown
 	void Shutdown(void) noexcept;
@@ -200,7 +209,7 @@ public:
 	void Reset(void);
 
 	// Set Meta Data
-	void SetMeta(std::filesystem::path Path, std::uintmax_t Stage, std::uintmax_t Room, std::uintmax_t CutMax) noexcept;
+	void SetMeta(std::filesystem::path Path, std::uintmax_t Stage, std::uintmax_t Room, std::uintmax_t CutMax, Video_Game Game = Video_Game::Resident_Evil_2) noexcept;
 
 	// Set Orthographic Projection Matrix
 	void SetOrtho(float Width, float Height);
@@ -214,10 +223,19 @@ public:
 	// Get Prerendered Background Vertices
 	[[nodiscard]] std::vector<vec4t> GetImageVert(void) const;
 
-	// Set View and Projection Matrix in Top-Down Perspective
-	void SetTopDownPerspective(void);
+	// Set Top-Down Perspective View and Projection Matrix
+	void SetTopDown(void);
 
-	// Set View and Projection Matrix
+	// Set Game View and Projection Matrix
 	void Set(std::uint32_t FOV, VECTOR2 Eye, VECTOR2 At);
+
+	// Set Editor View and Projection Matrix
+	void SetEditor(std::uint32_t FOV, VECTOR2 Eye, VECTOR2 At)
+	{
+		m_EditorFOV = FOV;
+		m_EditorEye = Eye;
+		m_EditorAt = At;
+		Set(FOV, Eye, At);
+	}
 
 };
