@@ -12,13 +12,10 @@
 
 const bool Resident_Evil_Room::ReadHeader(StdFile& File)
 {
-	if (!File.IsOpen())
+	if (!File.IsOpen() || !File.Open(File.GetPath(), FileAccessMode::Read, true, false))
 	{
-		if (!File.Open(File.GetPath(), FileAccessMode::Read, true, false))
-		{
-			Str.Message(L"Resident Evil RDT Error: could not read header in \"%ws\"", File.GetPath().filename().wstring().c_str());
-			return false;
-		}
+		Str.Message(L"Resident Evil RDT Error: could not read header in \"%ws\"", File.GetPath().filename().wstring().c_str());
+		return false;
 	}
 
 	if (GameType() & AUG95)
@@ -369,13 +366,10 @@ const bool Resident_Evil_Room::ReadHeader(StdFile& File)
 
 const bool Resident_Evil_Room::ReadRID(StdFile& File)
 {
-	if (!File.IsOpen())
+	if (!File.IsOpen() || !File.Open(File.GetPath(), FileAccessMode::Read, true, false))
 	{
-		if (!File.Open(File.GetPath(), FileAccessMode::Read, true, false))
-		{
-			Str.Message(L"Resident Evil RDT Error: could not read RID in \"%ws\"", File.GetPath().filename().wstring().c_str());
-			return false;
-		}
+		Str.Message(L"Resident Evil RDT Error: could not read RID in \"%ws\"", File.GetPath().filename().wstring().c_str());
+		return false;
 	}
 
 	if (!IsValidPointer(File, Header().pRcut)) { return true; }
@@ -442,13 +436,10 @@ const bool Resident_Evil_Room::ReadRID(StdFile& File)
 
 const bool Resident_Evil_Room::ReadRVD(StdFile& File)
 {
-	if (!File.IsOpen())
+	if (!File.IsOpen() || !File.Open(File.GetPath(), FileAccessMode::Read, true, false))
 	{
-		if (!File.Open(File.GetPath(), FileAccessMode::Read, true, false))
-		{
-			Str.Message(L"Resident Evil RDT Error: could not read RVD in \"%ws\"", File.GetPath().filename().wstring().c_str());
-			return false;
-		}
+		Str.Message(L"Resident Evil RDT Error: could not read RVD in \"%ws\"", File.GetPath().filename().wstring().c_str());
+		return false;
 	}
 
 	if (!IsValidPointer(File, Header().pVcut)) { return true; }
@@ -519,13 +510,10 @@ const bool Resident_Evil_Room::ReadRVD(StdFile& File)
 
 const bool Resident_Evil_Room::ReadLIT(StdFile& File)
 {
-	if (!File.IsOpen())
+	if (!File.IsOpen() || !File.Open(File.GetPath(), FileAccessMode::Read, true, false))
 	{
-		if (!File.Open(File.GetPath(), FileAccessMode::Read, true, false))
-		{
-			Str.Message(L"Resident Evil RDT Error: could not read LIT in \"%ws\"", File.GetPath().filename().wstring().c_str());
-			return false;
-		}
+		Str.Message(L"Resident Evil RDT Error: could not read LIT in \"%ws\"", File.GetPath().filename().wstring().c_str());
+		return false;
 	}
 
 	if (!IsValidPointer(File, Header().pLight)) { return true; }
@@ -590,13 +578,10 @@ const bool Resident_Evil_Room::ReadLIT(StdFile& File)
 
 const bool Resident_Evil_Room::ReadSCA(StdFile& File)
 {
-	if (!File.IsOpen())
+	if (!File.IsOpen() || !File.Open(File.GetPath(), FileAccessMode::Read, true, false))
 	{
-		if (!File.Open(File.GetPath(), FileAccessMode::Read, true, false))
-		{
-			Str.Message(L"Resident Evil RDT Error: could not read SCA in \"%ws\"", File.GetPath().filename().wstring().c_str());
-			return false;
-		}
+		Str.Message(L"Resident Evil RDT Error: could not read SCA in \"%ws\"", File.GetPath().filename().wstring().c_str());
+		return false;
 	}
 
 	if (!IsValidPointer(File, Header().pSca)) { return true; }
@@ -843,9 +828,60 @@ const bool Resident_Evil_Room::ReadSCA(StdFile& File)
 		Sca->CalcCxCz();
 	}
 
-	else if (GameType() & (BIO2TRIAL | BIO2 | BIO3))
+	else if (GameType() & (BIO2TRIAL | BIO2))
 	{
 		Sca->Open(File, Header().pSca);
+	}
+
+	else if (GameType() & (BIO3))
+	{
+		Resident_Evil_3_SCA_Header ScaHeader{};
+		File.Read(Header().pSca, &ScaHeader, sizeof(Resident_Evil_3_SCA_Header));
+
+		std::vector<Resident_Evil_3_SCA_Data> Data(ScaHeader.nData - 1);
+
+		File.Read(Header().pSca + sizeof(Resident_Evil_3_SCA_Header), Data.data(), Data.size() * sizeof(Resident_Evil_3_SCA_Data));
+
+		Sca->GetHeader()->Cx = ScaHeader.Cx;
+		Sca->GetHeader()->Cz = ScaHeader.Cz;
+		Sca->GetHeader()->Ceiling = 0;	// TODO
+		Sca->GetHeader()->Color = 0xC5C5C5C5;
+
+		Resident_Evil_2_SCA_Data Temp{};
+
+		for (std::size_t i = 0; i < Data.size(); i++)
+		{
+			Temp.X = Data[i].Xz[0][0];
+			Temp.Z = Data[i].Xz[0][1];
+			Temp.W = Data[i].Xz[1][0] - Data[i].Xz[0][0];
+			Temp.D = Data[i].Xz[1][1] - Data[i].Xz[0][1];
+
+			switch (Data[i].Id.Bits.Shape)
+			{
+			case 0: Temp.Id.Bits.Shape = std::to_underlying(Resident_Evil_2_Collision_Shape::Circle); break;
+			case 1: Temp.Id.Bits.Shape = std::to_underlying(Resident_Evil_2_Collision_Shape::Box); break;
+			case 2: Temp.Id.Bits.Shape = std::to_underlying(Resident_Evil_2_Collision_Shape::Koban_x); break;
+			case 3: Temp.Id.Bits.Shape = std::to_underlying(Resident_Evil_2_Collision_Shape::Koban_z); break;
+			case 4: Temp.Id.Bits.Shape = std::to_underlying(Resident_Evil_2_Collision_Shape::Naname_c); break;
+			case 5: std::cout << "Unknown Shape: " << (int)Data[i].Id.Bits.Shape << std::endl; continue;
+			case 6: Temp.Id.Bits.Shape = std::to_underlying(Resident_Evil_2_Collision_Shape::Naname_d); break;
+			case 7: std::cout << "Unknown Shape: " << (int)Data[i].Id.Bits.Shape << std::endl; continue;
+			case 8: std::cout << "Unknown Shape: " << (int)Data[i].Id.Bits.Shape << std::endl; continue;
+			case 9: Temp.Id.Bits.Shape = std::to_underlying(Resident_Evil_2_Collision_Shape::Slope); break;
+			case 10: Temp.Id.Bits.Shape = std::to_underlying(Resident_Evil_2_Collision_Shape::Box_3); break;
+			case 11: std::cout << "Unknown Shape: " << (int)Data[i].Id.Bits.Shape << std::endl; continue;
+			case 12: std::cout << "Unknown Shape: " << (int)Data[i].Id.Bits.Shape << std::endl; continue;
+			}
+			std::cout << "Shape: " << (int)Data[i].Id.Bits.Shape << " New Shape: " << (int)Temp.Id.Bits.Shape << std::endl;
+
+			Data[i].Type.Data = Data[i].Type.Data;
+
+			Data[i].Floor = Data[i].Floor;
+
+			Sca->Add(Temp);
+
+			Sca->GetHeader()->nData = static_cast<std::uint32_t>(Sca->Count()) + 1;
+		}
 	}
 
 	return true;
@@ -853,13 +889,10 @@ const bool Resident_Evil_Room::ReadSCA(StdFile& File)
 
 const bool Resident_Evil_Room::ReadBLK(StdFile& File)
 {
-	if (!File.IsOpen())
+	if (!File.IsOpen() || !File.Open(File.GetPath(), FileAccessMode::Read, true, false))
 	{
-		if (!File.Open(File.GetPath(), FileAccessMode::Read, true, false))
-		{
-			Str.Message(L"Resident Evil RDT Error: could not read BLK in \"%ws\"", File.GetPath().filename().wstring().c_str());
-			return false;
-		}
+		Str.Message(L"Resident Evil RDT Error: could not read BLK in \"%ws\"", File.GetPath().filename().wstring().c_str());
+		return false;
 	}
 
 	if (!IsValidPointer(File, Header().pBlock)) { return true; }
@@ -890,13 +923,10 @@ const bool Resident_Evil_Room::ReadBLK(StdFile& File)
 
 const bool Resident_Evil_Room::ReadFLR(StdFile& File)
 {
-	if (!File.IsOpen())
+	if (!File.IsOpen() || !File.Open(File.GetPath(), FileAccessMode::Read, true, false))
 	{
-		if (!File.Open(File.GetPath(), FileAccessMode::Read, true, false))
-		{
-			Str.Message(L"Resident Evil RDT Error: could not read FLR in \"%ws\"", File.GetPath().filename().wstring().c_str());
-			return false;
-		}
+		Str.Message(L"Resident Evil RDT Error: could not read FLR in \"%ws\"", File.GetPath().filename().wstring().c_str());
+		return false;
 	}
 
 	if (!IsValidPointer(File, Header().pFloor)) { return true; }
@@ -935,13 +965,10 @@ const bool Resident_Evil_Room::ReadFLR(StdFile& File)
 
 const bool Resident_Evil_Room::ReadOTA(StdFile& File)
 {
-	if (!File.IsOpen())
+	if (!File.IsOpen() || !File.Open(File.GetPath(), FileAccessMode::Read, true, false))
 	{
-		if (!File.Open(File.GetPath(), FileAccessMode::Read, true, false))
-		{
-			Str.Message(L"Resident Evil RDT Error: could not read OTA in \"%ws\"", File.GetPath().filename().wstring().c_str());
-			return false;
-		}
+		Str.Message(L"Resident Evil RDT Error: could not read OTA in \"%ws\"", File.GetPath().filename().wstring().c_str());
+		return false;
 	}
 
 	if (!IsValidPointer(File, Header().pOta)) { return true; }
@@ -955,13 +982,10 @@ const bool Resident_Evil_Room::ReadOTA(StdFile& File)
 
 const bool Resident_Evil_Room::ReadSCD(StdFile& File)
 {
-	if (!File.IsOpen())
+	if (!File.IsOpen() || !File.Open(File.GetPath(), FileAccessMode::Read, true, false))
 	{
-		if (!File.Open(File.GetPath(), FileAccessMode::Read, true, false))
-		{
-			Str.Message(L"Resident Evil RDT Error: could not read SCD in \"%ws\"", File.GetPath().filename().wstring().c_str());
-			return false;
-		}
+		Str.Message(L"Resident Evil RDT Error: could not read SCD in \"%ws\"", File.GetPath().filename().wstring().c_str());
+		return false;
 	}
 
 	auto ReadBio1 = [&](const std::uintmax_t pIndex, std::vector<std::vector<std::uint8_t>>& Out) -> void
@@ -1126,13 +1150,10 @@ const bool Resident_Evil_Room::ReadSCD(StdFile& File)
 
 const bool Resident_Evil_Room::ReadMSG(StdFile& File)
 {
-	if (!File.IsOpen())
+	if (!File.IsOpen() || !File.Open(File.GetPath(), FileAccessMode::Read, true, false))
 	{
-		if (!File.Open(File.GetPath(), FileAccessMode::Read, true, false))
-		{
-			Str.Message(L"Resident Evil RDT Error: could not read MSG in \"%ws\"", File.GetPath().filename().wstring().c_str());
-			return false;
-		}
+		Str.Message(L"Resident Evil RDT Error: could not read MSG in \"%ws\"", File.GetPath().filename().wstring().c_str());
+		return false;
 	}
 
 	auto Read = [&](const std::uintmax_t pIndex, Room_Pointer_Type Start, std::vector<std::vector<std::uint8_t>>& Out) -> void
@@ -1207,13 +1228,10 @@ const bool Resident_Evil_Room::ReadMSG(StdFile& File)
 
 const bool Resident_Evil_Room::ReadIPIX(StdFile& File)
 {
-	if (!File.IsOpen())
+	if (!File.IsOpen() || !File.Open(File.GetPath(), FileAccessMode::Read, true, false))
 	{
-		if (!File.Open(File.GetPath(), FileAccessMode::Read, true, false))
-		{
-			Str.Message(L"Resident Evil RDT Error: could not read item pix textures in \"%ws\"", File.GetPath().filename().wstring().c_str());
-			return false;
-		}
+		Str.Message(L"Resident Evil RDT Error: could not read item pix textures in \"%ws\"", File.GetPath().filename().wstring().c_str());
+		return false;
 	}
 
 	if (!IsValidPointer(File, Header().pItemPix)) { return true; }
@@ -1245,13 +1263,10 @@ const bool Resident_Evil_Room::ReadIPIX(StdFile& File)
 
 const bool Resident_Evil_Room::ReadSCRL(StdFile& File)
 {
-	if (!File.IsOpen())
+	if (!File.IsOpen() || !File.Open(File.GetPath(), FileAccessMode::Read, true, false))
 	{
-		if (!File.Open(File.GetPath(), FileAccessMode::Read, true, false))
-		{
-			Str.Message(L"Resident Evil RDT Error: could not read camera scroll in \"%ws\"", File.GetPath().filename().wstring().c_str());
-			return false;
-		}
+		Str.Message(L"Resident Evil RDT Error: could not read camera scroll in \"%ws\"", File.GetPath().filename().wstring().c_str());
+		return false;
 	}
 
 	if (!IsValidPointer(File, Header().pScrl)) { return true; }
@@ -1270,13 +1285,10 @@ const bool Resident_Evil_Room::ReadSCRL(StdFile& File)
 
 const bool Resident_Evil_Room::ReadModelItem(StdFile& File)
 {
-	if (!File.IsOpen())
+	if (!File.IsOpen() || !File.Open(File.GetPath(), FileAccessMode::Read, true, false))
 	{
-		if (!File.Open(File.GetPath(), FileAccessMode::Read, true, false))
-		{
-			Str.Message(L"Resident Evil RDT Error: could not read item model in \"%ws\"", File.GetPath().filename().wstring().c_str());
-			return false;
-		}
+		Str.Message(L"Resident Evil RDT Error: could not read item model in \"%ws\"", File.GetPath().filename().wstring().c_str());
+		return false;
 	}
 
 	if (!IsValidPointer(File, Header().pImodel)) { return true; }
@@ -1336,13 +1348,10 @@ const bool Resident_Evil_Room::ReadModelItem(StdFile& File)
 
 const bool Resident_Evil_Room::ReadModelObject(StdFile& File)
 {
-	if (!File.IsOpen())
+	if (!File.IsOpen() || !File.Open(File.GetPath(), FileAccessMode::Read, true, false))
 	{
-		if (!File.Open(File.GetPath(), FileAccessMode::Read, true, false))
-		{
-			Str.Message(L"Resident Evil RDT Error: could not read object model in \"%ws\"", File.GetPath().filename().wstring().c_str());
-			return false;
-		}
+		Str.Message(L"Resident Evil RDT Error: could not read object model in \"%ws\"", File.GetPath().filename().wstring().c_str());
+		return false;
 	}
 
 	if (!IsValidPointer(File, Header().pOmodel)) { return true; }
@@ -1391,7 +1400,14 @@ const bool Resident_Evil_Room::ReadModelObject(StdFile& File)
 
 		if (IsValidPointer(File, Link[i].pModel))
 		{
-			Object[i]->Open(File, Link[i].pModel);
+			if (GameType() & (BIO3))
+			{
+				Object[i]->Open(File, static_cast<std::uintmax_t>(Link[i].pModel + 0x18));	// TODO: add proper MD2 header support
+			}
+			else
+			{
+				Object[i]->Open(File, Link[i].pModel);
+			}
 		}
 	}
 
@@ -1400,34 +1416,25 @@ const bool Resident_Evil_Room::ReadModelObject(StdFile& File)
 
 const bool Resident_Evil_Room::ReadESP(StdFile& File)
 {
-	if (!File.IsOpen())
+	if (!File.IsOpen() || !File.Open(File.GetPath(), FileAccessMode::Read, true, false))
 	{
-		if (!File.Open(File.GetPath(), FileAccessMode::Read, true, false))
-		{
-			Str.Message(L"Resident Evil RDT Error: could not read ESP in \"%ws\"", File.GetPath().filename().wstring().c_str());
-			return false;
-		}
+		Str.Message(L"Resident Evil RDT Error: could not read ESP in \"%ws\"", File.GetPath().filename().wstring().c_str());
+		return false;
 	}
 
 	if (!IsValidPointer(File, Header().pEsp_hed)) { return true; }
 
-	if (GameType() & (BIO2TRIAL | BIO2))
-	{
-		Esp->Open(File, 8, Header().pEsp_hed, Header().pEsp_end, Header().pEsp_tim, Header().pEsp_tim_end);
-	}
+	Esp->Open(File, EFF_IDX_MAX, Header().pEsp_hed, Header().pEsp_end, Header().pEsp_tim, Header().pEsp_tim_end);
 
 	return true;
 }
 
 const bool Resident_Evil_Room::ReadRBJ(StdFile& File)
 {
-	if (!File.IsOpen())
+	if (!File.IsOpen() || !File.Open(File.GetPath(), FileAccessMode::Read, true, false))
 	{
-		if (!File.Open(File.GetPath(), FileAccessMode::Read, true, false))
-		{
-			Str.Message(L"Resident Evil RDT Error: could not read RBJ in \"%ws\"", File.GetPath().filename().wstring().c_str());
-			return false;
-		}
+		Str.Message(L"Resident Evil RDT Error: could not read RBJ in \"%ws\"", File.GetPath().filename().wstring().c_str());
+		return false;
 	}
 
 	if (GameType() & AUG95) { Rbj->SetGame(Video_Game::Resident_Evil_Aug_4_1995); }
@@ -1468,13 +1475,10 @@ const bool Resident_Evil_Room::ReadRBJ(StdFile& File)
 
 const bool Resident_Evil_Room::ReadEDT(StdFile& File)
 {
-	if (!File.IsOpen())
+	if (!File.IsOpen() || !File.Open(File.GetPath(), FileAccessMode::Read, true, false))
 	{
-		if (!File.Open(File.GetPath(), FileAccessMode::Read, true, false))
-		{
-			Str.Message(L"Resident Evil RDT Error: could not read EDT in \"%ws\"", File.GetPath().filename().wstring().c_str());
-			return false;
-		}
+		Str.Message(L"Resident Evil RDT Error: could not read EDT in \"%ws\"", File.GetPath().filename().wstring().c_str());
+		return false;
 	}
 
 	if (GameType() & (AUG95 | OCT95 | BIO1))
@@ -1505,20 +1509,23 @@ const bool Resident_Evil_Room::ReadEDT(StdFile& File)
 
 const bool Resident_Evil_Room::ReadVAB(StdFile& File)
 {
-	if (!File.IsOpen())
+	if (!File.IsOpen() || !File.Open(File.GetPath(), FileAccessMode::Read, true, false))
 	{
-		if (!File.Open(File.GetPath(), FileAccessMode::Read, true, false))
-		{
-			Str.Message(L"Resident Evil RDT Error: could not read VAB in \"%ws\"", File.GetPath().filename().wstring().c_str());
-			return false;
-		}
+		Str.Message(L"Resident Evil RDT Error: could not read VAB in \"%ws\"", File.GetPath().filename().wstring().c_str());
+		return false;
 	}
 
-	if (IsValidPointer(File, Header().pVh0)) { Vab0->OpenVH(File, Header().pVh0); }
-	if (IsValidPointer(File, Header().pVb0)) { Vab0->OpenVB(File, Header().pVb0); }
+	if (GameType() & (BIO3))
+	{
+	}
+	else
+	{
+		if (IsValidPointer(File, Header().pVh0)) { Vab0->OpenVH(File, Header().pVh0); }
+		if (IsValidPointer(File, Header().pVb0)) { Vab0->OpenVB(File, Header().pVb0); }
 
-	if (IsValidPointer(File, Header().pVh1)) { Vab1->OpenVH(File, Header().pVh1); }
-	if (IsValidPointer(File, Header().pVb1)) { Vab1->OpenVB(File, Header().pVb1); }
+		if (IsValidPointer(File, Header().pVh1)) { Vab1->OpenVH(File, Header().pVh1); }
+		if (IsValidPointer(File, Header().pVb1)) { Vab1->OpenVB(File, Header().pVb1); }
+	}
 
 	return true;
 }
@@ -2848,9 +2855,9 @@ const bool Resident_Evil_Room::Open(std::filesystem::path Path)
 
 	if (!ReadSCRL(m_File)) { return false; }
 
-	if (!ReadModelObject(m_File)) { return false; }
-
 	if (!ReadModelItem(m_File)) { return false; }
+
+	if (!ReadModelObject(m_File)) { return false; }
 
 	if (!ReadESP(m_File)) { return false; }
 
@@ -3033,15 +3040,31 @@ void Resident_Evil_Room::SetEditor(Room_Editor_Type Type)
 		for (size_t i = 0; i < Item.size(); i++) { Item[i]->b_EditorMode = true; }
 		for (size_t i = 0; i < Object.size(); i++) { Object[i]->b_EditorMode = true; }
 	}
+
+	if (Type == Room_Editor_Type::ESP)
+	{
+		b_EditEffect = true;
+		Esp->iTime.store(0);
+		Esp->iSSeq.fetch_add(1);
+		Esp->m_FrameCounter = 0;
+	}
 }
 
 void Resident_Evil_Room::ResetEditor(void)
 {
 	b_EditModel = false;
+	b_EditEffect = false;
 
 	b_EditorItem = b_EditorObject = false;
 	iItem = iItemMin = iItemMax = 0;
 	iObject = iObjectMin = iObjectMax = 0;
+
+	iEffect = iEffectMin = iEffectMax = 0;
+	iEffectGp = iEffectGpMin = iEffectGpMax = 0;
+	iEffectSSeq = iEffectSSeqMin = iEffectSSeqMax = 0;
+	iEffectMSeq = iEffectMSeqMin = iEffectMSeqMax = 0;
+	iEffectMSeqID = iEffectMSeqIDMin = iEffectMSeqIDMax = 0;
+	iEffectClutID = iEffectClutIDMin = iEffectClutIDMax = 0;
 
 	for (size_t i = 0; i < Item.size(); i++) { Item[i]->b_EditorMode = false; }
 	for (size_t i = 0; i < Object.size(); i++) { Object[i]->b_EditorMode = false; }

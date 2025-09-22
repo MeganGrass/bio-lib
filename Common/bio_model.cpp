@@ -699,7 +699,10 @@ bool Resident_Evil_Model::OpenWeapon(std::filesystem::path Path, std::uintmax_t 
 	if (iWeaponID != m_WeaponID) { b_WeaponChange = true; }
 	else { b_WeaponChange = false; }
 
-	b_DrawWeapon = true;
+	if (Animation(WEAPON)->IsOpen())
+	{
+		b_DrawWeapon = true;
+	}
 
 	return true;
 }
@@ -806,16 +809,16 @@ void Resident_Evil_Model::SetShadow(size_t PaletteID, std::uint16_t X, std::uint
 		return x + 1;
 		};
 
-	float TextureWidth = (float)NextPowerOfTwo((int32_t)m_DX9Model->TextureWidth);
-	float TextureHeight = (float)NextPowerOfTwo((int32_t)m_DX9Model->TextureHeight);
+	float TextureWidth = static_cast<float>(NextPowerOfTwo((int32_t)m_DX9Model->TextureWidth));
+	float TextureHeight = static_cast<float>(NextPowerOfTwo((int32_t)m_DX9Model->TextureHeight));
 
-	m_Shadow.Rect.l = (float)X;
-	m_Shadow.Rect.t = (float)Y;
-	m_Shadow.Rect.r = (float)X + (float)Width;
-	m_Shadow.Rect.b = (float)Y + (float)Height;
+	m_Shadow.Rect.l = static_cast<float>(X);
+	m_Shadow.Rect.t = static_cast<float>(Y);
+	m_Shadow.Rect.r = static_cast<float>(X) + static_cast<float>(Width);
+	m_Shadow.Rect.b = static_cast<float>(Y) + static_cast<float>(Height);
 
-	m_Shadow.Size.w = (float)Width;
-	m_Shadow.Size.h = (float)Height;
+	m_Shadow.Size.w = static_cast<float>(Width);
+	m_Shadow.Size.h = static_cast<float>(Height);
 
 #ifdef MSTD_DX9
 	float TexelOffsetU = 0.5f / TextureWidth;
@@ -858,11 +861,17 @@ void Resident_Evil_Model::CloseModel(void)
 
 	m_ModelGame = Video_Game::None;
 
+	m_AnimationIndex.store(NORMAL);
+
+	ResetClip();
+
 	m_PlayerID = 0;
 	m_EnemyID = 0;
 	m_DiskID = 0;
 
 	b_DrawWeapon = false;
+
+	b_ControllerMode = false;
 
 	iObject = 0;
 	iObjectMin = 0;
@@ -885,7 +894,8 @@ void Resident_Evil_Model::CloseModel(void)
 	for (auto& Animation : m_Animations)
 	{
 		if (Animation->GetType() == AnimationIndex::Room) { continue; }
-		Animation->Close(); }
+		Animation->Close();
+	}
 
 	m_Model->IgnoreMagic(true);
 
@@ -900,9 +910,15 @@ void Resident_Evil_Model::CloseWeapon(void)
 
 	m_WeaponModelGame = Video_Game::None;
 
+	m_AnimationIndex.store(NORMAL);
+
+	ResetClip();
+
 	m_WeaponID = 0;
 
 	b_DrawWeapon = false;
+	b_WeaponChange = false;
+	b_WeaponKickbackComplete.store(true);
 
 	b_ControllerMode = false;
 
@@ -935,9 +951,10 @@ void Resident_Evil_Model::CloseRoom(void)
 
 void Resident_Evil_Model::DrawFrame(std::shared_ptr<Resident_Evil_Animation> Animation, size_t iClip, size_t iFrame, bool b_DrawRoot)
 {
-	const auto& Origin = Animation->Clip[iClip][iFrame].Origin;
-	const auto& Speed = Animation->Clip[iClip][iFrame].Speed;
-	const auto& Rotations = Animation->Clip[iClip][iFrame].Rotation;
+	const auto& m_Frame = Animation->Clip[iClip][iFrame];
+	const auto& Origin = m_Frame.Origin;
+	const auto& Speed = m_Frame.Speed;
+	const auto& Rotations = m_Frame.Rotation;
 
 	vec3 Vector;
 	std::vector<vec3c> SkeletonSegments;
@@ -1092,7 +1109,6 @@ void Resident_Evil_Model::DrawFrame(std::shared_ptr<Resident_Evil_Animation> Ani
 #endif
 	m_BoneWorld.clear();
 	m_BoneWorld.resize(Rotations.size());
-	m_BoneWorld.shrink_to_fit();
 
 	b_Drawing.store(true);
 	DrawKeyframe(Animation->Skeleton, *World);
@@ -1209,6 +1225,8 @@ void Resident_Evil_Model::Draw(void)
 		{
 			Index = NORMAL;
 			b_DrawRoot = true;
+			ResetClip();
+			b_Play.store(false);
 		}
 		else
 		{
@@ -1216,20 +1234,19 @@ void Resident_Evil_Model::Draw(void)
 		}
 	}
 
-	iClip.store(min(iClip.load(), Animation(Index)->GetClipCount() - 1));
-
-	iFrame.store(min(iFrame.load(), Animation(Index)->GetFrameCount(iClip.load()) - 1));
-
 	DrawFrame(Animation(Index), iClip.load(), iFrame.load(), b_DrawRoot);
 
 	if (!b_Play.load()) { return; }
+
+	const size_t m_FrameCount = Animation(Index)->GetFrameCount(iClip.load());
+	const size_t iFrameMax = m_FrameCount ? m_FrameCount - 1 : 0;
 
 	if (m_FrameCounter % 2 == 0)
 	{
 		if (b_PlayInReverse.load())
 		{
 			iFrame.fetch_sub(1);
-			if (iFrame.load() >= Animation(Index)->GetFrameCount(iClip.load())) { iFrame.store(0); }
+			if (iFrame.load() >= m_FrameCount) { iFrame.store(0); }
 		}
 		else
 		{
@@ -1238,9 +1255,8 @@ void Resident_Evil_Model::Draw(void)
 	}
 	m_FrameCounter++;
 
-	const auto m_FrameCount = Animation(Index)->GetFrameCount(iClip.load());
-	const auto b_FirstFrame = (iFrame.load() == 0);
-	const auto b_LastFrame = (iFrame.load() >= m_FrameCount);
+	const bool b_FirstFrame = (iFrame.load() == 0);
+	const bool b_LastFrame = (iFrame.load() >= m_FrameCount);
 
 	if (b_PlayAllFrames.load())
 	{
@@ -1248,7 +1264,8 @@ void Resident_Evil_Model::Draw(void)
 		{
 			b_PlayAllFrames.store(false);
 			b_PlayInReverse.store(false);
-			m_FrameCounter = 0;
+			ResetFrameCounter(1);
+			if (b_LastFrame) { iFrame.store(iFrameMax); }
 		}
 	}
 
@@ -1256,13 +1273,15 @@ void Resident_Evil_Model::Draw(void)
 	{
 		if (!b_PlayInReverse.load())
 		{
-			if (b_LastFrame) { iFrame.store(0); m_FrameCounter = 0; }
+			if (b_LastFrame) { iFrame.store(0); ResetFrameCounter(1); }
 		}
 		else
 		{
-			if (b_FirstFrame) { iFrame.store(m_FrameCount - 1); m_FrameCounter = 0; }
+			if (b_FirstFrame) { iFrame.store(iFrameMax); ResetFrameCounter(1); }
 		}
 	}
+
+	else if (b_LastFrame) { iFrame.store(iFrameMax); ResetFrameCounter(1); }
 }
 
 void Resident_Evil_Model::DrawShadow(void)

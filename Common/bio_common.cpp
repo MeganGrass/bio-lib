@@ -36,12 +36,12 @@ String Resident_Evil_Common::GameStr(void)
 
 void Resident_Evil_Common::GetStageRoom(std::string Str) try
 {
-	if (Str.size() >= 6 || (Str.size() == 11))
+	if (Str.size() == 11 || (Str.size() == 12))	// BIO1, BIO2
 	{
 		m_Stage = std::stoi(Str.substr(4, 1), nullptr, 16);
 		m_Room = std::stoi(Str.substr(5, 2), nullptr, 16);
 	}
-	else if(Str.size() >= 4)
+	else if(Str.size() == 8)	// BIO3
 	{
 		m_Stage = std::stoi(Str.substr(1, 1), nullptr, 16);
 		m_Room = std::stoi(Str.substr(2, 2), nullptr, 16);
@@ -54,7 +54,7 @@ void Resident_Evil_Common::GetStageRoom(std::string Str) try
 		return;
 	}
 
-	if (Str.size() >= 8)
+	if (Str.size() == 12)
 	{
 		m_Disk = std::stoi(Str.substr(7, 1), nullptr, 16);
 	}

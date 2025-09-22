@@ -76,6 +76,16 @@ template <typename StateType>
 class StateMachine {
 public:
 
+	bool b_IdleTurn;
+	bool b_QuickTurn;
+	bool b_Reloading;
+	bool b_AimBegin;
+	bool b_Aiming;
+	bool b_Firing;
+	bool b_FireBegin;
+	bool b_FireEnd;
+	bool b_Alive;
+
 	using StateAction = std::function<void()>;
 
 	using StateKey = StateType;
@@ -84,6 +94,15 @@ public:
 	{
 		m_Model = Model;
 		m_KeyState.store(Resident_Evil_Key::NONE);
+		b_IdleTurn = false;
+		b_QuickTurn = false;
+		b_Reloading = false;
+		b_AimBegin = false;
+		b_Aiming = false;
+		b_Firing = false;
+		b_FireBegin = false;
+		b_FireEnd = false;
+		b_Alive = false;
 	}
 
 	void Add(StateType iState, StateAction OnEnter, StateAction OnUpdate, StateAction OnExit)
@@ -107,6 +126,16 @@ public:
 
 			m_CurrentState = iState;
 
+			b_IdleTurn = (m_CurrentState.GetName() == "Idle_Turn");
+			b_QuickTurn = (m_CurrentState.GetName() == "Quick_Turn");
+			b_Reloading = (m_CurrentState.GetName() == "Reload" || m_CurrentState.GetName() == "Quick_Reload");
+			b_AimBegin = (m_CurrentState.GetName() == "Aim_Begin" || m_CurrentState.GetName() == "Aim_Upward_Begin" || m_CurrentState.GetName() == "Aim_Downward_Begin");
+			b_Aiming = (m_CurrentState.GetName() == "Aim" || m_CurrentState.GetName() == "Aim_Upward" || m_CurrentState.GetName() == "Aim_Downward");
+			b_Firing = (m_CurrentState.GetName() == "Fire" || m_CurrentState.GetName() == "Fire_Upward" || m_CurrentState.GetName() == "Fire_Downward");
+			b_FireBegin = (m_CurrentState.GetName() == "Fire_Begin" || m_CurrentState.GetName() == "Fire_Upward_Begin" || m_CurrentState.GetName() == "Fire_Downward_Begin");
+			b_FireEnd = (m_CurrentState.GetName() == "Fire_End" || m_CurrentState.GetName() == "Fire_Upward_End" || m_CurrentState.GetName() == "Fire_Downward_End");
+			b_Alive = (m_CurrentState.GetName() != "Death");
+
 			if (m_State.find(m_CurrentState) != m_State.end())
 			{
 				m_State[m_CurrentState].OnEnter();
@@ -116,25 +145,22 @@ public:
 
 	void Init(StateType iState, std::size_t iFrame, bool b_PlayAllFrames, bool b_PlayInReverse, bool b_Loop)
 	{
-		if (m_PriorState != m_CurrentState)
-		{
-			Model()->Speed() = { 0, 0, 0 };
-		}
+		m_Model->ResetFrameCounter();
 
-		Model()->SetAnimIndex(iState.GetIndex());
+		m_Model->SetAnimIndex(iState.GetIndex());
 
-		Model()->iClip.store(iState.GetClip());
+		m_Model->SetClip(iState.GetClip());
 
-		Model()->iFrame.store(iFrame);
+		m_Model->SetFrame(iFrame);
 
-		Model()->b_PlayAllFrames.store(b_PlayAllFrames);
+		m_Model->b_PlayAllFrames.store(b_PlayAllFrames);
 
-		Model()->b_PlayInReverse.store(b_PlayInReverse);
+		m_Model->b_PlayInReverse.store(b_PlayInReverse);
 
-		Model()->b_Loop.store(b_Loop);
+		m_Model->b_Loop.store(b_Loop);
 	}
 
-	void Update(Resident_Evil_Key iKeyState, bool b_UpdateTransform)
+	void Update(Resident_Evil_Key iKeyState)
 	{
 		m_KeyState.store(iKeyState);
 
@@ -142,31 +168,25 @@ public:
 		{
 			m_State[m_CurrentState].OnUpdate();
 
-			if (b_UpdateTransform)
+			if (m_KeyState == Resident_Evil_Key::NONE || m_Model->b_EditorMode || b_IdleTurn || b_AimBegin || b_Aiming || b_FireBegin || b_FireEnd || b_QuickTurn || b_Reloading)
 			{
-				auto& Animation = Model()->Animation(Model()->AnimIndex());
-
-				auto iClip = min(Model()->iClip.load(), Animation->GetClipCount() - 1);
-
-				auto iFrame = min(Model()->iFrame.load(), Animation->GetFrameCount(iClip) - 1);
-
-				if (Animation->Clip.empty())
-				{
-					return;
-				}
-
-				auto& Frame = Animation->Clip[iClip][iFrame];
-
-				if (!iFrame) { Model()->Speed() = { 0, 0, 0 }; }
-
-				SVECTOR2 Delta{ (Frame.Speed.x - Model()->Speed().x), (Frame.Speed.y - Model()->Speed().y), (Frame.Speed.z - Model()->Speed().z) };
-
-				Model()->Speed() = { Frame.Speed.x, Frame.Speed.y, Frame.Speed.z };
-
-				Model()->AddSpeedXZ((SVECTOR*)&Delta);
-
-				Model()->ClampPosition(Model()->Position());
+				return;
 			}
+
+			if (b_Firing && (!m_Model->b_WeaponKickback.load() || m_Model->b_WeaponKickbackComplete.load()))
+			{
+				return;
+			}
+
+			auto& Frame = m_Model->Frame();
+
+			SVECTOR2 Delta{ (Frame.Speed.x - m_Model->Speed().x), (Frame.Speed.y - m_Model->Speed().y), (Frame.Speed.z - m_Model->Speed().z) };
+
+			m_Model->Speed() = { Frame.Speed.x, Frame.Speed.y, Frame.Speed.z };
+
+			m_Model->AddSpeedXZ((SVECTOR*)&Delta);
+
+			m_Model->ClampPosition(m_Model->Position());
 		}
 	}
 

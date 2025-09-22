@@ -29,7 +29,7 @@ enum class AnimStatePlayerBio2Nov96 : std::size_t
 	Knock_Forward_End,
 	Push_Begin,
 	Push,
-	Step_Forward,
+	Stairs_Begin,
 	Stairs_Ascend,
 	Stairs_Descend,
 	Idle_Caution,

@@ -147,9 +147,6 @@ private:
 	// Filename
 	std::filesystem::path m_Filename, m_WeaponFilename;
 
-	// Matrix
-	std::shared_ptr<Standard_Matrix> World;
-
 	// Model Type
 	ModelType m_ModelType;
 
@@ -159,32 +156,35 @@ private:
 	// Weapon Model Game Type
 	Video_Game m_WeaponModelGame;
 
-	// Interactive/Collision Size Vector
-	SIZEVECTOR m_Hitbox;
-
-	// Transformation
-	VECTOR2 m_Position, m_Rotation, m_Scale, m_EditorPosition, m_EditorRotation, m_EditorScale;
-
-	// Texture
-	std::unique_ptr<Sony_PlayStation_Texture> m_Texture, m_WeaponTexture;
-
-	// Model
-	std::unique_ptr<Sony_PlayStation_Model> m_Model, m_WeaponModel;
-
-	// Binary Chunk
-	std::vector<std::uint8_t> m_Binary00, m_Binary01, m_WeaponBinary;
-
 	// Animation Data
 	std::array<std::shared_ptr<Resident_Evil_Animation>, std::to_underlying(AnimationIndex::Count)> m_Animations;
 
 	// Animation Index ID
 	std::atomic<AnimationIndex> m_AnimationIndex;
 
+	// Matrix
+	std::shared_ptr<Standard_Matrix> World;
+
+	// Transformation
+	VECTOR2 m_Position, m_Rotation, m_Scale, m_EditorPosition, m_EditorRotation, m_EditorScale;
+
+	// Interactive/Collision Size Vector
+	SIZEVECTOR m_Hitbox;
+
 	// Previous Offset
 	SVECTOR2 m_Speed;
 
+	// Model
+	std::unique_ptr<Sony_PlayStation_Model> m_Model, m_WeaponModel;
+
+	// Texture
+	std::unique_ptr<Sony_PlayStation_Texture> m_Texture, m_WeaponTexture;
+
 	// Shadow
 	SHADOW m_Shadow;
+
+	// Binary Chunk
+	std::vector<std::uint8_t> m_Binary00, m_Binary01, m_WeaponBinary;
 
 	// Frame Counter
 	std::size_t m_FrameCounter;
@@ -255,6 +255,9 @@ private:
 #endif
 
 public:
+
+	using Resident_Evil_Common::GameType;
+
 	explicit Resident_Evil_Model(void) :
 		World(std::make_shared<Standard_Matrix>()),
 		m_Texture(std::make_unique<Sony_PlayStation_Texture>()),
@@ -302,6 +305,7 @@ public:
 		b_DrawWeapon(false),
 		b_DrawShadow(true),
 		b_Bio1Enemy(false),
+		b_IsAlive(true),
 		b_WeaponChange(false),
 		iHealth(200), iHealthMin(0), iHealthMax(200),
 		iObject(0), iObjectMin(0), iObjectMax(0),
@@ -350,8 +354,6 @@ public:
 
 	~Resident_Evil_Model(void) = default;
 
-	using Resident_Evil_Common::GameType;
-
 	// Sony PlayStation (1994) Geometry Transformation Engine
 	std::shared_ptr<Sony_PlayStation_GTE> GTE;
 
@@ -367,10 +369,10 @@ public:
 	std::unique_ptr<DX9_MODEL> ExportDX9(std::unique_ptr<FIXED_MODEL>& Model, std::unique_ptr<Sony_PlayStation_Texture>& Texture) const;
 
 	// Direct-X 9 Model
-	std::unique_ptr<DX9_MODEL>& ModelDX9(void) noexcept { return m_DX9Model; }
+	[[nodiscard]] auto& ModelDX9(void) noexcept { return m_DX9Model; }
 
 	// Direct-X 9 Weapon Model
-	std::unique_ptr<DX9_MODEL>& WeaponModelDX9(void) noexcept { return m_DX9WeaponModel; }
+	[[nodiscard]] auto& WeaponModelDX9(void) noexcept { return m_DX9WeaponModel; }
 
 #endif
 
@@ -382,6 +384,12 @@ public:
 
 	// Gamepad Routine
 	std::function<void()> Controller;
+
+	// Animation clip index
+	std::atomic<std::size_t> iClip;
+
+	// Animation keyframe index
+	std::atomic<std::size_t> iFrame;
 
 	// Will the model be drawn?
 	std::atomic<bool> b_Active;
@@ -532,11 +540,8 @@ public:
 	// Is Bio1 EMD file enemy type?
 	bool b_Bio1Enemy;
 
-	// Animation clip index
-	std::atomic<std::size_t> iClip;
-
-	// Animation keyframe index
-	std::atomic<std::size_t> iFrame;
+	// Is the character alive?
+	bool b_IsAlive;
 
 	// Health Power
 	std::int32_t iHealth, iHealthMin, iHealthMax;
@@ -587,79 +592,117 @@ public:
 #endif
 
 	// Filename
-	std::filesystem::path& Filename(void) noexcept { return m_Filename; }
+	[[nodiscard]] const auto& Filename(void) const noexcept { return m_Filename; }
 
 	// Weapon Filename
-	std::filesystem::path& WeaponFilename(void) noexcept { return m_WeaponFilename; }
-
-	// Position
-	VECTOR2& Position(void) noexcept { return m_Position; }
-
-	// Rotation
-	VECTOR2& Rotation(void) noexcept { return m_Rotation; }
-
-	// Scale
-	VECTOR2& Scale(void) noexcept { return m_Scale; }
-
-	// Editor Position
-	VECTOR2& EditorPosition(void) noexcept { return m_EditorPosition; }
-
-	// Editor Rotation
-	VECTOR2& EditorRotation(void) noexcept { return m_EditorRotation; }
-
-	// Editor Scale
-	VECTOR2& EditorScale(void) noexcept { return m_EditorScale; }
-
-	// Interactive/Collision Size Vector
-	SIZEVECTOR& Hitbox(void) noexcept { return m_Hitbox; }
-
-	// Interactive/Collision Shape Vector
-	SHAPEVECTOR HitboxShape(void) noexcept;
-
-	// Shadow
-	SHADOW& Shadow(void) noexcept { return m_Shadow; }
-
-	// Model
-	std::unique_ptr<Sony_PlayStation_Model>& Model(void) noexcept { return m_Model; }
-
-	// Weapon Model
-	std::unique_ptr<Sony_PlayStation_Model>& WeaponModel(void) noexcept { return m_WeaponModel; }
-
-	// Texture
-	std::unique_ptr<Sony_PlayStation_Texture>& Texture(void) noexcept { return m_Texture; }
-
-	// Weapon Texture
-	std::unique_ptr<Sony_PlayStation_Texture>& WeaponTexture(void) noexcept { return m_WeaponTexture; }
-
-	// Animation Data
-	std::shared_ptr<Resident_Evil_Animation>& Animation(AnimationIndex Type) noexcept { return m_Animations[std::to_underlying(Type)]; }
-
-	// Get Animation Index
-	AnimationIndex AnimIndex(void) noexcept { return m_AnimationIndex.load(); }
-
-	// Set Animation Index
-	void SetAnimIndex(AnimationIndex Index) noexcept { m_AnimationIndex.store(Index); }
+	[[nodiscard]] const auto& WeaponFilename(void) const noexcept { return m_WeaponFilename; }
 
 	// Model Type
-	ModelType& ModelType(void) noexcept { return m_ModelType; }
+	[[nodiscard]] const auto& ModelType(void) const noexcept { return m_ModelType; }
 
 	// Model Game Type
-	const std::uint32_t ModelGame(void) const noexcept { return std::to_underlying(m_ModelGame); }
+	[[nodiscard]] const auto Game(void) const noexcept { return std::to_underlying(m_ModelGame); }
 
 	// Weapon Model Game Type
-	const std::uint32_t WeaponModelGame(void) const noexcept { return std::to_underlying(m_WeaponModelGame); }
+	[[nodiscard]] const auto WeaponGame(void) const noexcept { return std::to_underlying(m_WeaponModelGame); }
 
-	// Reset clip
-	void ResetClip(void) { iClip.store(0); iFrame.store(0); }
+	// Position
+	[[nodiscard]] auto& Position(void) noexcept { return m_Position; }
+
+	// Rotation
+	[[nodiscard]] auto& Rotation(void) noexcept { return m_Rotation; }
+
+	// Scale
+	[[nodiscard]] auto& Scale(void) noexcept { return m_Scale; }
+
+	// Editor Position
+	[[nodiscard]] auto& EditorPosition(void) noexcept { return m_EditorPosition; }
+
+	// Editor Rotation
+	[[nodiscard]] auto& EditorRotation(void) noexcept { return m_EditorRotation; }
+
+	// Editor Scale
+	[[nodiscard]] auto& EditorScale(void) noexcept { return m_EditorScale; }
+
+	// Interactive/Collision Size Vector
+	[[nodiscard]] auto& Hitbox(void) noexcept { return m_Hitbox; }
+
+	// Interactive/Collision Shape Vector
+	[[nodiscard]] SHAPEVECTOR HitboxShape(void) noexcept;
+
+	// Shadow
+	[[nodiscard]] auto& Shadow(void) noexcept { return m_Shadow; }
+
+	// Model
+	[[nodiscard]] auto& Model(void) noexcept { return m_Model; }
+
+	// Weapon Model
+	[[nodiscard]] auto& WeaponModel(void) noexcept { return m_WeaponModel; }
+
+	// Texture
+	[[nodiscard]] auto& Texture(void) noexcept { return m_Texture; }
+
+	// Weapon Texture
+	[[nodiscard]] auto& WeaponTexture(void) noexcept { return m_WeaponTexture; }
+
+	// Get Current Animation
+	[[nodiscard]] auto& Animation(AnimationIndex Type) noexcept { return m_Animations[std::to_underlying(Type)]; }
+
+	// Get Current Animation Frame
+	[[nodiscard]] auto& Frame(void) noexcept { return m_Animations[std::to_underlying(m_AnimationIndex.load())]->Clip[iClip.load()][iFrame.load()]; }
+
+	// Get Current Animation Index
+	[[nodiscard]] const auto AnimIndex(void) const noexcept { return m_AnimationIndex.load(); }
 
 	// Previous Offset
-	SVECTOR2& Speed(void) noexcept { return m_Speed; }
+	[[nodiscard]] auto& Speed(void) noexcept { return m_Speed; }
 
 	// Is health in caution range?
-	bool IsHealthCaution(void) const { return (iHealth <= ((iHealthMax / 3) * 2)); }
+	[[nodiscard]] const auto IsHealthCaution(void) const noexcept { return (iHealth <= ((iHealthMax / 3) * 2)); }
 
 	// Is health in danger range?
-	bool IsHealthDanger(void) const { return (iHealth <= (iHealthMax / 3)); }
+	[[nodiscard]] const auto IsHealthDanger(void) const noexcept { return (iHealth <= (iHealthMax / 3)); }
+
+	// Is health empty?
+	[[nodiscard]] const auto IsHealthEmpty(void) const noexcept { return (iHealth <= iHealthMin); }
+
+	// Set Current Animation Index
+	void SetAnimIndex(AnimationIndex Index) noexcept { m_AnimationIndex.store(Index); }
+
+	// Set Current Animation Clip Index
+	void SetClip(std::size_t iValue)
+	{
+		const auto& m_ClipCount = Animation(AnimIndex())->GetClipCount();
+		iClip.store(min(iValue, m_ClipCount ? m_ClipCount - 1 : 0));
+	}
+
+	// Set Current Animation Frame Index
+	void SetFrame(std::size_t iValue)
+	{
+		const auto& m_FrameCount = Animation(AnimIndex())->GetFrameCount(iClip.load());
+		iFrame.store(min(iValue, m_FrameCount ? m_FrameCount - 1 : 0));
+	}
+
+	// Reset Clip
+	void ResetClip(void)
+	{
+		iClip.store(0);
+		ResetFrame();
+	}
+
+	// Reset Frame
+	void ResetFrame(void)
+	{
+		iFrame.store(0);
+		ResetFrameCounter();
+	}
+
+	// Reset Frame Counter
+	void ResetFrameCounter(std::size_t Value = 0)
+	{
+		m_FrameCounter = Value;
+		m_Speed = { 0, 0, 0 };
+	}
 
 	// Clamp position between -32768 and 32768
 	void ClampPosition(VECTOR2& Pos)
@@ -753,6 +796,10 @@ public:
 	{
 		b_Active.store(false);
 		m_ModelType = ModelType::None;
+		b_IdleTurn.store(false);
+		b_QuickTurn.store(false);
+		m_QuickTurnRotation.store(0);
+		b_WeaponChange = false;
 		ResetClip();
 		CloseModel();
 		CloseWeapon();

@@ -10,6 +10,8 @@
 
 #include <cstdint>
 
+#include <sca/bio3_sca.h>
+
 
 #pragma pack(push, 1)
 

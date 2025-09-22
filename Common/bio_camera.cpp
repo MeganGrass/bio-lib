@@ -21,11 +21,9 @@ void Resident_Evil_Camera::Shutdown(void) noexcept
 
 void Resident_Evil_Camera::Reset(void)
 {
-	m_Stage = 0;
-	m_Room = 0;
-	m_Path.clear();
 	m_Cut = 0;
 	m_CutMax = 0;
+	m_Path.clear();
 	m_FOV = (0x6DD4 >> 7);
 	m_Eye = { -16000, -7200, -16000 };
 	m_At = { 0, 7200, 0 };
@@ -39,7 +37,6 @@ void Resident_Evil_Camera::Reset(void)
 	m_Background.reset(nullptr);
 	m_Sprite.reset(nullptr);
 	Set(m_FOV, m_Eye, m_At);
-	SetEditor(m_EditorFOV, m_EditorEye, m_EditorAt);
 }
 
 void Resident_Evil_Camera::SetMeta(std::filesystem::path Path, std::uintmax_t Stage, std::uintmax_t Room, std::uintmax_t CutMax, Video_Game Game) noexcept
@@ -62,7 +59,7 @@ void Resident_Evil_Camera::SetOrtho(float Width, float Height)
 
 std::uintmax_t Resident_Evil_Camera::SetImage(std::uintmax_t iCut)
 {
-	if (m_CutMax) { m_Cut = std::clamp(iCut, (uintmax_t)0, (uintmax_t)(m_CutMax - 1)); }
+	if (m_CutMax) { m_Cut = std::clamp(iCut, static_cast<uintmax_t>(0), static_cast<uintmax_t>(m_CutMax - 1)); }
 	else { m_Cut = 0; }
 
 	m_TexWidth = 0;
@@ -76,10 +73,14 @@ std::uintmax_t Resident_Evil_Camera::SetImage(std::uintmax_t iCut)
 	Image->Str.hWnd = Str.hWnd;
 
 	std::filesystem::path BackgroundTIM = Str.FormatCStyle(L"%ws\\ROOM%d%02x%02d.tim", m_Path.wstring().c_str(), m_Stage, m_Room, m_Cut);
+	std::filesystem::path BackgroundBMP = Str.FormatCStyle(L"%ws\\ROOM%d%02x%02d.bmp", m_Path.wstring().c_str(), m_Stage, m_Room, m_Cut);
 	std::filesystem::path BackgroundPNG = Str.FormatCStyle(L"%ws\\ROOM%d%02x%02d.png", m_Path.wstring().c_str(), m_Stage, m_Room, m_Cut);
+	std::filesystem::path BackgroundJPG = Str.FormatCStyle(L"%ws\\ROOM%d%02x%02d.jpg", m_Path.wstring().c_str(), m_Stage, m_Room, m_Cut);
 
 	std::filesystem::path SpriteTIM = Str.FormatCStyle(L"%ws\\ROOM_%d%02x_%02d_mask.tim", m_Path.wstring().c_str(), m_Stage, m_Room, m_Cut);
+	std::filesystem::path SpriteBMP = Str.FormatCStyle(L"%ws\\ROOM_%d%02x_%02d_mask.bmp", m_Path.wstring().c_str(), m_Stage, m_Room, m_Cut);
 	std::filesystem::path SpritePNG = Str.FormatCStyle(L"%ws\\ROOM_%d%02x_%02d_mask.png", m_Path.wstring().c_str(), m_Stage, m_Room, m_Cut);
+	std::filesystem::path SpriteJPG = Str.FormatCStyle(L"%ws\\ROOM_%d%02x_%02d_mask.jpg", m_Path.wstring().c_str(), m_Stage, m_Room, m_Cut);
 
 	if (Standard_FileSystem().Exists(BackgroundTIM) && TIM->OpenTIM(BackgroundTIM))
 	{
@@ -93,8 +94,30 @@ std::uintmax_t Resident_Evil_Camera::SetImage(std::uintmax_t iCut)
 		Image->Close();
 	}
 
+	if (Standard_FileSystem().Exists(BackgroundBMP) && Image->OpenBMP(BackgroundBMP))
+	{
+		m_TexWidth = static_cast<float>(Image->GetWidth());
+		m_TexHeight = static_cast<float>(Image->GetHeight());
+#if MSTD_DX9
+		m_Background.reset(Render->CreateTexture(Image));
+#endif
+		Image->Close();
+	}
+
 #ifdef LIB_PNG
 	else if (Standard_FileSystem().Exists(BackgroundPNG) && Image->OpenPNG(BackgroundPNG))
+	{
+		m_TexWidth = static_cast<float>(Image->GetWidth());
+		m_TexHeight = static_cast<float>(Image->GetHeight());
+#if MSTD_DX9
+		m_Background.reset(Render->CreateTexture(Image));
+#endif
+		Image->Close();
+	}
+#endif
+
+#ifdef LIB_JPEG
+	else if (Standard_FileSystem().Exists(BackgroundJPG) && Image->OpenJPEG(BackgroundJPG))
 	{
 		m_TexWidth = static_cast<float>(Image->GetWidth());
 		m_TexHeight = static_cast<float>(Image->GetHeight());
@@ -117,8 +140,30 @@ std::uintmax_t Resident_Evil_Camera::SetImage(std::uintmax_t iCut)
 		Image->Close();
 	}
 
+	if (Standard_FileSystem().Exists(SpriteBMP) && Image->OpenBMP(SpriteBMP))
+	{
+		m_TexSprWidth = static_cast<float>(Image->GetWidth());
+		m_TexSprHeight = static_cast<float>(Image->GetHeight());
+#if MSTD_DX9
+		m_Sprite.reset(Render->CreateTexture(Image, false, 0, 0, true));
+#endif
+		Image->Close();
+	}
+
 #ifdef LIB_PNG
 	else if (Standard_FileSystem().Exists(SpritePNG) && Image->OpenPNG(SpritePNG))
+	{
+		m_TexSprWidth = static_cast<float>(Image->GetWidth());
+		m_TexSprHeight = static_cast<float>(Image->GetHeight());
+#if MSTD_DX9
+		m_Sprite.reset(Render->CreateTexture(Image, false, 0, 0, true));
+#endif
+		Image->Close();
+	}
+#endif
+
+#ifdef LIB_JPEG
+	else if (Standard_FileSystem().Exists(SpriteJPG) && Image->OpenJPEG(SpriteJPG))
 	{
 		m_TexSprWidth = static_cast<float>(Image->GetWidth());
 		m_TexSprHeight = static_cast<float>(Image->GetHeight());
@@ -273,4 +318,34 @@ void Resident_Evil_Camera::Set(std::uint32_t FOV, VECTOR2 Eye, VECTOR2 At)
 	Render->SetView(View);
 	Render->SetProjection(Projection);
 #endif
+}
+
+void Resident_Evil_Camera::GetBillboard(vec3 Position, vec3& Side, vec3& Billboard) const
+{
+	vec3 Eye{};
+	vec3 At{};
+
+	if (b_ViewEditor)
+	{
+		Eye = vec3(GTE->ToFloat(m_EditorEye.x), GTE->ToFloat(m_EditorEye.y), GTE->ToFloat(m_EditorEye.z));
+		At = vec3(GTE->ToFloat(m_EditorAt.x), GTE->ToFloat(m_EditorAt.y), GTE->ToFloat(m_EditorAt.z));
+	}
+	else
+	{
+		Eye = vec3(GTE->ToFloat(m_Eye.x), GTE->ToFloat(m_Eye.y), GTE->ToFloat(m_Eye.z));
+		At = vec3(GTE->ToFloat(m_At.x), GTE->ToFloat(m_At.y), GTE->ToFloat(m_At.z));
+	}
+
+	vec3 Up = vec3(0.0f, 1.0f, 0.0f);
+
+	vec3 ToEye = (Eye - Position).Normalize();
+
+	Side = Up.Cross(ToEye).Normalize();
+
+	if (Side.Length() < 0.001f)
+	{
+		Side = vec3(1.0f, 0.0f, 0.0f);
+	}
+
+	Billboard = ToEye.Cross(Side).Normalize();
 }

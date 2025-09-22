@@ -44,6 +44,7 @@ inline StateType Quick_Reload;
 inline StateType Walk_Backward;
 inline StateType Walk_Backward_Startled;
 inline StateType Walk_Backward_Caution;
+inline StateType Walk_Backward_Danger;
 inline StateType Walk_Forward;
 inline StateType Walk_Forward_Caution;
 inline StateType Walk_Forward_Danger;
@@ -53,25 +54,25 @@ inline StateType Run_Caution;
 inline StateType Run_Danger;
 
 inline StateType Aim_Begin;
-inline StateType Aim;
 inline StateType Aim_Upward_Begin;
-inline StateType Aim_Upward;
 inline StateType Aim_Downward_Begin;
+inline StateType Aim;
+inline StateType Aim_Upward;
 inline StateType Aim_Downward;
 
-inline StateType Fire_Blocked;
-inline StateType Fire;
 inline StateType Fire_Begin;
-inline StateType Fire_Empty;
-inline StateType Fire_End;
-inline StateType Fire_Upward;
 inline StateType Fire_Upward_Begin;
-inline StateType Fire_Upward_Empty;
-inline StateType Fire_Upward_End;
-inline StateType Fire_Downward;
 inline StateType Fire_Downward_Begin;
-inline StateType Fire_Downward_Empty;
+inline StateType Fire_End;
+inline StateType Fire_Upward_End;
 inline StateType Fire_Downward_End;
+inline StateType Fire_Empty;
+inline StateType Fire_Upward_Empty;
+inline StateType Fire_Downward_Empty;
+inline StateType Fire;
+inline StateType Fire_Upward;
+inline StateType Fire_Downward;
+inline StateType Fire_Blocked;
 
 inline StateType Equip;
 

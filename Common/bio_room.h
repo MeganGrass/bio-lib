@@ -16,6 +16,8 @@
 
 #include <rdt/bio3_rdt.h>
 
+#include "bio_effect.h"
+
 
 struct Resident_Evil_Room_Header
 {
@@ -283,7 +285,7 @@ public:
 	std::vector<std::shared_ptr<Resident_Evil_Model>> Item;
 
 	// ESP - Effect Sprites
-	std::shared_ptr<Resident_Evil_2_Effect> Esp;
+	std::shared_ptr<Resident_Evil_Effect> Esp;
 
 	// RBJ - Player/SubPlayer/Enemy Model Animation
 	std::shared_ptr<Resident_Evil_Animation> Rbj;
@@ -301,7 +303,7 @@ public:
 	std::shared_ptr<Sony_PlayStation_Soundbank> Vab1;
 
 	// Editor Flags
-	bool b_EditModel;
+	bool b_EditModel, b_EditEffect;
 
 	// Item/Object Active In Editor?
 	bool b_EditorItem, b_EditorObject;
@@ -312,6 +314,24 @@ public:
 	// Object Model Index Range
 	std::uintmax_t iObject, iObjectMin, iObjectMax;
 
+	// Effect Sprite Index Range
+	std::uintmax_t iEffect, iEffectMin, iEffectMax;
+
+	// Effect Sprite S Sequence Index Range
+	std::uintmax_t iEffectSSeq, iEffectSSeqMin, iEffectSSeqMax;
+
+	// Effect Sprite Group Index Range
+	std::uintmax_t iEffectGp, iEffectGpMin, iEffectGpMax;
+
+	// Effect Sprite M Sequence Index Range
+	std::uintmax_t iEffectMSeq, iEffectMSeqMin, iEffectMSeqMax;
+
+	// Effect Sprite M Sequence ID Index Range
+	std::uintmax_t iEffectMSeqID, iEffectMSeqIDMin, iEffectMSeqIDMax;
+
+	// Effect Texture Palette Index Range
+	std::uintmax_t iEffectClutID, iEffectClutIDMin, iEffectClutIDMax;
+
 	explicit Resident_Evil_Room(void) :
 		m_Header{},
 		Rid(std::make_shared<Resident_Evil_2_RID>()),
@@ -321,7 +341,7 @@ public:
 		Blk(std::make_shared<Resident_Evil_2_BLK>()),
 		Flr(std::make_shared<Resident_Evil_2_FLR>()),
 		Scrl(std::make_shared<Sony_PlayStation_Texture>()),
-		Esp(std::make_shared<Resident_Evil_2_Effect>()),
+		Esp(std::make_shared<Resident_Evil_Effect>()),
 		Rbj(std::make_shared<Resident_Evil_Animation>()),
 		Edt0(std::make_shared<Resident_Evil_2_EDT>()),
 		Edt1(std::make_shared<Resident_Evil_2_EDT>()),
@@ -329,8 +349,15 @@ public:
 		Vab1(std::make_shared<Sony_PlayStation_Soundbank>()),
 		b_EditModel(false),
 		b_EditorItem(false), b_EditorObject(false),
+		b_EditEffect(false),
 		iItem(0), iItemMin(0), iItemMax(0),
-		iObject(0), iObjectMin(0), iObjectMax(0)
+		iObject(0), iObjectMin(0), iObjectMax(0),
+		iEffect(0), iEffectMin(0), iEffectMax(0),
+		iEffectSSeq(0), iEffectSSeqMin(0), iEffectSSeqMax(0),
+		iEffectGp(0), iEffectGpMin(0), iEffectGpMax(0),
+		iEffectMSeq(0), iEffectMSeqMin(0), iEffectMSeqMax(0),
+		iEffectMSeqID(0), iEffectMSeqIDMin(0), iEffectMSeqIDMax(0),
+		iEffectClutID(0), iEffectClutIDMin(0), iEffectClutIDMax(0)
 	{
 		b_Open.store(false);
 		SetGame(Video_Game::Resident_Evil_2);
@@ -345,6 +372,8 @@ public:
 		Resident_Evil_Common::SetGame(Game);
 
 		Rbj->SetGame(Game);
+
+		Esp->m_Game = Game;
 
 		for (auto& Model : Object)
 		{
@@ -452,7 +481,7 @@ public:
 		SetWindow(hWnd);
 		SetGame(m_Game);
 		GTE = _GTE;
-		Render = _Render;
+		Render = Esp->Render = _Render;
 		b_HorzFlip = HorzFlip;
 		b_VertFlip = VertFlip;
 	}

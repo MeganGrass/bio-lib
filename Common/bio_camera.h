@@ -238,4 +238,11 @@ public:
 		Set(FOV, Eye, At);
 	}
 
+	/*
+		Calculate Billboard Vectors
+		- Side is the horizontal vector
+		- Billboard is the vertical vector
+	*/
+	void GetBillboard(vec3 Position, vec3& Side, vec3& Billboard) const;
+
 };
