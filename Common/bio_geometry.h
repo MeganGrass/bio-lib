@@ -173,7 +173,7 @@ public:
 	void Shutdown(void) noexcept;
 
 	// Draw 4-point Rectangle
-	void Draw4p(const std::int16_t Xz[4][2], std::int32_t Y, DWORD Color) const;
+	void Draw4p(const std::int16_t Xz[4][2], std::int32_t Y, DWORD Color, bool Solid = false) const;
 
 	// Draw Box
 	void DrawBox(SHAPEVECTOR Vec, VECTOR2 Rotation, DWORD Color, bool Solid = false) const;
@@ -193,10 +193,13 @@ public:
 	// Collision Detection
 	bool Collision(VECTOR2& Position, const SIZEVECTOR Hitbox, const SHAPEVECTOR Shape, const Shape_Type ShapeType);
 
-	// Camera Switch Detection
-	bool CameraSwitch(VECTOR2& Position, const std::int16_t Xz[4][2]);
+	// Collision 4P Detection
+	bool Collision4P(VECTOR2& Position, const std::int16_t Xz[4][2]);
 
-	// Camera Frustum Detection
-	bool CameraFrustum(VECTOR2& Position, const std::int16_t Xz[4][2]);
+	// Collision Box Detection
+	bool CollisionBox(VECTOR2& Position, const SIZEVECTOR Hitbox, const std::int16_t X, const std::int16_t Z, const std::uint16_t W, const std::uint16_t D);
+
+	// Collision Hitbox Detection
+	bool CollisionHitbox(VECTOR2& Position, const SIZEVECTOR Hitbox0, const VECTOR2& Position1, const SIZEVECTOR Hitbox1);
 
 };

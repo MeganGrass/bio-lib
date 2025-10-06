@@ -18,6 +18,8 @@
 
 #include "bio_effect.h"
 
+#include "bio_script.h"
+
 
 struct Resident_Evil_Room_Header
 {
@@ -153,6 +155,9 @@ private:
 	std::shared_ptr<Standard_DirectX_9> Render;
 
 #endif
+
+	// Room Game Type
+	Video_Game m_RoomGame;
 
 	// Header
 	Resident_Evil_Room_Header m_Header;
@@ -302,6 +307,9 @@ public:
 	// VAB - Sony PlayStation Soundbank
 	std::shared_ptr<Sony_PlayStation_Soundbank> Vab1;
 
+	// Script - In-Game Scripting Engine
+	std::shared_ptr<Resident_Evil_Script> Script;
+
 	// Editor Flags
 	bool b_EditModel, b_EditEffect;
 
@@ -347,6 +355,7 @@ public:
 		Edt1(std::make_shared<Resident_Evil_2_EDT>()),
 		Vab0(std::make_shared<Sony_PlayStation_Soundbank>()),
 		Vab1(std::make_shared<Sony_PlayStation_Soundbank>()),
+		Script(std::make_shared<Resident_Evil_Script>()),
 		b_EditModel(false),
 		b_EditorItem(false), b_EditorObject(false),
 		b_EditEffect(false),
@@ -374,6 +383,8 @@ public:
 		Rbj->SetGame(Game);
 
 		Esp->m_Game = Game;
+
+		Script->SetGame(Game);
 
 		for (auto& Model : Object)
 		{
@@ -490,6 +501,9 @@ public:
 	// Is the room open?
 	[[nodiscard]] const bool IsOpen(void) const noexcept { return b_Open.load(); }
 
+	// Room Game Type
+	[[nodiscard]] const auto Game(void) const noexcept { return std::to_underlying(m_RoomGame); }
+
 	// Header
 	[[nodiscard]] const Resident_Evil_Room_Header& Header(void) const noexcept { return m_Header; }
 
@@ -500,7 +514,7 @@ public:
 	void Close(void);
 
 	// Get camera count
-	const std::uintmax_t GetCameraCount(void) const noexcept { return Header().nCut; }
+	const std::uintmax_t GetCameraCount(void) const noexcept { return m_Header.nCut; }
 
 	// Set Editor
 	void SetEditor(Room_Editor_Type Type);

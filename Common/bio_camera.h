@@ -110,6 +110,9 @@ public:
 	using Resident_Evil_Common::m_Cut;
 	using Resident_Evil_Common::m_CutMax;
 
+	// Frustum
+	std::int16_t m_Frustum[4][2];
+
 	// Prerendered Background View On/Off
 	bool b_ViewBackground;
 
@@ -174,6 +177,7 @@ public:
 		b_HorzFlip(false),
 		b_VertFlip(false),
 		m_Path(),
+		m_Frustum{ { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 } },
 		b_ViewBackground(true),
 		m_TexWidth(0.0f),
 		m_TexHeight(0.0f),

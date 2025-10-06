@@ -5,7 +5,6 @@
 * 
 *	CREDIT:
 *
-*		"CameraSwitch" function:
 *		"Collision" function (original):
 			https://github.com/XProger/OpenResident/blob/main/src/collision.h
 *
@@ -136,7 +135,7 @@ std::shared_ptr<Standard_Matrix> Resident_Evil_Geometry::SetWorldMatrix(const SH
 	return World;
 }
 
-void Resident_Evil_Geometry::Draw4p(const std::int16_t Xz[4][2], std::int32_t Y, DWORD Color) const
+void Resident_Evil_Geometry::Draw4p(const std::int16_t Xz[4][2], std::int32_t Y, DWORD Color, bool Solid) const
 {
 	float YY = GTE->ToFloat(Y);
 
@@ -152,7 +151,7 @@ void Resident_Evil_Geometry::Draw4p(const std::int16_t Xz[4][2], std::int32_t Y,
 
 	World->SetWorld(vec3{ 0.0f, 0.0f, 0.0f }, vec3{ 0.0f, 0.0f, 0.0f });
 
-	DrawShape({ World, false, Shape, Color, false, Indices4p.get(), nullptr});
+	DrawShape({ World, true, Shape, Color, Solid, Indices4p.get(), nullptr});
 }
 
 void Resident_Evil_Geometry::DrawBox(SHAPEVECTOR Vec, VECTOR2 Rotation, DWORD Color, bool Solid) const
@@ -457,6 +456,8 @@ bool Resident_Evil_Geometry::Collision(VECTOR2& Position, const SIZEVECTOR Hitbo
 		if (px + pw < minX || px - pw > maxX || pz + pd < minZ || pz - pd > maxZ) { return false; }
 	}
 
+	if (py > minY) { return false; }
+
 	switch (ShapeType)
 	{
 		case Shape_Type::Rectangle: return rect(minX, minZ, maxX, maxZ, pw, px, pz);
@@ -525,19 +526,103 @@ bool Resident_Evil_Geometry::Collision(VECTOR2& Position, const SIZEVECTOR Hitbo
 	return false;
 }
 
-bool Resident_Evil_Geometry::CameraSwitch(VECTOR2& Position, const std::int16_t Xz[4][2])
+bool Resident_Evil_Geometry::Collision4P(VECTOR2& Position, const std::int16_t Xz[4][2])
 {
-	int32_t px, pz;
+	int32_t pointX = Position.x;
+	int32_t pointZ = Position.z;
 
-	px = Position.x - Xz[0][0];
-	pz = Position.z - Xz[0][1];
-	if ((Xz[1][1] - Xz[0][1]) * px < (Xz[1][0] - Xz[0][0]) * pz) { return false; }
-	if ((Xz[3][0] - Xz[0][0]) * pz < (Xz[3][1] - Xz[0][1]) * px) { return false; }
+	int32_t x0 = Xz[0][0];
+	int32_t z0 = Xz[0][1];
 
-	px = Position.x - Xz[2][0];
-	pz = Position.z - Xz[2][1];
-	if ((Xz[1][0] - Xz[2][0]) * pz < (Xz[1][1] - Xz[2][1]) * px) { return false; }
-	if ((Xz[3][1] - Xz[2][1]) * px < (Xz[3][0] - Xz[2][0]) * pz) { return false; }
+	int32_t v01_x = Xz[1][0] - x0;
+	int32_t v01_z = Xz[1][1] - z0;
+	int32_t v03_x = Xz[3][0] - x0;
+	int32_t v03_z = Xz[3][1] - z0;
+
+	int32_t vp0_x = pointX - x0;
+	int32_t vp0_z = pointZ - z0;
+
+	if (v01_x * vp0_z <= v01_z * vp0_x)
+	{
+		if (v03_x * vp0_z < v03_z * vp0_x)
+		{
+			return false;
+		}
+
+		int32_t v02_x = Xz[2][0] - x0;
+		int32_t v02_z = Xz[2][1] - z0;
+
+		if (((v01_z - v02_z) * (vp0_x - v02_x) <= (v01_x - v02_x) * (vp0_z - v02_z)) && ((v03_x - v02_x) * (vp0_z - v02_z) <= (v03_z - v02_z) * (vp0_x - v02_x)))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool Resident_Evil_Geometry::CollisionBox(VECTOR2& Position, const SIZEVECTOR Hitbox, const std::int16_t X, const std::int16_t Z, const std::uint16_t W, const std::uint16_t D)
+{
+	/*int32_t maxX = X + static_cast<int32_t>(W);
+	int32_t maxZ = Z + static_cast<int32_t>(D);
+
+	return Position.x >= X && Position.x <= maxX && Position.z >= Z && Position.z <= maxZ;*/
+
+
+	int32_t minX = X;
+	int32_t minZ = Z;
+	int32_t maxX = X + static_cast<int32_t>(W);
+	int32_t maxZ = Z + static_cast<int32_t>(D);
+
+	int32_t pw = Hitbox.w;
+	int32_t ph = Hitbox.h;
+	int32_t pd = Hitbox.d * 2;
+
+	int32_t& px = Position.x;
+	int32_t& pz = Position.z;
+
+	if (px < minX - pw) return false;
+	if (px > maxX + pw) return false;
+	if (pz < minZ - pd) return false;
+	if (pz > maxZ + pd) return false;
+
+	return true;
+}
+
+bool Resident_Evil_Geometry::CollisionHitbox(VECTOR2& Position, const SIZEVECTOR Hitbox0, const VECTOR2& Position1, const SIZEVECTOR Hitbox1)
+{
+	// TODO: replace
+
+	int32_t minX0 = Position.x - Hitbox0.w;
+	int32_t maxX0 = Position.x + Hitbox0.w;
+	int32_t minZ0 = Position.z - Hitbox0.d;
+	int32_t maxZ0 = Position.z + Hitbox0.d;
+
+	int32_t minX1 = Position1.x - Hitbox1.w;
+	int32_t maxX1 = Position1.x + Hitbox1.w;
+	int32_t minZ1 = Position1.z - Hitbox1.d;
+	int32_t maxZ1 = Position1.z + Hitbox1.d;
+
+	if (maxX0 < minX1) return false;
+	if (minX0 > maxX1) return false;
+	if (maxZ0 < minZ1) return false;
+	if (minZ0 > maxZ1) return false;
+
+	int32_t overlapX = min(maxX0, maxX1) - max(minX0, minX1) + 1;
+	int32_t overlapZ = min(maxZ0, maxZ1) - max(minZ0, minZ1) + 1;
+
+	if (overlapX <= 0 && overlapZ <= 0) return false;
+
+	if (overlapX <= overlapZ)
+	{
+		if (Position.x < Position1.x) { Position.x -= overlapX; }
+		else { Position.x += overlapX; }
+	}
+	else
+	{
+		if (Position.z < Position1.z) { Position.z -= overlapZ; }
+		else { Position.z += overlapZ; }
+	}
 
 	return true;
 }

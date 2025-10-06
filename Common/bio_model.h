@@ -306,6 +306,11 @@ public:
 		b_DrawShadow(true),
 		b_Bio1Enemy(false),
 		b_IsAlive(true),
+		Sce_flg(0),
+		Sce_free0(0),
+		Sce_free1(0),
+		Sce_free2(0),
+		Sce_free3(0),
 		b_WeaponChange(false),
 		iHealth(200), iHealthMin(0), iHealthMax(200),
 		iObject(0), iObjectMin(0), iObjectMax(0),
@@ -377,7 +382,7 @@ public:
 #endif
 
 	// Player, Weapon, Enemy and Disk IDs
-	std::uint32_t m_PlayerID, m_WeaponID, m_EnemyID, m_DiskID;
+	std::uint32_t m_PlayerID, m_WeaponID, m_EnemyID, m_DiskID, m_ObjectID;
 
 	// Runtime Routine
 	std::function<void()> Routine;
@@ -543,6 +548,13 @@ public:
 	// Is the character alive?
 	bool b_IsAlive;
 
+	// 
+	std::uint16_t Sce_flg;
+	std::int16_t Sce_free0;
+	std::int16_t Sce_free1;
+	std::int16_t Sce_free2;
+	std::int16_t Sce_free3;
+
 	// Health Power
 	std::int32_t iHealth, iHealthMin, iHealthMax;
 
@@ -665,6 +677,37 @@ public:
 
 	// Is health empty?
 	[[nodiscard]] const auto IsHealthEmpty(void) const noexcept { return (iHealth <= iHealthMin); }
+
+	// File ID
+	[[nodiscard]] const uint32_t FileID(void) const noexcept
+	{
+		switch (m_ModelType)
+		{
+		case ModelType::Object:	return m_ObjectID;
+		case ModelType::Player:	return m_PlayerID;
+		case ModelType::SubPlayer: return m_EnemyID;
+		case ModelType::Enemy:	return m_EnemyID;
+		default: return 0;
+		}
+	}
+
+	// Set File ID
+	void SetFileID(uint32_t ID) noexcept
+	{
+		switch (m_ModelType)
+		{
+		case ModelType::Object:	m_ObjectID = ID; break;
+		case ModelType::Player:	m_PlayerID = ID; break;
+		case ModelType::SubPlayer: m_EnemyID = ID; break;
+		case ModelType::Enemy: m_EnemyID = ID; break;
+		}
+	}
+
+	// nFloor
+	[[nodiscard]] const std::uint8_t nFloor(void) const noexcept { return static_cast<uint8_t>(m_Position.y / -1800); }
+
+	// Set nFloor
+	void SetnFloor(std::uint8_t Floor) noexcept { m_Position.y = Floor * -1800; }
 
 	// Set Current Animation Index
 	void SetAnimIndex(AnimationIndex Index) noexcept { m_AnimationIndex.store(Index); }
@@ -791,10 +834,10 @@ public:
 	// Setup room data
 	void SetRoomAnimations(std::shared_ptr<Resident_Evil_Animation>& Rbj);
 
-	// Clear all data
+	// Stop drawing and clear all data
 	void Close(void)
 	{
-		b_Active.store(false);
+		StopDrawing();
 		m_ModelType = ModelType::None;
 		b_IdleTurn.store(false);
 		b_QuickTurn.store(false);

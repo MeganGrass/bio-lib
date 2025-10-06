@@ -36,6 +36,25 @@ void Resident_Evil_2_RVD::Sort(void)
 	}
 }
 
+void Resident_Evil_2_RVD::GetFrustum(std::uintmax_t CurrentCut, std::int16_t(&Frustum)[4][2])
+{
+	for (auto& Element : Data)
+	{
+		if (Element.Fcut == CurrentCut && Element.Tcut == 0)
+		{
+			Frustum[0][0] = Element.Xz[0][0];
+			Frustum[0][1] = Element.Xz[0][1];
+			Frustum[1][0] = Element.Xz[1][0];
+			Frustum[1][1] = Element.Xz[1][1];
+			Frustum[2][0] = Element.Xz[2][0];
+			Frustum[2][1] = Element.Xz[2][1];
+			Frustum[3][0] = Element.Xz[3][0];
+			Frustum[3][1] = Element.Xz[3][1];
+			return;
+		}
+	}
+}
+
 std::uintmax_t Resident_Evil_2_RVD::Open(StdFile& File, std::uintmax_t _Ptr)
 {
 	if (!File.IsOpen() || !File.Open(File.GetPath(), FileAccessMode::Read, true, false))

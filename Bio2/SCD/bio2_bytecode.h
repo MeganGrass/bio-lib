@@ -1,10 +1,7 @@
 /*
 *
 *	Megan Grass
-*	January 01, 2024
-*
-*
-*	TODO: 
+*	May 30, 2024
 *
 */
 
@@ -15,8 +12,29 @@
 
 #include <any>
 
-#include "bio2_bytecode_map.h"
+#include <unordered_map>
 
+#include <string>
+
+#include <deque>
+
+#include <scd/bio2_defines.h>
+
+struct OpcodeVariable
+{
+	std::size_t Offset;
+	bool Signed;
+	std::size_t Size;
+	std::string Name;
+};
+
+struct OpcodeDetails
+{
+	std::string Name;
+	std::vector<OpcodeVariable> Meta;
+};
+
+extern std::unordered_map<std::int8_t, OpcodeDetails> iBytecode;
 
 class Resident_Evil_2_Bytecode {
 public:
@@ -204,7 +222,7 @@ public:
 		UCHAR Nop0;						// 0x01 // always 0x00 (opcode for Nop)
 		SHORT Ofs;						// 0x02 // Relative pointer to the end of the For2 block, beginning immediately after this bytecode
 		UCHAR Nop1;						// 0x04	// always 0x00 (opcode for Nop)
-		UCHAR Lcnt;						// 0x05 // Loop count
+		UCHAR Flag;						// 0x05 // Data beginning at G.SaveData.F_atari
 	};
 
 	// 0x1C	// Break_point
@@ -376,62 +394,67 @@ public:
 
 		// Id	Name		Function
 		// 
-		// 0x00 NOTHING		???
+		// 0x00 NOTHING		Nothing
 		//		DATA0 = variable
 		//		DATA1 = variable
 		//		DATA2 = variable
 		// 
-		// 0x03	NORMAL		???
+		// 0x03	NORMAL		Sce_Normal
 		//		DATA0 = always zero (0)
 		//		DATA1 = always zero (0)
 		//		DATA2 = always zero (0)
 		// 
-		// 0x04	MESSAGE		Message_on
+		// 0x04	MESSAGE		Sce_Message
 		//		DATA0 = Mess_no
 		//		DATA1 = Attr
 		//		DATA2 = Stop_data 
 		// 
-		// 0x05	EVENT		Evt_exec
+		// 0x05	EVENT		Sce_Event
 		//		DATA0 = Task_level
-		//		DATA1 = Evt_no
+		//		DATA1 = Evt_no | 0x18
 		//		DATA2 = always zero (0)
 		// 
-		// 0x06	FLAG_CHG	Set
+		// 0x06	FLAG_CHG	Sce_Flg_chg
 		//		DATA0 = Flag
 		//		DATA1 = Bit
 		//		DATA2 = Operator
 		// 
-		// 0x07	WATER		Mizu_div_set
+		// 0x07	WATER		Sce_Water
 		//		DATA0 = Div_max
-		//		DATA2 = always zero (0)
+		//		DATA1 = always zero (0)
 		//		DATA2 = always zero (0)
 		// 
-		// 0x09	SAVE		???
+		// 0x08	MOVE		Sce_Move
+		//		DATA0 = Pos X
+		//		DATA1 = Pos Y
+		//		DATA2 = Pos Z
+		// 
+		// 0x09	SAVE		Sce_Save
 		//		DATA0 = Numerical ID of Save Area string array
 		//		DATA1 = always zero (0)
 		//		DATA2 = always zero (0)
 		// 
-		// 0x0A	ITEMBOX		???
+		// 0x0A	ITEMBOX		Sce_Itembox
 		//		DATA0 = Numerical ID of MD1 model for Item Box Lid
 		//		DATA1 = Numerical ID of TIM texture for Item Box Lid
 		//		DATA2 = always zero (0)
 		// 
-		// 0x0B	DAMAGE		???
+		// 0x0B	DAMAGE		Sce_Damage
 		//		DATA0 = always zero (0)
 		//		DATA1 = always zero (0)
 		//		DATA2 = always zero (0)
 		// 
-		// 0x0C	STATUS		???
+		// 0x0C	STATUS		Sce_Status
 		//		DATA0 = always zero (0)
 		//		DATA1 = always zero (0)
 		//		DATA2 = always zero (0)
 		// 
-		// 0x0D	HIKIDASHI	???
+		// 0x0D	DRAWER		Sce_Hikidashi
 		//		DATA0 = Key Flag Bit
 		//		DATA1 = Item ID
 		//		DATA2 = Message ID
 		// 
-		// 0x0E	WINDOWS		Windows
+		// 0x0E	COMPUTER	Sce_Windows
 		//		DATA0 = Window_no (0x00 for RPD Main Hall, 0x01 for Umbrella Lab)
 		//		DATA1 = ??? (0x0F if Window_no == 0x00, 0x06 if Window_no == 0x01)
 		//		DATA2 = always zero (0)
@@ -702,7 +725,7 @@ public:
 	// 0x3C	// Cut_auto
 	struct Cut_auto {
 		UCHAR Opcode;					// 0x00	// 0x3C
-		UCHAR OnOff;					// 0x01	// 0 = OFF, 1 = ON
+		UCHAR OnOff;					// 0x01	// 1 = OFF, 0 = ON
 	};
 
 	// 0x3D	// Member_copy
@@ -1623,83 +1646,254 @@ private:
 	class Bytecode
 	{
 	private:
+
 		std::vector<std::uint8_t> m_Bytecode;
+
 	public:
 
 		explicit Bytecode(std::vector<std::uint8_t> _Data) : m_Bytecode(_Data) {}
 
-		std::uint8_t Opcode(void) const { return m_Bytecode[0]; }
+		~Bytecode(void)
+		{
+			m_Bytecode.clear();
+			m_Bytecode.shrink_to_fit();
+		}
 
+		// Opcode Value
+		[[nodiscard]] std::uint8_t Opcode(void) const { return m_Bytecode[0]; }
+
+		// Total Count of Variables in Opcode Instruction (including opcode)
+		[[nodiscard]] const std::size_t Count(void) const
+		{
+			auto it = iBytecode.find(m_Bytecode[0]);
+			if (it != iBytecode.end()) { return it->second.Meta.size(); }
+			return 0;
+		}
+
+		// Opcode Instruction Name
+		[[nodiscard]] const std::string OpcodeName(void) const
+		{
+			auto it = iBytecode.find(m_Bytecode[0]);
+			if (it != iBytecode.end()) { return it->second.Name; }
+			return "unknown opcode";
+		}
+
+		// Opcode Instruction Variable Name
+		[[nodiscard]] const std::string VariableName(const std::size_t iElement) const
+		{
+			auto it = iBytecode.find(m_Bytecode[0]);
+			if (it != iBytecode.end())
+			{
+				const auto& meta = it->second.Meta;
+				if (iElement < meta.size())
+				{
+					auto metaIt = std::next(meta.begin(), iElement);
+					return metaIt->Name;
+				}
+			}
+			return "invalid bytecode variable index";
+		}
+
+		// Is the Opcode Instruction Variable signed?
+		[[nodiscard]] const bool IsSigned(const std::size_t iElement) const
+		{
+			auto it = iBytecode.find(m_Bytecode[0]);
+			if (it != iBytecode.end())
+			{
+				const auto& meta = it->second.Meta;
+				if (iElement < meta.size())
+				{
+					auto metaIt = std::next(meta.begin(), iElement);
+					return metaIt->Signed;
+				}
+			}
+			return false;
+		}
+
+		// Opcode Instruction Variable Data Type Size
+		[[nodiscard]] const std::size_t VariableSize(const std::size_t iElement) const
+		{
+			auto it = iBytecode.find(m_Bytecode[0]);
+			if (it != iBytecode.end())
+			{
+				const auto& meta = it->second.Meta;
+				if (iElement < meta.size())
+				{
+					auto metaIt = std::next(meta.begin(), iElement);
+					return metaIt->Size;
+				}
+			}
+			return 0;
+		}
+
+		// Opcode Instruction Variable Data
 		template <typename _Ty>
-		_Ty* Data(void) { return reinterpret_cast<_Ty*>(m_Bytecode.data()); }
+		[[nodiscard]] _Ty Data(const std::size_t iElement) const
+		{
+			auto it = iBytecode.find(m_Bytecode[0]);
+			if (it != iBytecode.end())
+			{
+				const auto& meta = it->second.Meta;
+				if (iElement < meta.size())
+				{
+					auto metaIt = std::next(meta.begin(), iElement);
+					std::size_t offset = metaIt->Offset;
 
-		std::string VariableName(std::size_t Index) const { return iBytecode[Opcode()].at(Index); }
+					if (metaIt->Size == sizeof(_Ty))
+					{
+						if (metaIt->Signed)
+						{
+							switch (metaIt->Size)
+							{
+							case 1: return static_cast<_Ty>(*reinterpret_cast<const int8_t*>(&m_Bytecode[offset])); break;
+							case 2: return static_cast<_Ty>(*reinterpret_cast<const int16_t*>(&m_Bytecode[offset])); break;
+							case 4: return static_cast<_Ty>(*reinterpret_cast<const int32_t*>(&m_Bytecode[offset])); break;
+							case 8: return static_cast<_Ty>(*reinterpret_cast<const int64_t*>(&m_Bytecode[offset])); break;
+							default: return static_cast<_Ty>(0);
+							}
+						}
+						else
+						{
+							switch (metaIt->Size)
+							{
+							case 1: return static_cast<_Ty>(*reinterpret_cast<const uint8_t*>(&m_Bytecode[offset])); break;
+							case 2: return static_cast<_Ty>(*reinterpret_cast<const uint16_t*>(&m_Bytecode[offset])); break;
+							case 4: return static_cast<_Ty>(*reinterpret_cast<const uint32_t*>(&m_Bytecode[offset])); break;
+							case 8: return static_cast<_Ty>(*reinterpret_cast<const uint64_t*>(&m_Bytecode[offset])); break;
+							default: return static_cast<_Ty>(0);
+							}
+						}
+					}
+				}
+			}
+			return static_cast<_Ty>(0);
+		}
 
-		std::size_t VariableCount(void) const { return iBytecode[Opcode()].size(); }
+		// Opcode Instruction Data
+		//template <typename _Ty>
+		//[[nodiscard]] _Ty* Data(void) { return reinterpret_cast<_Ty*>(m_Bytecode.data()); }
+
+		// Buffer (raw data)
+		[[nodiscard]] const std::vector<std::uint8_t>& Buffer(void) const { return m_Bytecode; }
+
+		// Close
+		void Close(void)
+		{
+			m_Bytecode.clear();
+			m_Bytecode.shrink_to_fit();
+		}
 
 	};
 
 	std::vector<Bytecode> m_Bytecode;
 
-	std::uintmax_t CalcScdSize(StdFile& File, std::uintmax_t Ptr) const;
+	std::vector<std::uint8_t> m_Contiguous;
+
+	[[nodiscard]] const std::size_t BytecodeSize(std::uint8_t Opcode) const noexcept;
+
+	void BuildContiguousData(void)
+	{
+		m_Contiguous.clear();
+		m_Contiguous.shrink_to_fit();
+
+		for (const auto& Instruction : m_Bytecode)
+		{
+			const auto& Buffer = Instruction.Buffer();
+			m_Contiguous.insert(m_Contiguous.end(), Buffer.begin(), Buffer.end());
+		}
+	}
 
 public:
 
-	/*
-		Get bytecode instruction name
-	*/
-	[[nodiscard]] std::string Name(uint8_t Opcode) const noexcept;
+	// Raw contiguous bytecode data
+	[[nodiscard]] const std::vector<std::uint8_t>& Raw(void) const { return m_Contiguous; }
 
-	/*
-		Get bytecode instruction size
-	*/
-	[[nodiscard]] std::size_t Size(uint8_t Opcode) const noexcept;
+	// Total Count of Opcode Instructions
+	[[nodiscard]] const std::size_t Count(void) const noexcept { return m_Bytecode.size(); }
 
-	/*
-		Get opcode of bytecode instruction
-	*/
-	[[nodiscard]] std::uint8_t Opcode(std::size_t iBytecode) const noexcept { return m_Bytecode[iBytecode].Opcode(); }
+	// Total Count of Variables in Opcode Instruction (including opcode)
+	[[nodiscard]] const std::size_t VariableCount(std::size_t iElement) const noexcept
+	{
+		if (iElement >= m_Bytecode.size()) { return 0; }
+		return m_Bytecode[iElement].Count();
+	}
+
+	// Opcode Instruction Name
+	[[nodiscard]] const std::string OpcodeName(const std::size_t iElement) const noexcept
+	{
+		if (iElement >= m_Bytecode.size()) { return "\0"; }
+		return m_Bytecode[iElement].OpcodeName();
+	}
+
+	// Opcode Instruction Variable Name
+	[[nodiscard]] const std::string VariableName(std::size_t iElement, std::size_t iVariable) const noexcept
+	{
+		if (iElement >= m_Bytecode.size() || iVariable >= m_Bytecode[iElement].Count()) { return "\0"; }
+		return m_Bytecode[iElement].VariableName(iVariable);
+	}
+
+	// Is the Opcode Instruction Variable signed?
+	[[nodiscard]] const bool IsSigned(std::size_t iElement, std::size_t iVariable) const noexcept
+	{
+		if (iElement >= m_Bytecode.size() || iVariable >= m_Bytecode[iElement].Count()) { return false; }
+		return m_Bytecode[iElement].IsSigned(iVariable);
+	}
+
+	// Opcode Instruction Variable Data Type Size
+	[[nodiscard]] const std::size_t VariableSize(std::size_t iElement, std::size_t iVariable) const noexcept
+	{
+		if (iElement >= m_Bytecode.size() || iVariable >= m_Bytecode[iElement].Count()) { return 0; }
+		return m_Bytecode[iElement].VariableSize(iVariable);
+	}
+
+	// Opcode Instruction Variable Data
+	template <typename _Ty>
+	[[nodiscard]] _Ty Data(std::size_t iElement, std::size_t iVariable) const
+	{
+		if (iElement >= m_Bytecode.size() || iVariable >= m_Bytecode[iElement].Count()) { return static_cast<_Ty>(0); }
+		return m_Bytecode[iElement].Data<_Ty>(iVariable);
+	}
 
 	/*
 		Data access to bytecode instruction using predefined structure
 		Example: Data<Resident_Evil_2_Bytecode::Sce_em_set>(0)->Opcode = 0x44;
 	*/
-	template <typename _Ty>
-	_Ty* Data(std::size_t iBytecode) { return m_Bytecode[iBytecode].Data<_Ty>(); }
+	//template <typename _Ty>
+	//[[nodiscard]] _Ty* Data(std::size_t iElement) { return m_Bytecode[iElement].Data<_Ty>(); }
 
-	/*
-		Get the amount of bytecode instructions
-	*/
-	[[nodiscard]] std::size_t Count(void) const noexcept { return m_Bytecode.size(); }
+	// Buffer (raw bytecode data)
+	//[[nodiscard]] const std::vector<std::uint8_t>& Buffer(const std::size_t iElement) const
+	//{
+	//	if (iElement >= m_Bytecode.size()) { static const std::vector<std::uint8_t> empty; return empty; }
+	//	return m_Bytecode[iElement].Buffer();
+	//}
 
-	/*
-		Get the amount of variables in bytecode instruction
-	*/
-	[[nodiscard]] std::size_t VariableCount(std::size_t iBytecode) const noexcept { return m_Bytecode[iBytecode].VariableCount(); }
+	// Open
+	const bool Open(std::vector<std::uint8_t> Buffer);
 
-	/*
-		Get the name of a variable in bytecode instruction
-	*/
-	[[nodiscard]] std::string VariableName(std::size_t iBytecode, std::size_t iVariable) const noexcept { return m_Bytecode[iBytecode].VariableName(iVariable); }
+	// Open
+	const bool Open(StdFile& File, std::uintmax_t Ptr);
 
-	/*
-		Open
-	*/
-	bool Open(StdFile& File, std::uintmax_t Ptr);
+	// Open
+	const bool Open(std::filesystem::path _Path)
+	{
+		StdFile m_File{ _Path, FileAccessMode::Read, true, false };
+		return Open(m_File, 0);
+	}
 
-	/*
-		Open
-	*/
-	bool Open(std::filesystem::path _Path);
+	// Disassemble to Text File
+	const bool Disassemble(std::filesystem::path _Path);
 
-	/*
-		Disassemble
-	*/
-	bool Disassemble(std::filesystem::path _Path);
+	// TEMP
+	void NullScheduler(void);
 
-	/*
-		Close
-	*/
+	// Initialize Scheduler
+	void SceSchedulerSet(void);
+
+	// Run Scheduler
+	void SceScheduler(void);
+
+	// Close
 	void Close(void);
 
 };

@@ -203,6 +203,8 @@ public:
 
 	const Resident_Evil_Key KeyState(void) const { return m_KeyState.load(); }
 
+	const void ResetKeyState(void) { return m_KeyState.store(Resident_Evil_Key::NONE); }
+
 	const std::shared_ptr<Resident_Evil_Model>& Model(void) const { return m_Model; }
 
 private:

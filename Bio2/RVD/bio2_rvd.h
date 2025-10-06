@@ -38,105 +38,62 @@ public:
 
 	Standard_String Str;
 
-	/*
-		Construction
-	*/
 	explicit Resident_Evil_2_RVD(void) {}
 
-	/*
-		Destruction
-	*/
 	~Resident_Evil_2_RVD(void) = default;
 
-	/*
-		Copy
-	*/
 	Resident_Evil_2_RVD(const Resident_Evil_2_RVD& v) noexcept : Data(v.Data) {}
 	Resident_Evil_2_RVD& operator = (const Resident_Evil_2_RVD& v) noexcept { return *this = Resident_Evil_2_RVD(v); }
 
-	/*
-		Move
-	*/
 	Resident_Evil_2_RVD(Resident_Evil_2_RVD&& v) noexcept : Data(std::exchange(v.Data, {})) {}
-	Resident_Evil_2_RVD& operator = (Resident_Evil_2_RVD&& v) noexcept
-	{
-		std::swap(Data, v.Data);
-		return *this;
-	}
+	Resident_Evil_2_RVD& operator = (Resident_Evil_2_RVD&& v) noexcept { std::swap(Data, v.Data); return *this; }
 
-	/*
-		Get data
-	*/
+	// Get data
 	std::vector<Resident_Evil_2_RVD_Data>& data(void) { return Data; }
 
-	/*
-		Get data count
-	*/
+	// Get data count
 	std::size_t Count(void) const { return Data.size(); }
 
-	/*
-		Get data element
-	*/
+	// Get data element
 	Resident_Evil_2_RVD_Data* Get(const std::size_t& iElement) { return &Data[iElement]; }
 
-	/*
-		Push back empty element
-	*/
+	// Push back empty element
 	void New(void) { Data.push_back(Resident_Evil_2_RVD_Data()); }
 
-	/*
-		Push back element from buffer
-	*/
+	// Push back element from buffer
 	void Add(Resident_Evil_2_RVD_Data& Input) { Data.push_back(Input); }
 
-	/*
-		Copy element to buffer
-	*/
+	// Copy element to buffer
 	void Copy(std::size_t iEntry, Resident_Evil_2_RVD_Data& Output) { Output = Data[iEntry]; }
 
-	/*
-		Paste element from buffer
-	*/
+	// Paste element from buffer
 	void Paste(std::size_t iEntry, Resident_Evil_2_RVD_Data& Input) { Data[iEntry] = Input; }
 
-	/*
-		Insert element
-	*/
+	// Insert element
 	void Insert(std::size_t iEntry, Resident_Evil_2_RVD_Data& Input) { Data.insert(Data.begin() + iEntry, Input); }
 
-	/*
-		Delete element
-	*/
+	// Delete element
 	void Delete(std::size_t iEntry) { Data.erase(Data.begin() + iEntry); }
 
-	/*
-		Sort
-	*/
+	// Sort
 	void Sort(void);
 
-	/*
-		Open
-	*/
+	// Get Frustum
+	void GetFrustum(std::uintmax_t CurrentCut, std::int16_t(&Frustum)[4][2]);
+
+	// Open
 	std::uintmax_t Open(StdFile& File, std::uintmax_t _Ptr);
 
-	/*
-		Open
-	*/
+	// Open
 	bool Open(std::filesystem::path Path, std::uintmax_t _Ptr = 0);
 
-	/*
-		Save
-	*/
+	// Save
 	std::uintmax_t Save(StdFile& File, std::uintmax_t _Ptr);
 
-	/*
-		Save
-	*/
+	// Save
 	bool Save(std::filesystem::path Path, std::uintmax_t _Ptr);
 
-	/*
-		Close
-	*/
+	// Close
 	void Close(void);
 
 };

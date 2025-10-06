@@ -1145,6 +1145,21 @@ const bool Resident_Evil_Room::ReadSCD(StdFile& File)
 		}
 	}
 
+	if (GameType() & BIO2)
+	{
+		for (auto& SCD : ScdX0)
+		{
+			Script->Open(ScriptType::Init, SCD);
+		}
+
+		for (auto& SCD : Scd0)
+		{
+			Script->Open(ScriptType::Loop, SCD);
+		}
+	}
+
+	Script->Scheduler();
+
 	return true;
 }
 
@@ -2827,6 +2842,8 @@ const bool Resident_Evil_Room::Open(std::filesystem::path Path)
 
 	if (b_Open.load()) { Close(); }
 
+	m_RoomGame = m_Game;
+
 	m_Path = Standard_FileSystem().GetDirectory(Path);
 
 	GetStageRoom(Path.filename().string().c_str());
@@ -2883,6 +2900,8 @@ void Resident_Evil_Room::Close(void)
 	b_Open.store(false);
 
 	ResetEditor();
+
+	Script->Close();
 
 	std::memset(&m_Header, 0, sizeof(Resident_Evil_Room_Header));
 
