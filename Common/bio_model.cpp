@@ -660,7 +660,7 @@ bool Resident_Evil_Model::OpenWeapon(std::filesystem::path Path, std::uintmax_t 
 		IDirect3DTexture9* Temp = Render->BlitTexture(
 			Render->CreateTexture(m_WeaponTexture, 0, Sony_Texture_Transparency::Superblack, 0xFF00FF, true),
 			Render->CreateTexture(m_Texture, 1, Sony_Texture_Transparency::Superblack, 0xFF00FF, true),
-			m_WeaponTexture->GetWidth(), m_WeaponTexture->GetHeight(), 200, 224, false);
+			0, 0, m_WeaponTexture->GetWidth(), m_WeaponTexture->GetHeight(), 200, 224, false);
 
 		if (m_DX9Model)
 		{
@@ -1325,5 +1325,60 @@ void Resident_Evil_Model::AddSpeedXZ(SVECTOR* Speed)
 
 	Position().x += Sv.vx;
 	Position().y += Speed->vy;
+	Position().z += Sv.vz;
+}
+
+void Resident_Evil_Model::AddSpeedXZ_orig(int32_t muki)
+{
+	SVECTOR Sv{};
+	MATRIX M{};
+	SVECTOR SpeedVec{ Speed().x, Speed().y, Speed().z, 0 };
+
+	Sv.vx = 0;
+	Sv.vz = 0;
+	Sv.vy = Rotation().y + muki;
+
+	GTE->RotMatrix(&Sv, &M);
+	GTE->ApplyMatrixSV(&M, &SpeedVec, &Sv);
+
+	Position().x += Sv.vx;
+	Position().z += Sv.vz;
+}
+
+void Resident_Evil_Model::AddSpeedXYZ(int32_t dir_y, int32_t dir_z)
+{
+	SVECTOR Sv{};
+	MATRIX M{};
+	SVECTOR SpeedVec{ Speed().x, Speed().y, Speed().z, 0 };
+
+	Sv.vx = 0;
+	Sv.vy = Rotation().y + dir_y;
+	Sv.vz = Rotation().z + dir_z;
+
+	GTE->RotMatrix(&Sv, &M);
+	GTE->ApplyMatrixSV(&M, &SpeedVec, &Sv);
+
+	Position().x += Sv.vx;
+	Position().y += Sv.vy;
+	Position().z += Sv.vz;
+}
+
+void Resident_Evil_Model::AddSpeedXYZsuper(int32_t dir_y, int32_t dir_z)
+{
+	SVECTOR Sv{};
+	MATRIX M{};
+	MATRIX Tm{};
+	SVECTOR SpeedVec{ Speed().x, Speed().y, Speed().z, 0 };
+
+	Sv.vx = 0;
+	Sv.vy = Rotation().y + dir_y;
+	Sv.vz = Rotation().z + dir_z;
+
+	GTE->RotMatrix(&Sv, &M);
+	GTE->CompM((MATRIX*)&m_SuperMatrix, &M, &Tm);
+	GTE->ApplyMatrixSV(&Tm, &SpeedVec, &Sv);
+
+	Position().x += Sv.vx;
+	Position().y += Sv.vy;
 	Position().z += Sv.vz;
 }

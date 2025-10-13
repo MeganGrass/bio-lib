@@ -84,6 +84,18 @@ void Resident_Evil_Geometry::Shutdown(void) noexcept
 	b_HitSlopeX = false;
 	b_HitSlopeZ = false;
 	m_Slope = {};
+
+	Indices4p.reset();
+	IndicesBoxWire.reset();
+	IndicesBox.reset();
+	IndicesPlaneWire.reset();
+	IndicesPlane.reset();
+	IndicesTriWire.reset();
+	IndicesTri.reset();
+	IndicesRhombusWire.reset();
+	IndicesRhombus.reset();
+	IndicesCylinderWire.reset();
+	IndicesCylinder.reset();
 }
 
 void Resident_Evil_Geometry::DrawShape(const DRAWSHAPE& Shape) const
@@ -526,7 +538,7 @@ bool Resident_Evil_Geometry::Collision(VECTOR2& Position, const SIZEVECTOR Hitbo
 	return false;
 }
 
-bool Resident_Evil_Geometry::Collision4P(VECTOR2& Position, const std::int16_t Xz[4][2])
+bool Resident_Evil_Geometry::Collision4P(VECTOR2 Position, const std::int16_t Xz[4][2])
 {
 	int32_t pointX = Position.x;
 	int32_t pointZ = Position.z;
@@ -561,32 +573,16 @@ bool Resident_Evil_Geometry::Collision4P(VECTOR2& Position, const std::int16_t X
 	return false;
 }
 
-bool Resident_Evil_Geometry::CollisionBox(VECTOR2& Position, const SIZEVECTOR Hitbox, const std::int16_t X, const std::int16_t Z, const std::uint16_t W, const std::uint16_t D)
+bool Resident_Evil_Geometry::CollisionBox(VECTOR2 Position, const std::int16_t X, const std::int16_t Z, const std::uint16_t W, const std::uint16_t D)
 {
-	/*int32_t maxX = X + static_cast<int32_t>(W);
-	int32_t maxZ = Z + static_cast<int32_t>(D);
+	bool b_Hit = false;
 
-	return Position.x >= X && Position.x <= maxX && Position.z >= Z && Position.z <= maxZ;*/
+	if (((uint32_t)(Position.x - (int32_t)X) <= (uint32_t)W) && (b_Hit = false, (uint32_t)(Position.z - (int32_t)Z) <= (uint32_t)D))
+	{
+		return true;
+	}
 
-
-	int32_t minX = X;
-	int32_t minZ = Z;
-	int32_t maxX = X + static_cast<int32_t>(W);
-	int32_t maxZ = Z + static_cast<int32_t>(D);
-
-	int32_t pw = Hitbox.w;
-	int32_t ph = Hitbox.h;
-	int32_t pd = Hitbox.d * 2;
-
-	int32_t& px = Position.x;
-	int32_t& pz = Position.z;
-
-	if (px < minX - pw) return false;
-	if (px > maxX + pw) return false;
-	if (pz < minZ - pd) return false;
-	if (pz > maxZ + pd) return false;
-
-	return true;
+	return false;
 }
 
 bool Resident_Evil_Geometry::CollisionHitbox(VECTOR2& Position, const SIZEVECTOR Hitbox0, const VECTOR2& Position1, const SIZEVECTOR Hitbox1)

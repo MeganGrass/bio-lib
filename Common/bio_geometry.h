@@ -194,10 +194,10 @@ public:
 	bool Collision(VECTOR2& Position, const SIZEVECTOR Hitbox, const SHAPEVECTOR Shape, const Shape_Type ShapeType);
 
 	// Collision 4P Detection
-	bool Collision4P(VECTOR2& Position, const std::int16_t Xz[4][2]);
+	bool Collision4P(VECTOR2 Position, const std::int16_t Xz[4][2]);
 
 	// Collision Box Detection
-	bool CollisionBox(VECTOR2& Position, const SIZEVECTOR Hitbox, const std::int16_t X, const std::int16_t Z, const std::uint16_t W, const std::uint16_t D);
+	bool CollisionBox(VECTOR2 Position, const std::int16_t X, const std::int16_t Z, const std::uint16_t W, const std::uint16_t D);
 
 	// Collision Hitbox Detection
 	bool CollisionHitbox(VECTOR2& Position, const SIZEVECTOR Hitbox0, const VECTOR2& Position1, const SIZEVECTOR Hitbox1);

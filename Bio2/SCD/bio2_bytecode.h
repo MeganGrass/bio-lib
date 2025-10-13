@@ -440,8 +440,8 @@ public:
 		//		DATA2 = always zero (0)
 		// 
 		// 0x0B	DAMAGE		Sce_Damage
-		//		DATA0 = always zero (0)
-		//		DATA1 = always zero (0)
+		//		DATA0 = Routine_1
+		//		DATA1 = Health Count to subtract from Player
 		//		DATA2 = always zero (0)
 		// 
 		// 0x0C	STATUS		Sce_Status

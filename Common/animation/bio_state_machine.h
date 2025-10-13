@@ -78,13 +78,17 @@ public:
 
 	bool b_IdleTurn;
 	bool b_QuickTurn;
+	bool b_Inspect;
 	bool b_Reloading;
 	bool b_AimBegin;
 	bool b_Aiming;
 	bool b_Firing;
 	bool b_FireBegin;
 	bool b_FireEnd;
+	bool b_Damage;
 	bool b_Alive;
+
+	bool b_Sleep;
 
 	using StateAction = std::function<void()>;
 
@@ -96,13 +100,17 @@ public:
 		m_KeyState.store(Resident_Evil_Key::NONE);
 		b_IdleTurn = false;
 		b_QuickTurn = false;
+		b_Inspect = false;
 		b_Reloading = false;
 		b_AimBegin = false;
 		b_Aiming = false;
 		b_Firing = false;
 		b_FireBegin = false;
 		b_FireEnd = false;
+		b_Damage = false;
 		b_Alive = false;
+
+		b_Sleep = false;
 	}
 
 	void Add(StateType iState, StateAction OnEnter, StateAction OnUpdate, StateAction OnExit)
@@ -112,6 +120,8 @@ public:
 
 	void Set(StateType iState)
 	{
+		//if (b_Sleep) { return; }
+
 		if (m_CurrentState != iState)
 		{
 			if (m_CurrentState != StateType{})
@@ -128,12 +138,14 @@ public:
 
 			b_IdleTurn = (m_CurrentState.GetName() == "Idle_Turn");
 			b_QuickTurn = (m_CurrentState.GetName() == "Quick_Turn");
+			b_Inspect = (m_CurrentState.GetName() == "Inspect_Kneel");
 			b_Reloading = (m_CurrentState.GetName() == "Reload" || m_CurrentState.GetName() == "Quick_Reload");
 			b_AimBegin = (m_CurrentState.GetName() == "Aim_Begin" || m_CurrentState.GetName() == "Aim_Upward_Begin" || m_CurrentState.GetName() == "Aim_Downward_Begin");
 			b_Aiming = (m_CurrentState.GetName() == "Aim" || m_CurrentState.GetName() == "Aim_Upward" || m_CurrentState.GetName() == "Aim_Downward");
 			b_Firing = (m_CurrentState.GetName() == "Fire" || m_CurrentState.GetName() == "Fire_Upward" || m_CurrentState.GetName() == "Fire_Downward");
 			b_FireBegin = (m_CurrentState.GetName() == "Fire_Begin" || m_CurrentState.GetName() == "Fire_Upward_Begin" || m_CurrentState.GetName() == "Fire_Downward_Begin");
 			b_FireEnd = (m_CurrentState.GetName() == "Fire_End" || m_CurrentState.GetName() == "Fire_Upward_End" || m_CurrentState.GetName() == "Fire_Downward_End");
+			b_Damage = (m_CurrentState.GetName() == "Damage_Front_Minor" || m_CurrentState.GetName() == "Damage_Back" || m_CurrentState.GetName() == "Damage_Front");
 			b_Alive = (m_CurrentState.GetName() != "Death");
 
 			if (m_State.find(m_CurrentState) != m_State.end())
@@ -162,7 +174,13 @@ public:
 
 	void Update(Resident_Evil_Key iKeyState)
 	{
+		using KeyUT = std::underlying_type_t<Resident_Evil_Key>;
+		const KeyUT Current = static_cast<KeyUT>(iKeyState);
+		const KeyUT Previous = static_cast<KeyUT>(m_KeyState.load());
+		const Resident_Evil_Key Trigger = static_cast<Resident_Evil_Key>(static_cast<KeyUT>(Current & ~Previous));
+
 		m_KeyState.store(iKeyState);
+		m_KeyStateTrigger.store(Trigger);
 
 		if (m_State.find(m_CurrentState) != m_State.end())
 		{
@@ -195,6 +213,7 @@ public:
 		Set(StateType{});
 		m_State.clear();
 		m_KeyState.store(Resident_Evil_Key::NONE);
+		m_KeyStateTrigger.store(Resident_Evil_Key::NONE);
 	}
 
 	const StateType& Prior(void) const { return m_PriorState; }
@@ -203,7 +222,7 @@ public:
 
 	const Resident_Evil_Key KeyState(void) const { return m_KeyState.load(); }
 
-	const void ResetKeyState(void) { return m_KeyState.store(Resident_Evil_Key::NONE); }
+	const Resident_Evil_Key KeyStateTrigger(void) { return m_KeyStateTrigger.exchange(Resident_Evil_Key::NONE); }
 
 	const std::shared_ptr<Resident_Evil_Model>& Model(void) const { return m_Model; }
 
@@ -225,4 +244,6 @@ private:
 	std::unordered_map<StateKey, StateProc> m_State;
 
 	std::atomic<Resident_Evil_Key> m_KeyState{ Resident_Evil_Key::NONE };
+
+	std::atomic<Resident_Evil_Key> m_KeyStateTrigger{ Resident_Evil_Key::NONE };
 };

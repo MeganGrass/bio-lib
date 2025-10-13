@@ -162,8 +162,14 @@ private:
 	// Animation Index ID
 	std::atomic<AnimationIndex> m_AnimationIndex;
 
+	// Controller Input / AI state machine
+	std::unique_ptr<StateMachineType> m_State;
+
 	// Matrix
 	std::shared_ptr<Standard_Matrix> World;
+
+	// Sony PlayStation (1994) GTE Matrix
+	MATRIX2 m_SuperMatrix;
 
 	// Transformation
 	VECTOR2 m_Position, m_Rotation, m_Scale, m_EditorPosition, m_EditorRotation, m_EditorScale;
@@ -311,6 +317,8 @@ public:
 		Sce_free1(0),
 		Sce_free2(0),
 		Sce_free3(0),
+		At_sce_no(0),
+		Water(0),
 		b_WeaponChange(false),
 		iHealth(200), iHealthMin(0), iHealthMax(200),
 		iObject(0), iObjectMin(0), iObjectMax(0),
@@ -319,6 +327,8 @@ public:
 	{
 		Routine = [&]() {};
 		Controller = [&]() {};
+
+		MATRIX2_SET_IDENTITY(&m_SuperMatrix);
 
 		m_AnimationIndex.store(NORMAL);
 		iClip.store(0);
@@ -549,11 +559,20 @@ public:
 	bool b_IsAlive;
 
 	// 
+	std::uint8_t Routine_0;
+	std::uint8_t Routine_1;
+	std::uint8_t Routine_2;
+	std::uint8_t Routine_3;
+	std::int16_t Dest_x;
+	std::int16_t Dest_z;
+	std::uint8_t Set_flg_no;
 	std::uint16_t Sce_flg;
 	std::int16_t Sce_free0;
 	std::int16_t Sce_free1;
 	std::int16_t Sce_free2;
 	std::int16_t Sce_free3;
+	std::uint8_t At_sce_no;
+	std::int16_t Water;
 
 	// Health Power
 	std::int32_t iHealth, iHealthMin, iHealthMax;
@@ -666,6 +685,9 @@ public:
 	// Get Current Animation Index
 	[[nodiscard]] const auto AnimIndex(void) const noexcept { return m_AnimationIndex.load(); }
 
+	// Controller Input / AI state machine
+	[[nodiscard]] auto& State(void) noexcept { return m_State; }
+
 	// Previous Offset
 	[[nodiscard]] auto& Speed(void) noexcept { return m_Speed; }
 
@@ -700,6 +722,27 @@ public:
 		case ModelType::Player:	m_PlayerID = ID; break;
 		case ModelType::SubPlayer: m_EnemyID = ID; break;
 		case ModelType::Enemy: m_EnemyID = ID; break;
+		}
+	}
+
+	// Weapon File ID
+	[[nodiscard]] const uint32_t WeaponFileID(void) const noexcept
+	{
+		switch (m_ModelType)
+		{
+		case ModelType::Player:	return m_WeaponID;
+		case ModelType::SubPlayer: return m_WeaponID;
+		default: return 0;
+		}
+	}
+
+	// Set Weapon File ID
+	void SetWeaponFileID(uint32_t ID) noexcept
+	{
+		switch (m_ModelType)
+		{
+		case ModelType::Player:	m_WeaponID = ID; break;
+		case ModelType::SubPlayer: m_WeaponID = ID; break;
 		}
 	}
 
@@ -865,7 +908,7 @@ public:
 
 		Controller = [&]() {};
 
-		StopDrawing();
+		//StopDrawing();
 
 		Close();
 	}
@@ -884,5 +927,11 @@ public:
 
 	// Translate model position with keyframe data
 	void AddSpeedXZ(SVECTOR* Speed);
+
+	void AddSpeedXZ_orig(int32_t muki);
+
+	void AddSpeedXYZ(int32_t dir_y, int32_t dir_z);
+
+	void AddSpeedXYZsuper(int32_t dir_y, int32_t dir_z);
 
 };

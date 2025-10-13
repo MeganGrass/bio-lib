@@ -17,6 +17,10 @@ void Resident_Evil_Camera::Shutdown(void) noexcept
 	b_DrawLine = false;
 	b_DrawSwitch = false;
 	b_ViewEditor = false;
+
+	m_Background.reset();
+	m_Sprite.reset();
+	m_BackgroundVert.reset();
 }
 
 void Resident_Evil_Camera::Reset(void)
@@ -289,16 +293,9 @@ void Resident_Evil_Camera::Set(std::uint32_t FOV, VECTOR2 Eye, VECTOR2 At)
 
 	PROJECTION Proj(FOV);
 
-	// TODO: Fix me for 3D Layout
-	float z_Depth = -0.5f;
-	if (b_ViewEditor)
-	{
-		z_Depth = -0.1f;
-	}
-
     Projection->m00 = Proj.ScaleX;	Projection->m01 = 0.0f;			Projection->m02 = 0.0f;			Projection->m03 = 0.0f;
 	Projection->m10 = 0.0f;			Projection->m11 = Proj.ScaleY;	Projection->m12 = 0.0f;			Projection->m13 = 0.0f;
-	Projection->m20 = Proj.OffsetX;	Projection->m21 = Proj.OffsetY;	Projection->m22 = Proj.OffsetZ;	Projection->m23 = z_Depth;
+	Projection->m20 = Proj.OffsetX;	Projection->m21 = Proj.OffsetY;	Projection->m22 = Proj.OffsetZ;	Projection->m23 = -0.1f;
 	Projection->m30 = 0.0f;			Projection->m31 = 0.0f;			Projection->m32 = Proj.ScaleZ;	Projection->m33 = 0.0f;
 
 	if (b_HorzFlip)
